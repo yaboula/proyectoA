@@ -1,0 +1,2 @@
+# Frappe framework is provided by the bench environment.
+# Add any extra Python dependencies here.

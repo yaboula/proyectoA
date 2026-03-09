@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERPNext | Analisis Funcional por Bloques</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --bg-strong: #e8dcc6;
+      --panel: rgba(255, 252, 246, 0.84);
+      --panel-strong: #fffaf2;
+      --text: #1f2933;
+      --muted: #52606d;
+      --accent: #0b6e4f;
+      --accent-2: #d96c06;
+      --line: rgba(31, 41, 51, 0.1);
+      --shadow: 0 20px 60px rgba(58, 44, 24, 0.12);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --sidebar-width: 310px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(217, 108, 6, 0.14), transparent 28%),
+        radial-gradient(circle at top right, rgba(11, 110, 79, 0.12), transparent 32%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      background: rgba(22, 33, 43, 0.96);
+      color: #f8f4ec;
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      overflow-y: auto;
+    }
+
+    .brand {
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .brand-kicker,
+    .section-kicker {
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+
+    .brand-kicker {
+      color: #d4b483;
+    }
+
+    .brand h1,
+    .hero h2,
+    .section-title,
+    .role-card h3,
+    .block-divider h2 {
+      font-family: "Space Grotesk", sans-serif;
+      margin: 0;
+    }
+
+    .brand h1 {
+      margin-top: 10px;
+      font-size: 1.55rem;
+      line-height: 1.15;
+    }
+
+    .brand p {
+      margin: 12px 0 0;
+      color: rgba(248, 244, 236, 0.72);
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+
+    .nav-group {
+      margin-bottom: 22px;
+    }
+
+    .nav-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(248, 244, 236, 0.56);
+      margin-bottom: 10px;
+    }
+
+    .sidebar nav a {
+      display: block;
+      color: #f8f4ec;
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      transition: background-color 0.22s ease, transform 0.22s ease;
+      line-height: 1.4;
+    }
+
+    .sidebar nav a:hover,
+    .sidebar nav a:focus-visible {
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateX(3px);
+      outline: none;
+    }
+
+    .sidebar-note {
+      margin-top: 24px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(248, 244, 236, 0.72);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .content {
+      padding: 32px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(255, 250, 242, 0.95), rgba(232, 220, 198, 0.92));
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 30px;
+      padding: 34px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -40px;
+      top: -40px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(11, 110, 79, 0.18), transparent 70%);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: start;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero h2 {
+      font-size: clamp(2rem, 4vw, 3.35rem);
+      line-height: 0.98;
+      margin-top: 10px;
+      max-width: 11ch;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 1.04rem;
+      line-height: 1.75;
+      max-width: 70ch;
+    }
+
+    .hero-stats {
+      display: grid;
+      gap: 14px;
+    }
+
+    .stat-card,
+    .summary-card,
+    .role-card,
+    .diagram-card,
+    .closing-card {
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card {
+      padding: 18px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 8px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .summary-grid,
+    .roles-grid,
+    .diagram-grid {
+      display: grid;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .block-divider {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: center;
+      margin: 38px 0 24px;
+      padding: 24px 26px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(11, 110, 79, 0.1), rgba(217, 108, 6, 0.08));
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .block-divider h2 {
+      font-size: clamp(1.8rem, 3vw, 2.7rem);
+      margin-top: 8px;
+    }
+
+    .block-divider p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+      max-width: 72ch;
+    }
+
+    .block-divider-meta {
+      display: grid;
+      gap: 12px;
+    }
+
+    .block-divider-meta .stat-card {
+      background: rgba(255, 250, 242, 0.88);
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .summary-card,
+    .closing-card {
+      padding: 22px;
+    }
+
+    .summary-card h3,
+    .diagram-card h3,
+    .closing-card h3 {
+      margin: 0 0 10px;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.05rem;
+    }
+
+    .summary-card p,
+    .diagram-card p,
+    .closing-card p {
+      margin: 0;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .section-header {
+      margin: 34px 0 18px;
+    }
+
+    .section-kicker {
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-size: clamp(1.6rem, 2.2vw, 2.3rem);
+      margin-bottom: 8px;
+    }
+
+    .section-intro {
+      margin: 0;
+      max-width: 72ch;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    .roles-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .role-card {
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .role-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.26), transparent 40%);
+      pointer-events: none;
+    }
+
+    .role-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      background: rgba(11, 110, 79, 0.12);
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .role-card h3 {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+    }
+
+    .role-subtitle {
+      margin: 0 0 18px;
+      color: var(--accent-2);
+      font-weight: 600;
+    }
+
+    .label {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .label-native {
+      background: rgba(11, 110, 79, 0.12);
+      color: var(--accent);
+    }
+
+    .label-gap {
+      background: rgba(217, 108, 6, 0.12);
+      color: var(--accent-2);
+    }
+
+    .role-card p {
+      margin: 0 0 16px;
+      line-height: 1.75;
+      color: var(--muted);
+    }
+
+    .role-card strong {
+      color: var(--text);
+    }
+
+    .role-points {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .diagram-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .diagram-card {
+      padding: 22px;
+    }
+
+    .diagram-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .diagram-text {
+      min-width: 0;
+    }
+
+    .diagram-actions {
+      flex-shrink: 0;
+    }
+
+    .diagram-button {
+      border: 1px solid rgba(11, 110, 79, 0.22);
+      background: rgba(11, 110, 79, 0.08);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .diagram-button:hover,
+    .diagram-button:focus-visible {
+      background: rgba(11, 110, 79, 0.14);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .diagram-surface {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, #fffdf9 0%, #f6efe3 100%);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      overflow: auto;
+    }
+
+    .mermaid {
+      margin-top: 0;
+      min-width: 1040px;
+    }
+
+    .mermaid svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .diagram-hint {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .diagram-modal {
+      width: min(96vw, 1500px);
+      max-height: 92vh;
+      padding: 0;
+      border: none;
+      border-radius: 24px;
+      background: #fffaf2;
+      box-shadow: 0 30px 100px rgba(16, 24, 40, 0.35);
+      overflow: hidden;
+    }
+
+    .diagram-modal::backdrop {
+      background: rgba(15, 23, 42, 0.68);
+      backdrop-filter: blur(4px);
+    }
+
+    .diagram-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px;
+      border-bottom: 1px solid rgba(31, 41, 51, 0.08);
+      background: #fffdf8;
+    }
+
+    .diagram-modal-head h3 {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.2rem;
+    }
+
+    .diagram-modal-close {
+      border: 1px solid rgba(31, 41, 51, 0.12);
+      background: white;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .diagram-modal-body {
+      padding: 20px;
+      overflow: auto;
+      max-height: calc(92vh - 78px);
+      background: linear-gradient(180deg, #fffdf9 0%, #f6efe3 100%);
+    }
+
+    .diagram-modal-body .mermaid,
+    .diagram-modal-body svg {
+      min-width: 1320px;
+    }
+
+    .closing-card {
+      margin-bottom: 32px;
+    }
+
+    .tag-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .tag {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(31, 41, 51, 0.06);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    @media (max-width: 1180px) {
+      .summary-grid,
+      .roles-grid,
+      .diagram-grid,
+      .hero-grid,
+      .block-divider {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .hero,
+      .summary-card,
+      .role-card,
+      .diagram-card,
+      .closing-card {
+        border-radius: 22px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero,
+      .summary-card,
+      .role-card,
+      .diagram-card,
+      .closing-card,
+      .stat-card {
+        padding: 18px;
+      }
+
+      .content {
+        padding: 14px;
+      }
+
+      .hero h2 {
+        max-width: none;
+      }
+
+      .diagram-head,
+      .diagram-modal-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .mermaid {
+        min-width: 760px;
+      }
+
+      .diagram-modal-body .mermaid,
+      .diagram-modal-body svg {
+        min-width: 980px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-kicker">Documentacion Tecnica</div>
+        <h1>ERPNext por Perfil de Usuario</h1>
+        <p>Bloques 1, 2 y 3 del analisis funcional para un ecosistema con operaciones de pinturas, limpieza, ventas B2B, finanzas y planta.</p>
+      </div>
+
+      <nav aria-label="Indice lateral">
+        <div class="nav-group">
+          <div class="nav-title">Vision General</div>
+          <a href="#resumen">Resumen Ejecutivo</a>
+          <a href="#mapa">Mapa del Bloque 1</a>
+          <a href="#bloque-2">Bloque 2</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Bloque 1</div>
+          <a href="#gerente">1. Gerente</a>
+          <a href="#quimico">2. Quimico / Produccion</a>
+          <a href="#comercial">3. Comercial B2B</a>
+          <a href="#contable">4. Contable y Financiero</a>
+          <a href="#operario">5. Operario de Planta</a>
+          <a href="#diagramas">Diagramas Bloque 1</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Bloque 2</div>
+          <a href="#bloque-2">Bloque 2</a>
+          <a href="#b2-almacenes">1. Almacenes Logicos</a>
+          <a href="#b2-batching">2. Trazabilidad de Lotes</a>
+          <a href="#b2-uom">3. Conversion de Unidades</a>
+          <a href="#b2-landed">4. Costes en Destino</a>
+          <a href="#b2-riesgos">Parte 2: Riesgos</a>
+          <a href="#b2-recepcion">1. Pantalla de Recepcion</a>
+          <a href="#b2-cuarentena">2. Cuarentena y Calidad</a>
+          <a href="#b2-etiquetado">3. Etiquetado Fisico</a>
+          <a href="#b2-inventario">4. Inventario Ciego</a>
+          <a href="#diagramas-bloque-2">Diagramas Bloque 2</a>
+          <a href="#cierre-bloque-2">Cierre Bloque 2</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Bloque 3</div>
+          <a href="#bloque-3">Bloque 3</a>
+          <a href="#bloque-3-bom">1. Formulas y Mermas (BOM)</a>
+          <a href="#bloque-3-workorders">2. Planificacion (Work Orders)</a>
+          <a href="#bloque-3-wip">3. Almacen de Transito (WIP)</a>
+          <a href="#bloque-3-backflush">4. Consumo Teorico vs. Real</a>
+          <a href="#bloque-3-kiosco">Parte 2: El Kiosco</a>
+          <a href="#kiosco-auth">1. Autenticacion sin Teclado</a>
+          <a href="#kiosco-tareas">2. Pantalla de Tareas</a>
+          <a href="#kiosco-pokayoke">3. Poka-Yoke Quimico</a>
+          <a href="#kiosco-ajustes">4. Ajustes sobre la Marcha</a>
+          <a href="#kiosco-hardware">5. Hardware y Entorno</a>
+          <a href="#diagramas-bloque-3">Diagramas Bloque 3</a>
+          <a href="#cierre-bloque-3">Cierre Bloque 3</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Bloque 4</div>
+          <a href="#bloque-4">Bloque 4</a>
+          <a href="#b4-trazabilidad">1. Arbol Genealogico del Lote</a>
+          <a href="#b4-inspecciones">2. Inspecciones de Calidad</a>
+          <a href="#b4-hacks">3. Hacks para el Quimico</a>
+          <a href="#b4-coa">4. Certificados de Analisis</a>
+          <a href="#diagramas-bloque-4">Diagramas Bloque 4</a>
+          <a href="#cierre-bloque-4">Cierre Bloque 4</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Bloque 5</div>
+          <a href="#bloque-5">Bloque 5</a>
+          <a href="#b5-pricing">1. Motor de Precios</a>
+          <a href="#b5-pedidos">2. Toma de Pedidos Movil</a>
+          <a href="#b5-credito">3. Limites de Credito</a>
+          <a href="#b5-stock">4. Stock en Tiempo Real</a>
+          <a href="#b5-expedicion">Parte 2: Expedicion</a>
+          <a href="#b5-fefo">1. Seleccion FEFO Auto</a>
+          <a href="#b5-picking">2. Kiosco de Picking</a>
+          <a href="#b5-albaran">3. Bon de Livraison</a>
+          <a href="#b5-pod">4. Prueba de Entrega</a>
+          <a href="#diagramas-bloque-5">Diagramas Bloque 5</a>
+          <a href="#cierre-bloque-5">Cierre Bloque 5</a>
+        </div>
+      </nav>
+
+      <div class="sidebar-note">
+        Este bloque separa con claridad lo que ERPNext resuelve de forma nativa y lo que exigira configuracion, personalizacion ligera o una fase posterior de producto.
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="hero" id="resumen">
+        <div class="hero-grid">
+          <div>
+            <div class="section-kicker">Bloque 1</div>
+            <h2>Analisis de ERPNext por Perfil de Usuario</h2>
+            <p>El objetivo de este bloque es mapear el ecosistema real de usuarios dentro de la operacion. No todos usan ERPNext del mismo modo ni esperan el mismo nivel de detalle. La clave es distinguir entre la capacidad nativa del sistema y las zonas donde sera necesario hacer ingenieria inversa, parametrizacion o una capa de experiencia adicional.</p>
+          </div>
+          <div class="hero-stats" aria-label="Metricas del bloque">
+            <article class="stat-card">
+              <span class="stat-label">Perfiles Analizados</span>
+              <strong class="stat-value">5</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Fortalezas Nativas</span>
+              <strong class="stat-value">Dashboards, BOM, Precios, Contabilidad</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Retos Clave</span>
+              <strong class="stat-value">Localizacion, QC, UX movil y kiosco</strong>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="mapa-title">
+        <div class="section-header" id="mapa">
+          <div class="section-kicker">Mapa del Bloque</div>
+          <h2 class="section-title" id="mapa-title">Lectura estrategica</h2>
+          <p class="section-intro">La implementacion no debe tratarse como un ERP generico. Cada perfil empuja una necesidad distinta: visibilidad ejecutiva, control de formulaciones, velocidad comercial, cumplimiento fiscal y simplicidad operativa en planta.</p>
+        </div>
+
+        <div class="summary-grid">
+          <article class="summary-card">
+            <h3>Nucleo estandar</h3>
+            <p>ERPNext cubre con solidez reporting, listas de materiales, reglas comerciales, control de credito y contabilidad de doble partida entre empresas y centros de costo.</p>
+          </article>
+          <article class="summary-card">
+            <h3>Personalizacion ligera</h3>
+            <p>Los mayores huecos no exigen un desarrollo pesado inicial. Custom DocTypes, Auto Email Reports y formatos de impresion adaptados cubren gran parte del terreno.</p>
+          </article>
+          <article class="summary-card">
+            <h3>Fase 2 probable</h3>
+            <p>La experiencia movil del comercial y una interfaz tipo kiosco para planta se perfilan como extensiones de alto impacto para adopcion real.</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="perfiles-title">
+        <div class="section-header">
+          <div class="section-kicker">Perfiles Operativos</div>
+          <h2 class="section-title" id="perfiles-title">Desglose por rol</h2>
+          <p class="section-intro">Cada ficha resume dos capas: lo que el ERP entrega de forma nativa y el reto concreto que debemos resolver para que el sistema encaje con la operacion real.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="gerente">
+            <div class="role-index">1</div>
+            <h3>El Gerente</h3>
+            <p class="role-subtitle">Vision y control</p>
+            <div class="label label-native">Lo que resuelve ERPNext</div>
+            <p>Los <strong>Dashboards</strong> permiten construir indicadores en tiempo real para comparar la rentabilidad de <strong>Empresa Pinturas</strong> y <strong>Empresa Limpieza</strong>, tanto por separado como de forma consolidada.</p>
+            <div class="label label-gap">Reto / Ingenieria inversa</div>
+            <p>El gerente no quiere entrar a buscar datos. La informacion debe llegar sola. Habra que configurar <strong>Auto Email Reports</strong> diarios o semanales para enviar ventas, caja e inventario cada manana al movil.</p>
+            <ul class="role-points">
+              <li>Prioridad: reporting automatico y accionable.</li>
+              <li>Valor inmediato: menor dependencia del equipo para pedir cifras.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="quimico">
+            <div class="role-index">2</div>
+            <h3>El Quimico / Jefe de Produccion</h3>
+            <p class="role-subtitle">El cerebro tecnico</p>
+            <div class="label label-native">Lo que resuelve ERPNext</div>
+            <p>Las <strong>BOM</strong> y el sistema de <strong>costing</strong> recalculan el coste de fabricacion cuando cambian materias primas como la resina. Tambien permiten contemplar mermas esperadas.</p>
+            <div class="label label-gap">Reto / Ingenieria inversa</div>
+            <p>El control de versiones de formulas y los <strong>parametros de calidad</strong> no pueden quedarse en algo generico. Habra que modelar <strong>Custom DocTypes</strong> para capturar viscosidad, pH, densidad y aprobar lotes con criterio tecnico.</p>
+            <ul class="role-points">
+              <li>Prioridad: trazabilidad de formula y calidad por lote.</li>
+              <li>Valor inmediato: evitar aprobaciones ambiguas y perdida de conocimiento tecnico.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="comercial">
+            <div class="role-index">3</div>
+            <h3>El Comercial B2B</h3>
+            <p class="role-subtitle">El motor de ingresos</p>
+            <div class="label label-native">Lo que resuelve ERPNext</div>
+            <p>ERPNext maneja <strong>listas de precios complejas</strong> y reglas automaticas por cliente o canal, como <strong>Tarifa Drogueria A</strong> o <strong>Tarifa Distribuidor Mayorista</strong>. Tambien controla <strong>limites de credito</strong>, algo critico cuando el mercado opera con pagos a plazo o cheques postdatados.</p>
+            <div class="label label-gap">Reto / Ingenieria inversa</div>
+            <p>La app movil nativa puede resultar tosca para un comercial en ruta. En una fase 2 convendra construir una <strong>vista web rapida</strong>, adaptada al movil, para registrar pedidos en tres clics.</p>
+            <ul class="role-points">
+              <li>Prioridad: velocidad comercial sin romper reglas financieras.</li>
+              <li>Valor inmediato: menos errores de tarifa y menor riesgo de venta a clientes sobreexpuestos.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="contable">
+            <div class="role-index">4</div>
+            <h3>El Contable y Financiero</h3>
+            <p class="role-subtitle">La boveda</p>
+            <div class="label label-native">Lo que resuelve ERPNext</div>
+            <p>El motor contable de doble partida separa con rigor las dos empresas, sus centros de costo y la operacion en <strong>multi-divisa</strong> para compras en euros y ventas locales en dirhams.</p>
+            <div class="label label-gap">Reto / Ingenieria inversa</div>
+            <p>La <strong>localizacion fiscal marroqui</strong> no viene cerrada de fabrica. Habra que cargar el <strong>Plan Comptable Marocain</strong>, ajustar impuestos y adaptar los formatos documentales para TVA, ICE, patente y demas exigencias normativas.</p>
+            <ul class="role-points">
+              <li>Prioridad: cumplimiento local sin sacrificar estructura financiera.</li>
+              <li>Valor inmediato: base contable lista para operar y auditar.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="operario">
+            <div class="role-index">5</div>
+            <h3>El Operario de Planta</h3>
+            <p class="role-subtitle">La ejecucion</p>
+            <div class="label label-native">Lo que resuelve ERPNext</div>
+            <p>ERPNext contiene la logica de stock, lotes, ordenes de trabajo y reportes de produccion, pero la interfaz estandar no esta pensada para un operario que necesita rapidez y cero friccion.</p>
+            <div class="label label-gap">Reto / Ingenieria inversa</div>
+            <p>La estrategia correcta es <strong>ocultarle el ERP</strong> y exponer solo una capa minima mediante la <strong>API de Frappe</strong>: botones grandes, modo kiosco y tareas concretas para consumir lotes y reportar produccion.</p>
+            <ul class="role-points">
+              <li>Prioridad: interfaz extrema de baja complejidad.</li>
+              <li>Valor inmediato: adopcion real en planta y menos errores de captura.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="diagramas-title" id="diagramas">
+        <div class="section-header">
+          <div class="section-kicker">Mermaid</div>
+          <h2 class="section-title" id="diagramas-title">Diagramas del Bloque 1</h2>
+          <p class="section-intro">Estos esquemas convierten el analisis narrativo en una vista operativa para alinear direccion, consultoria funcional y fases de construccion.</p>
+        </div>
+
+        <div class="diagram-grid">
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Mapa de perfiles y nivel de ajuste</h3>
+                <p>Resume que partes quedan cubiertas por ERPNext estandar y donde tendremos que intervenir con configuracion o extensiones.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+graph TD
+    A[ERPNext en operacion] --> B[Gerente]
+    A --> C[Quimico / Produccion]
+    A --> D[Comercial B2B]
+    A --> E[Contable y Financiero]
+    A --> F[Operario de Planta]
+
+    B --> B1[Dashboards nativos]
+    B --> B2[Auto Email Reports]
+
+    C --> C1[BOM y Costing]
+    C --> C2[Custom DocTypes QC]
+
+    D --> D1[Tarifas y credito]
+    D --> D2[Vista movil rapida Fase 2]
+
+    E --> E1[Doble partida y multimoneda]
+    E --> E2[PCM + formatos fiscales Marruecos]
+
+    F --> F1[Stock y ordenes de trabajo]
+    F --> F2[Interfaz kiosco via API Frappe]
+              </pre>
+            </div>
+            <p class="diagram-hint">El diagrama usa todo el ancho disponible. Si aun necesitas mas detalle, abre la vista ampliada.</p>
+          </article>
+
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Flujo desde operacion hasta control ejecutivo</h3>
+                <p>Muestra como la captura operativa termina convirtiendose en informacion ejecutiva y control financiero.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart LR
+    O[Operario reporta produccion] --> P[ERPNext actualiza lotes y stock]
+    P --> Q[Produccion y calidad validan formula]
+    Q --> R[Comercial genera pedido con tarifa y limite de credito]
+    R --> S[Contabilidad registra impacto financiero y fiscal]
+    S --> T[Dashboards consolidados]
+    T --> U[Gerente recibe reporte automatico]
+              </pre>
+            </div>
+            <p class="diagram-hint">La vista ampliada mantiene el SVG a escala grande para revisar nodos y relaciones con mas comodidad.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="closing-card" id="siguientes-pasos" aria-labelledby="cierre-title">
+        <h3 id="cierre-title">Conclusiones operativas del Bloque 1</h3>
+        <p>La lectura correcta no es “si ERPNext sirve o no”, sino <strong>para quien sirve de forma nativa y para quien necesita una capa de adaptacion</strong>. El mayor valor inicial esta en desplegar estandar donde el producto ya es fuerte y reservar el desarrollo a los puntos que impactan adopcion real o cumplimiento legal.</p>
+        <div class="tag-row" aria-label="Temas clave del bloque">
+          <span class="tag">Dashboards ejecutivos</span>
+          <span class="tag">Calidad y formulacion</span>
+          <span class="tag">Tarifas B2B</span>
+          <span class="tag">Fiscalidad marroqui</span>
+          <span class="tag">Kiosco de planta</span>
+        </div>
+      </section>
+
+      <section class="block-divider" id="bloque-2" aria-labelledby="bloque-2-title">
+        <div>
+          <div class="section-kicker">Bloque 2</div>
+          <h2 id="bloque-2-title">Inventario y Aprovisionamiento</h2>
+          <p>Controlar cada gramo, dirham y lote de materia prima que entra por la puerta de la fabrica, desde el proveedor hasta que esta listo para usarse en la mezcladora. No basta con registrar stock: hay que modelar estados de calidad, trazabilidad por lote, conversiones quimicas y coste real puesto en Marruecos.</p>
+        </div>
+        <div class="block-divider-meta" aria-label="Resumen del bloque 2">
+          <article class="stat-card">
+            <span class="stat-label">Eje del bloque</span>
+            <strong class="stat-value">Almacenes logicos, Batching FEFO, UoM y Landed Cost</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Mayor riesgo</span>
+            <strong class="stat-value">UX de planta: si el operario vuelve al papel, el ERP muere</strong>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 2 · Parte 1: Capacidades Nativas ──────────────────────── -->
+
+      <section aria-labelledby="b2-parte1-title" id="b2-parte1">
+        <div class="section-header">
+          <div class="section-kicker">Bloque 2 · Parte 1</div>
+          <h2 class="section-title" id="b2-parte1-title">Capacidades nativas de inventario y aprovisionamiento</h2>
+          <p class="section-intro">En quimica no basta con un almacen fisico. ERPNext nos permite crear una estructura de arbol de almacenes logicos que el contable y el quimico amaran. Ademas, el motor de lotes, las conversiones de unidades y el coste en destino resuelven los problemas mas duros de la operacion.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="b2-almacenes">
+            <div class="role-index">1</div>
+            <h3>Estructura de Almacenes Logicos (Multi-Warehouse)</h3>
+            <p class="role-subtitle">Arbol de almacenes orientado a quimica</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Podemos crear una estructura separada para la <strong>Division Pinturas</strong> y la <strong>Division Limpieza</strong>. Dentro de cada una configuraremos:</p>
+            <ul class="role-points">
+              <li><strong>Almacen de Recepcion / Cuarentena:</strong> donde el camion descarga. El material queda bloqueado financiera y operativamente hasta que el Quimico le haga el test de calidad.</li>
+              <li><strong>Almacen de Materia Prima (Aprobada):</strong> solo de aqui se puede consumir para fabricar.</li>
+              <li><strong>Almacen de Producto Terminado:</strong> lo que esta listo para vender.</li>
+            </ul>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>El Jefe de Produccion sabe exactamente que material es seguro usar y el Contable sabe el valor exacto del inventario <strong>inmovilizado en cuarentena</strong> vs. el <strong>disponible</strong>. Separa estado fisico, operativo y financiero del stock sin mezclar universos contables.</p>
+          </article>
+
+          <article class="role-card" id="b2-batching">
+            <div class="role-index">2</div>
+            <h3>El Santo Grial Quimico: Trazabilidad de Lotes (Batching)</h3>
+            <p class="role-subtitle">El corazon del sistema</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>ERPNext tiene un motor de lotes (<strong>Batch</strong>) nativo brutal. Cuando Compras recibe un pedido de resina o perfume, el sistema puede <strong>obligar</strong> (configurando un simple check) a que el operario introduzca el <strong>lote del proveedor</strong>, genere un <strong>lote interno</strong> y registre una <strong>fecha de caducidad</strong>.</p>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>ERPNext aplica automaticamente la regla <strong>FEFO</strong> (First Expire, First Out — Primero en Caducar, Primero en Salir). Cuando el operario vaya a fabricar pintura, el sistema le sugerira o exigira usar el lote de resina que caduca antes, <strong>reduciendo mermas economicas</strong> y reforzando la trazabilidad hacia produccion.</p>
+            <ul class="role-points">
+              <li>Clave para resinas, perfumes y cualquier insumo sensible.</li>
+              <li>Base tecnica para auditoria, retiros y control de consumo.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b2-uom">
+            <div class="role-index">3</div>
+            <h3>Conversion de Unidades de Medida (UoM) Avanzada</h3>
+            <p class="role-subtitle">La quimica es un infierno de conversiones</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Factores de conversion integrados a nivel de articulo. Le dices al sistema: <strong>1 Bidon de Resina X = 200 Litros = 215 Kilos</strong> (por la densidad). El de Compras negocia en "Bidones", el Mozo de Almacen cuenta "Litros" y el Quimico formula en "Gramos".</p>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>El proveedor te factura 10 bidones. El contable paga 10 bidones. Pero en el almacen entran <strong>2150 Kilos</strong>. Todo el mundo ve el dato en el formato que su cerebro (y su trabajo) necesita, <strong>sin calculadoras externas</strong> que generen errores humanos.</p>
+            <ul class="role-points">
+              <li>Evita descuadres entre compras, stock y formulacion.</li>
+              <li>Permite que la densidad entre en juego sin romper el ERP.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b2-landed">
+            <div class="role-index">4</div>
+            <h3>El "Arma Secreta" Contable: Costes en Destino</h3>
+            <p class="role-subtitle">Landed Cost Voucher</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>En Marruecos, muchas materias primas quimicas se importan de Europa o Asia. El coste no es solo lo que pagas al proveedor: hay que sumar <strong>aduanas (Douane)</strong>, transporte interno, aranceles y seguros. ERPNext tiene un documento especifico llamado <strong>Landed Cost Voucher</strong> que distribuye ese gasto extra matematicamente (por peso o por valor) sobre el lote recibido.</p>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>El coste real de tu materia prima en el sistema sera <strong>exacto</strong>. Cuando el Gerente vea el coste de fabricar 1 litro de pintura, estara viendo el coste real (incluyendo lo que costo traer el quimico a Marruecos), lo que le permite poner un <strong>precio de venta B2B sin perder dinero a ciegas</strong>.</p>
+            <ul class="role-points">
+              <li>Evita margenes falsos basados en costes incompletos.</li>
+              <li>Conecta aprovisionamiento internacional con pricing B2B real.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 2 · Parte 2: Riesgos y Soluciones ─────────────────────── -->
+
+      <section aria-labelledby="b2-riesgos-title" id="b2-riesgos">
+        <div class="section-header">
+          <div class="section-kicker">Bloque 2 · Parte 2</div>
+          <h2 class="section-title" id="b2-riesgos-title">Los riesgos reales y nuestras soluciones</h2>
+          <p class="section-intro">La potencia nativa de ERPNext no elimina el problema principal: la experiencia real de planta. Si copiamos la interfaz estandar a una tablet en el almacen, el usuario volvera al papel. Aqui estan los puntos donde hace falta ingenieria inversa, automatizacion y una capa de producto.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="b2-recepcion">
+            <div class="role-index">1</div>
+            <h3>La Pantalla de Recepcion</h3>
+            <p class="role-subtitle">El enemigo del "Cero Papel"</p>
+            <div class="label label-gap">Problema real</div>
+            <p>Cuando llega un camion con 50 bidones de quimicos, ERPNext espera que alguien abra un <strong>Purchase Receipt</strong>. Esa pantalla tiene 6 pestanas, decenas de columnas (impuestos, centros de costo, almacenes objetivo) y botones pequenos. Un mozo con guantes sucios, en una tablet barata, bajo el sol o con prisa, se va a frustrar y <strong>volvera al papel</strong>.</p>
+            <div class="label label-native">Nuestra solucion (Frontend)</div>
+            <p>Vamos a ignorar la pantalla nativa para la planta. Desarrollaremos una <strong>PWA en Vue.js ultraligera</strong> conectada por API. Un boton gigante dice <strong>"Llegada de Camion"</strong>. Le pide el numero de pedido (o lo escanea), le muestra la lista de lo que debe llegar, el teclea "Recibi 50" y le da a "Confirmar". Por detras, la app envia el JSON a la API de ERPNext y <strong>crea el documento complejo automaticamente</strong>.</p>
+            <ul class="role-points">
+              <li>Interfaz de planta reducida a una sola tarea.</li>
+              <li>ERPNext sigue siendo el backend, no la pantalla del operario.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b2-cuarentena">
+            <div class="role-index">2</div>
+            <h3>El Flujo de Cuarentena y Calidad</h3>
+            <p class="role-subtitle">Demasiados clics para laboratorio</p>
+            <div class="label label-gap">Problema real</div>
+            <p>En quimica, lo que llega debe inspeccionarse. El flujo nativo es: 1) Hacer el Recibo → 2) Crear Inspeccion de Calidad → 3) Aprobarla → 4) Crear movimiento de stock manual para pasar de Cuarentena a Almacen Disponible. <strong>Son 4 pasos en pantallas distintas.</strong> El jefe de laboratorio no tiene tiempo para eso.</p>
+            <div class="label label-native">Nuestra solucion (Automatizacion Frappe)</div>
+            <p>Usaremos el motor de <strong>Workflows</strong> y <strong>Server Scripts (Python)</strong> de Frappe. Cuando el Quimico abra su tablet y marque la inspeccion como <strong>"APROBADA"</strong>, un script en el servidor generara el movimiento de stock (<strong>Stock Entry</strong>) de forma invisible y automatica. Le ahorramos el <strong>75% del trabajo administrativo</strong>.</p>
+            <ul class="role-points">
+              <li>Reduce radicalmente el trabajo manual del quimico.</li>
+              <li>Refuerza el control sin castigar con burocracia.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b2-etiquetado">
+            <div class="role-index">3</div>
+            <h3>El Cuello de Botella Fisico: Etiquetado</h3>
+            <p class="role-subtitle">La trazabilidad fracasa si el bidon no se entera</p>
+            <div class="label label-gap">Problema real</div>
+            <p>ERPNext genera numeros de lote internamente (ej. <strong>LOTE-RES-2026-001</strong>), pero si el operario tiene que escribirlo a rotulador en el bidon, habra errores de lectura ("0" por "O") y la <strong>trazabilidad fisica-digital se rompera</strong>.</p>
+            <div class="label label-native">Nuestra solucion (Hardware + Jinja)</div>
+            <p>ERPNext tiene un motor de impresion basado en HTML/CSS (<strong>Jinja</strong>). Disenaremos un <strong>Print Format</strong> especifico del tamano de una etiqueta termica (ej. 10x10 cm). Al recibir la mercancia, el sistema disparara automaticamente la impresion a una <strong>impresora termica tipo Zebra</strong> en la zona de descarga. La etiqueta llevara:</p>
+            <ul class="role-points">
+              <li>Nombre del quimico (en frances/arabe).</li>
+              <li>Fecha de caducidad en formato grande y visible.</li>
+              <li>Un <strong>Codigo QR gigante</strong>: la clave para el Bloque 3 (Produccion).</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b2-inventario">
+            <div class="role-index">4</div>
+            <h3>Control de Inventario Ciego</h3>
+            <p class="role-subtitle">Inventario fisico sin volver al siglo XX</p>
+            <div class="label label-gap">Problema real</div>
+            <p>A final de mes, hay que contar si lo que dice el sistema que hay realmente esta ahi. ERPNext tiene el <strong>Stock Reconciliation</strong>, pero hacer el conteo bajando un Excel, rellenandolo y subiendolo es <strong>volver al papel con formato digital</strong>.</p>
+            <div class="label label-native">Nuestra solucion (Kiosco QR)</div>
+            <p>Como los bidones ya tendran nuestro <strong>Codigo QR</strong>, el operario usara la camara de su movil o una <strong>pistola PDA barata</strong> con nuestra interfaz Kiosco. Solo tendra que ir por el almacen haciendo <strong>"Bip, Bip, Bip"</strong>. El sistema comparara el conteo fisico con el teorico <strong>en tiempo real</strong>.</p>
+            <ul class="role-points">
+              <li>Reduce cierres lentos y errores de transcripcion.</li>
+              <li>Convierte el recuento en un flujo de escaneo, no de papeleo.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 2 · Diagramas ────────────────────────────────────────── -->
+
+      <section aria-labelledby="diagramas-bloque-2-title" id="diagramas-bloque-2">
+        <div class="section-header">
+          <div class="section-kicker">Mermaid</div>
+          <h2 class="section-title" id="diagramas-bloque-2-title">Diagramas del Bloque 2</h2>
+          <p class="section-intro">Estos diagramas convierten el inventario y aprovisionamiento en flujos visibles: la arquitectura de almacenes, el recorrido completo desde camion hasta mezcladora, y la cadena de conversion de unidades.</p>
+        </div>
+
+        <div class="diagram-grid">
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Arquitectura logica de almacenes por division</h3>
+                <p>Muestra la separacion entre Pinturas y Limpieza, con los tres estados de almacen (cuarentena, aprobado, terminado) y su impacto financiero.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart TD
+    subgraph PINTURAS["Division Pinturas"]
+        P1[Recepcion / Cuarentena] --> P2[Materia Prima Aprobada]
+        P2 --> P3[Planta de Mezclas WIP]
+        P3 --> P4[Producto Terminado]
+    end
+
+    subgraph LIMPIEZA["Division Limpieza"]
+        L1[Recepcion / Cuarentena] --> L2[Materia Prima Aprobada]
+        L2 --> L3[Planta de Mezclas WIP]
+        L3 --> L4[Producto Terminado]
+    end
+
+    P1 --> FIN1[Inventario inmovilizado - Contable]
+    P2 --> FIN2[Inventario disponible - Produccion]
+    L1 --> FIN1
+    L2 --> FIN2
+    P4 --> FIN3[Stock vendible - Comercial B2B]
+    L4 --> FIN3
+              </pre>
+            </div>
+            <p class="diagram-hint">La estructura logica separa no solo ubicaciones, sino estados financieros y operativos del inventario por division.</p>
+          </article>
+
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Flujo completo: del camion a la mezcladora</h3>
+                <p>El recorrido desde que llega el proveedor hasta que la materia prima esta lista para produccion, con automatizacion de calidad, etiquetado y coste en destino.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart LR
+    A[Camion llega a fabrica] --> B["PWA: Llegada de Camion"]
+    B --> C[ERPNext crea Purchase Receipt via API]
+    C --> D[Material en Cuarentena]
+    C --> E[Impresion auto etiqueta QR Zebra]
+    C --> F[Landed Cost Voucher]
+    D --> G[Quimico inspecciona en tablet]
+    G -->|Aprobada| H[Server Script: Stock Entry auto]
+    G -->|Rechazada| I[Devolucion al proveedor]
+    H --> J[Almacen Materia Prima Aprobada]
+    J --> K[Batch interno + FEFO activo]
+    F --> L[Coste real inflado en inventario]
+    K --> M[Listo para Bloque 3: Produccion]
+              </pre>
+            </div>
+            <p class="diagram-hint">PWA ligera, automatizacion Frappe, batching FEFO, etiquetado QR y coste en destino trabajando en una sola cadena.</p>
+          </article>
+
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Cadena de conversion de unidades (UoM)</h3>
+                <p>Como el mismo articulo se ve en unidades distintas segun el rol: Compras negocia bidones, Almacen cuenta litros, Produccion formula en gramos.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart LR
+    subgraph COMPRAS["Compras"]
+        C1["Proveedor factura: 10 Bidones"]
+    end
+    subgraph ALMACEN["Almacen"]
+        A1["Recibe: 2000 Litros"]
+    end
+    subgraph PRODUCCION["Produccion"]
+        P1["Formula: 2.150.000 Gramos"]
+    end
+    subgraph CONTABILIDAD["Contabilidad"]
+        F1["Paga: 10 Bidones x precio unitario"]
+    end
+
+    C1 -->|1 Bidon = 200L| A1
+    A1 -->|1L = 1.075 Kg| P1
+    C1 -->|Factura en bidones| F1
+    A1 -->|Stock en litros| F1
+              </pre>
+            </div>
+            <p class="diagram-hint">Los factores de conversion integrados en ERPNext eliminan las calculadoras externas y los errores humanos entre departamentos.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="closing-card" id="cierre-bloque-2" aria-labelledby="cierre-bloque-2-title">
+        <h3 id="cierre-bloque-2-title">Conclusiones operativas del Bloque 2</h3>
+        <p>ERPNext ya tiene el esqueleto correcto para una operacion quimica: almacenes logicos por division, lotes con FEFO, conversiones de unidades y landed cost. <strong>El riesgo no esta en la capacidad del backend, sino en la friccion del usuario de planta.</strong> Si le das a un mozo de almacen la pantalla nativa de Purchase Receipt, volvera al papel. La arquitectura ganadora combina <strong>ERPNext como motor transaccional</strong> con <strong>interfaces ligeras (PWA), automatizaciones invisibles (Server Scripts) y etiquetado fisico (QR + Zebra)</strong> donde el proceso fisico lo exige.</p>
+        <div class="tag-row" aria-label="Temas clave del bloque 2">
+          <span class="tag">Almacenes logicos</span>
+          <span class="tag">Batch y FEFO</span>
+          <span class="tag">UoM quimica</span>
+          <span class="tag">Landed Cost</span>
+          <span class="tag">PWA recepcion</span>
+          <span class="tag">Cuarentena auto</span>
+          <span class="tag">Etiquetas QR Zebra</span>
+          <span class="tag">Inventario por escaneo</span>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- BLOQUE 3 — PRODUCCION Y PLANTA                                    -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="block-divider" id="bloque-3" aria-labelledby="bloque-3-title">
+        <div>
+          <div class="section-kicker">Bloque 3</div>
+          <h2 id="bloque-3-title">Produccion y Planta</h2>
+          <p>Transformar materia prima en producto terminado controlando los costes al milimetro y manteniendo la trazabilidad del lote exacto que se uso. Aqui se cruza la linea entre el ERP de oficina y la realidad cruda de la fabrica.</p>
+        </div>
+        <div class="block-divider-meta" aria-label="Resumen del bloque 3">
+          <article class="stat-card">
+            <span class="stat-label">Eje del bloque</span>
+            <strong class="stat-value">BOM, Work Orders, WIP, Backflush y Kiosco MES</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Mayor ventaja</span>
+            <strong class="stat-value">Control de coste real por lote y adopcion en planta</strong>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 3 · Parte 1: El Motor Nativo ─────────────────────────── -->
+
+      <section aria-labelledby="bloque-3-parte1-title" id="bloque-3-parte1">
+        <div class="section-header">
+          <div class="section-kicker">Bloque 3 · Parte 1</div>
+          <h2 class="section-title" id="bloque-3-parte1-title">El Motor Nativo de Produccion</h2>
+          <p class="section-intro">En la industria manufacturera clasica, una BOM es una lista de piezas. En nuestro caso es una receta. ERPNext ya trae un modulo de fabricacion extremadamente detallado. El reto es configurarlo para una quimica donde importa la merma, la version de la formula y el coste real del lote.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="bloque-3-bom">
+            <div class="role-index">1</div>
+            <h3>Formulas Quimicas y Mermas (BOM)</h3>
+            <p class="role-subtitle">Bill of Materials = Receta</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Un modulo de BOM extremadamente detallado. Se puede crear una receta para <strong>"1000 Litros de Pintura Blanca V1"</strong> indicando que lleva 400L de agua, 300Kg de resina, 50Kg de titanio, etc. El sistema calcula costes automaticamente cuando cambian precios de materias primas.</p>
+            <div class="label label-gap">Ventaja tactica (quimica)</div>
+            <p>ERPNext permite manejar <strong>porcentajes de merma (Scrap)</strong> a nivel de cada ingrediente. Si siempre se evapora un 2% del solvente durante la mezcla, el sistema calculara ese coste como parte del producto final y exigira un 2% extra del almacen. Ademas, maneja <strong>versiones de la misma BOM</strong>: si cambias la formulacion por falta de un quimico, mantienes el historico.</p>
+            <ul class="role-points">
+              <li>Mermas por ingrediente integradas en el costeo.</li>
+              <li>Versionado de formulas con trazabilidad historica.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="bloque-3-workorders">
+            <div class="role-index">2</div>
+            <h3>Planificacion de Produccion (Work Orders)</h3>
+            <p class="role-subtitle">Ordenes de trabajo = El plan del jefe de planta</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>El jefe de planta crea una <strong>Work Order</strong> y dice: "Hoy hay que fabricar 5000 Litros de Liquido Limpiasuelos". Automaticamente el sistema multiplica la BOM (receta) base por 5000 y le dice exactamente cuantos kilos de cada quimico y cuantos envases vacios necesita.</p>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>Si no hay suficiente perfume en el almacen para esos 5000 litros, el sistema <strong>lanza una alerta en rojo y no te deja empezar a fabricar</strong>, evitando dejar un lote a medias (y arruinandolo). Esto convierte el ERP en un guardia de seguridad del inventario.</p>
+            <ul class="role-points">
+              <li>Explosion automatica de BOM por cantidad solicitada.</li>
+              <li>Bloqueo preventivo por falta de material.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="bloque-3-wip">
+            <div class="role-index">3</div>
+            <h3>Almacen de Transito (WIP)</h3>
+            <p class="role-subtitle">Work in Progress — vital para dos empresas</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Cuando empieza la produccion, ERPNext obliga a hacer un <strong>Material Transfer for Manufacture</strong>. Es decir, mueve virtualmente la materia prima desde el "Almacen Principal" a un almacen temporal llamado <strong>"Planta de Mezclas (WIP)"</strong>.</p>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>Si la resina esta en el almacen WIP, significa que esta dentro de la mezcladora. El comercial B2B o el almacenero <strong>ya no ven ese stock como "disponible"</strong>. Evita que dos lineas de produccion intenten usar el mismo barril de materia prima al mismo tiempo.</p>
+            <ul class="role-points">
+              <li>Separacion real entre stock disponible y stock en proceso.</li>
+              <li>Las dos empresas no colapsan financiera ni logisticamente.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="bloque-3-backflush">
+            <div class="role-index">4</div>
+            <h3>Consumo Teorico vs. Real (Backflushing)</h3>
+            <p class="role-subtitle">El cierre de la produccion</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Al terminar la mezcla, ERPNext tiene una funcion llamada <strong>Backflush</strong>. Si fabricaste 1000 Litros, el sistema asume teoricamente que gastaste exactamente lo que decia la receta y da de baja ese stock automaticamente.</p>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>Permite actualizar el inventario muy rapido. <strong>PERO</strong>, y esto es clave, permite <strong>sobreescribir ese dato</strong>. Si el operario derramo 5 kilos extra de pigmento, puede indicarlo. El sistema absorbera ese sobrecoste y la pintura de ese lote sera contablemente mas cara, reflejando la realidad.</p>
+            <ul class="role-points">
+              <li>Cierre rapido de produccion con consumo teorico.</li>
+              <li>Ajuste real cuando la practica difiere de la receta.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 3 · Parte 2: La Trinchera y el Kiosco ───────────────── -->
+
+      <section aria-labelledby="bloque-3-kiosco-title" id="bloque-3-kiosco">
+        <div class="section-header">
+          <div class="section-kicker">Bloque 3 · Parte 2</div>
+          <h2 class="section-title" id="bloque-3-kiosco-title">La Trinchera: Arquitectura del Kiosco MES Ligero</h2>
+          <p class="section-intro">El ERPNext estandar asume que un oficinista esta frente a un teclado gestionando la produccion. En la fabrica de Marruecos, hay un operario con guantes manchados de resina, una tablet con polvo quimico y prisa por sacar el lote. Si le pides que llene un formulario de 15 campos, el sistema "cero papel" morira el primer dia. La solucion: aislar al operario del ERP con una aplicacion web frontend que habla con ERPNext via API REST.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="kiosco-auth">
+            <div class="role-index">1</div>
+            <h3>Autenticacion sin Teclado</h3>
+            <p class="role-subtitle">Friccion cero</p>
+            <div class="label label-gap">El reto</div>
+            <p>Escribir contrasenas con guantes manchados o en teclados tactiles pequenos es un infierno. Cada segundo de autenticacion es un segundo perdido de produccion.</p>
+            <div class="label label-native">La solucion</div>
+            <p>Cada operario tendra una <strong>tarjeta fisica</strong> (un carnet plastico barato) con un <strong>Codigo QR o Codigo de Barras</strong>. El Kiosco tendra un lector USB o utilizara la camara. El operario hace "Bip" y el sistema ya sabe quien es y que turno tiene. <strong>Cero teclear.</strong></p>
+            <ul class="role-points">
+              <li>Login instantaneo sin friccion de teclado.</li>
+              <li>Compatible con guantes, polvo y mala visibilidad.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="kiosco-tareas">
+            <div class="role-index">2</div>
+            <h3>Pantalla de Tareas Visual</h3>
+            <p class="role-subtitle">Modo "To-Do List" con semaforismo</p>
+            <div class="label label-gap">El reto</div>
+            <p>El operario no necesita ver todas las ordenes de la fabrica, solo lo que le toca a su maquina (ej. Mezcladora 1). La interfaz nativa de ERPNext le abrumaria.</p>
+            <div class="label label-native">La solucion</div>
+            <p>La pantalla solo mostrara <strong>tarjetas grandes con colores semaforicos</strong>. Ejemplo: "Lote #104 – 500 Litros Pintura Blanca". Solo habra un boton verde gigante: <strong>[INICIAR MEZCLA]</strong>. Al pulsarlo, el frontend envia un JSON por API a ERPNext que cambia el estado de la Work Order y hace el movimiento de almacen a WIP por debajo, <strong>sin que el operario vea la contabilidad</strong>.</p>
+            <ul class="role-points">
+              <li>Un solo boton para iniciar produccion completa.</li>
+              <li>ERP trabaja en segundo plano, invisible para el operario.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="kiosco-pokayoke">
+            <div class="role-index">3</div>
+            <h3>Poka-Yoke para Formulas Quimicas</h3>
+            <p class="role-subtitle">A prueba de errores</p>
+            <div class="label label-gap">El reto</div>
+            <p>En quimica, si te equivocas de bidon y echas el quimico B en lugar del A, arruinas un lote entero (miles de dirhams a la basura). Hay que asegurar que el operario usa el <strong>lote correcto</strong> que el sistema le asigno por caducidad (FEFO), sin que tenga que leer etiquetas pequenas.</p>
+            <div class="label label-native">La solucion</div>
+            <p>El Kiosco pedira los ingredientes <strong>uno por uno</strong>. La pantalla dira: "Escanea el bidon de Resina". El operario dispara la pistola al QR del bidon (creado en el Bloque 2). Si escanea el bidon equivocado, la pantalla <strong>parpadea en ROJO y suena una chicharra</strong>. Si es correcto, pasa al siguiente ingrediente. Trazabilidad perfecta al 100%.</p>
+            <ul class="role-points">
+              <li>Validacion ingrediente por ingrediente con feedback inmediato.</li>
+              <li>Garantiza trazabilidad total materia prima → producto terminado.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="kiosco-ajustes">
+            <div class="role-index">4</div>
+            <h3>Ajustes sobre la Marcha</h3>
+            <p class="role-subtitle">La realidad quimica</p>
+            <div class="label label-gap">El reto</div>
+            <p>La teoria dice que la pintura lleva 10 litros de disolvente. La realidad es que hoy hace mas calor en la fabrica, la pintura esta muy espesa, y el operario tiene que echar 2 litros mas para alcanzar la viscosidad correcta.</p>
+            <div class="label label-native">La solucion</div>
+            <p>El Kiosco tendra un boton de <strong>[+ ANADIR EXTRA]</strong>. Si el operario echa mas disolvente, lo registra ahi con dos toques. El codigo capturara ese extra y sobreescribira el <strong>Backflush</strong> (consumo teorico) en ERPNext. El contable vera que el lote costo un poco mas, pero el inventario <strong>cuadrara al gramo</strong>.</p>
+            <ul class="role-points">
+              <li>Flexibilidad para ajustes reales sin romper el sistema.</li>
+              <li>Inventario coherente entre teoria y realidad.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="kiosco-hardware">
+            <div class="role-index">5</div>
+            <h3>Hardware y Entorno Real</h3>
+            <p class="role-subtitle">Decisiones de trinchera</p>
+            <div class="label label-gap">No compres iPads</div>
+            <p>Compra <strong>tablets Android industriales baratas</strong> (o tablets normales con fundas rugerizadas gruesas). Son mas resistentes y mucho mas baratas de reemplazar si un bidon de resina les cae encima.</p>
+            <div class="label label-native">Lectores fisicos e iconografia universal</div>
+            <p>Usa <strong>lectores de codigos de barras fisicos</strong> (Bluetooth o USB) en lugar de la camara de la tablet. Es 10 veces mas rapido y enfoca mejor con mala luz. La interfaz debe usar <strong>iconos universales</strong>: menos texto, mas imagenes (un icono de un bidon, un icono de una balanza). Esto salta cualquier barrera idiomatica o de alfabetizacion.</p>
+            <ul class="role-points">
+              <li>Tablets rugerizadas + lectores USB = fiabilidad industrial.</li>
+              <li>Interfaz con iconografia universal para entorno multilingue.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 3 · Diagramas ────────────────────────────────────────── -->
+
+      <section aria-labelledby="diagramas-bloque-3-title" id="diagramas-bloque-3">
+        <div class="section-header">
+          <div class="section-kicker">Mermaid</div>
+          <h2 class="section-title" id="diagramas-bloque-3-title">Diagramas del Bloque 3</h2>
+          <p class="section-intro">El flujo de produccion completo desde la orden de trabajo hasta el producto terminado, pasando por la arquitectura del Kiosco y la validacion Poka-Yoke ingrediente a ingrediente.</p>
+        </div>
+
+        <div class="diagram-grid">
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Flujo nativo de produccion en ERPNext</h3>
+                <p>Muestra el recorrido completo desde la creacion de la Work Order hasta el producto terminado, con movimientos de almacen y Backflush.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart LR
+    A[Jefe crea Work Order] --> B[BOM se multiplica x cantidad]
+    B --> C{Hay stock suficiente?}
+    C -->|Si| D[Material Transfer for Manufacture]
+    C -->|No| E[Alerta roja - Bloqueo]
+    D --> F[Material en WIP]
+    F --> G[Mezcladora en produccion]
+    G --> H[Backflush automatico]
+    H --> I{Consumo real = teorico?}
+    I -->|Si| J[Stock Entry Manufacture]
+    I -->|No| K[Operario ajusta cifras]
+    K --> J
+    J --> L[Producto Terminado en almacen]
+              </pre>
+            </div>
+            <p class="diagram-hint">El diagrama muestra como ERPNext impide fabricar sin stock y como se ajusta el consumo real si la practica difiere de la receta.</p>
+          </article>
+
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Arquitectura del Kiosco MES Ligero</h3>
+                <p>Explica como el Kiosco aisla al operario del ERP, comunicandose con ERPNext via API REST para ejecutar las operaciones contables en segundo plano.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart TD
+    subgraph KIOSCO["Kiosco MES - Tablet en Planta"]
+        K1[Operario escanea carnet QR]
+        K2[Pantalla de tareas semaforica]
+        K3["Boton verde: INICIAR MEZCLA"]
+        K4[Escaner Poka-Yoke ingredientes]
+        K5["Boton: + ANADIR EXTRA"]
+        K6["Boton: FINALIZAR LOTE"]
+    end
+
+    subgraph API["API REST Frappe"]
+        A1[POST /login via QR Token]
+        A2[GET /work-orders filtradas]
+        A3[POST /stock-entry Material Transfer]
+        A4[POST /validar-batch vs BOM]
+        A5[POST /stock-entry Manufacture]
+    end
+
+    subgraph ERP["ERPNext - Cerebro"]
+        E1[Work Orders]
+        E2[Stock WIP]
+        E3[Batch y FEFO]
+        E4[Costeo real por lote]
+        E5[Inventario actualizado]
+    end
+
+    K1 --> A1
+    A1 --> K2
+    K2 --> A2
+    K3 --> A3
+    A3 --> E2
+    K4 --> A4
+    A4 --> E3
+    K5 --> A5
+    K6 --> A5
+    A5 --> E4
+    E4 --> E5
+              </pre>
+            </div>
+            <p class="diagram-hint">El operario nunca toca ERPNext directamente. El Kiosco traduce sus toques en llamadas API que el ERP procesa como documentos formales.</p>
+          </article>
+
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Validacion Poka-Yoke ingrediente a ingrediente</h3>
+                <p>Detalla el flujo de escaneo secuencial que impide al operario usar el bidon equivocado, cruzando con la BOM y la asignacion FEFO del Bloque 2.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+sequenceDiagram
+    participant O as Operario
+    participant K as Kiosco
+    participant API as API Frappe
+    participant ERP as ERPNext
+
+    O->>K: Inicia mezcla Lote 104
+    K->>API: GET ingredientes BOM
+    API->>ERP: Consulta BOM expandida
+    ERP-->>API: Lista ingredientes + lotes FEFO
+    API-->>K: Ingrediente 1: Resina - Lote R-2024-018
+    K->>O: Pantalla: "Escanea bidon de Resina"
+    O->>K: Escanea QR del bidon
+    K->>API: POST validar batch
+    alt Lote correcto
+        API-->>K: OK - Batch valido
+        K->>O: Pantalla VERDE - Siguiente ingrediente
+    else Lote incorrecto
+        API-->>K: ERROR - Batch no coincide
+        K->>O: Pantalla ROJA + chicharra
+        O->>K: Escanea bidon correcto
+    end
+    K->>API: Todos los ingredientes validados
+    API->>ERP: Registrar consumo con trazabilidad completa
+              </pre>
+            </div>
+            <p class="diagram-hint">El diagrama de secuencia muestra el ida y vuelta entre operario, Kiosco y ERPNext para garantizar trazabilidad quimica al 100%.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="closing-card" id="cierre-bloque-3" aria-labelledby="cierre-bloque-3-title">
+        <h3 id="cierre-bloque-3-title">Conclusiones operativas del Bloque 3</h3>
+        <p>ERPNext tiene el motor de produccion correcto: BOM con mermas, Work Orders con explosion de materiales, almacen WIP y Backflush con correccion real. El riesgo no esta en el backend, sino en <strong>la interfaz que ve el operario de planta</strong>. La arquitectura ganadora aisla al operario del ERP y le expone solo un Kiosco MES Ligero con autenticacion QR, tareas semaforicas, validacion Poka-Yoke ingrediente a ingrediente y ajustes de consumo con dos toques. <strong>El ERP es el cerebro; el Kiosco es la mano.</strong></p>
+        <div class="tag-row" aria-label="Temas clave del bloque 3">
+          <span class="tag">BOM y mermas</span>
+          <span class="tag">Work Orders</span>
+          <span class="tag">WIP y transito</span>
+          <span class="tag">Backflush real</span>
+          <span class="tag">Kiosco MES</span>
+          <span class="tag">Poka-Yoke QR</span>
+          <span class="tag">Tablets rugerizadas</span>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- BLOQUE 4 — CALIDAD Y TRAZABILIDAD                                  -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="block-divider" id="bloque-4" aria-labelledby="bloque-4-title">
+        <div>
+          <div class="section-kicker">Bloque 4</div>
+          <h2 id="bloque-4-title">Calidad y Trazabilidad</h2>
+          <p>Garantizar que ningun litro sale de la fabrica sin cumplir los estandares, y si un cliente se queja, saber en 30 segundos quien tuvo la culpa: el proveedor, el operario o la maquina. Aqui la calidad deja de ser un papel y se convierte en un flujo automatizado.</p>
+        </div>
+        <div class="block-divider-meta" aria-label="Resumen del bloque 4">
+          <article class="stat-card">
+            <span class="stat-label">Eje del bloque</span>
+            <strong class="stat-value">Trazabilidad bidireccional, QC, liberacion y COA</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Mayor ventaja</span>
+            <strong class="stat-value">Rastreo de culpa en 30 segundos y cero papel manual</strong>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="b4-contenido-title" id="b4-contenido">
+        <div class="section-header">
+          <div class="section-kicker">Bloque 4 · Capacidades y Soluciones</div>
+          <h2 class="section-title" id="b4-contenido-title">Control de calidad y trazabilidad de extremo a extremo</h2>
+          <p class="section-intro">ERPNext ya tiene un motor de trazabilidad por lotes y un modulo de inspecciones. El reto esta en automatizar la cuarentena post-produccion, hacer la interfaz del quimico a prueba de balas y generar certificados de analisis (COA) sin tocar Excel.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="b4-trazabilidad">
+            <div class="role-index">1</div>
+            <h3>El Arbol Genealogico del Lote</h3>
+            <p class="role-subtitle">Trazabilidad nativa bidireccional</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>El motor de lotes tiene una funcion de <strong>Batch Lineage</strong> (Linaje de Lote) bidireccional. Si un cliente en Casablanca llama furioso porque el Lote 999 de pintura blanca se esta pelando, entras a ERPNext, pones "999" y el sistema te escupe un arbol exacto:</p>
+            <ul class="role-points">
+              <li><strong>Hacia atras:</strong> el Lote 999 se fabrico el martes por el operario Y, y uso el Lote A de resina (del proveedor X) y el Lote B de titanio.</li>
+              <li><strong>Hacia adelante:</strong> si descubres que el Lote A de resina vino defectuoso, el sistema te dice instantaneamente que otros lotes de pintura fabricaste con esa misma resina mala para que los bloquees antes de que salgan de la fabrica.</li>
+            </ul>
+            <div class="label label-gap">Ventaja tactica</div>
+            <p>Trazabilidad completa en ambas direcciones: del cliente al proveedor y del proveedor a todos los productos afectados. <strong>Respuesta ante crisis en 30 segundos</strong>, no en 3 dias revisando papeles.</p>
+          </article>
+
+          <article class="role-card" id="b4-inspecciones">
+            <div class="role-index">2</div>
+            <h3>Inspecciones de Calidad (QC)</h3>
+            <p class="role-subtitle">Plantillas con rangos y rechazo automatico</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Un modulo de <strong>Quality Inspection</strong> con plantillas. La plantilla "Test de Pintura" exige medir: <strong>Viscosidad, Densidad, Color y pH</strong>. Puedes poner rangos (ej. pH debe estar entre 7.0 y 7.5). Si el valor ingresado esta fuera de rango, el sistema lo marca como <strong>"Rechazado"</strong>.</p>
+            <div class="label label-gap">El problema real (La trinchera)</div>
+            <p>ERPNext requiere crear el documento de inspeccion <strong>manualmente</strong> y luego vincularlo al lote. Ademas, si se rechaza, <strong>no bloquea el inventario por arte de magia</strong>; requiere configuracion extra. El quimico necesita que el flujo sea mas automatico.</p>
+            <ul class="role-points">
+              <li>Plantillas con rangos de aceptacion y rechazo automatico.</li>
+              <li>Necesita automatizacion extra para ser realmente util en planta.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b4-hacks">
+            <div class="role-index">3</div>
+            <h3>Ingenieria Inversa para el Quimico</h3>
+            <p class="role-subtitle">Tres hacks que convierten Frappe en un sistema QC real</p>
+            <div class="label label-gap">Hack 1: Cuarentena automatica</div>
+            <p>Configuraremos los <strong>Workflows</strong> para que cuando el operario (del Bloque 3) termine de mezclar, el lote caiga automaticamente en un almacen virtual <strong>"CUARENTENA"</strong>. El comercial B2B no podra venderlo. El sistema disparara una alerta al Quimico: <strong>"Lote 104 listo para test"</strong>.</p>
+            <div class="label label-gap">Hack 2: DocTypes personalizados</div>
+            <p>Usaremos las herramientas de Frappe para anadir <strong>campos de calidad directamente en el lote</strong>. El Quimico abre el lote, introduce "Viscosidad: 110" y "Color: OK" y le da a un boton verde de <strong>[APROBAR LOTE]</strong>. Sin codigo pesado, sin pantallas externas.</p>
+            <div class="label label-native">Hack 3: El script de liberacion</div>
+            <p>Al pulsar ese boton, un <strong>Server Script en Python de 20 lineas</strong> hara dos cosas en segundo plano:</p>
+            <ul class="role-points">
+              <li><strong>Movera el stock</strong> de "CUARENTENA" a "PRODUCTO TERMINADO" (ahora si, el comercial ya puede venderlo).</li>
+              <li><strong>Enviara la orden a la impresora termica</strong> para imprimir las etiquetas comerciales finales con el codigo de barras para el cliente.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b4-coa">
+            <div class="role-index">4</div>
+            <h3>Certificados de Analisis (COA)</h3>
+            <p class="role-subtitle">El papel que exige el cliente B2B</p>
+            <div class="label label-gap">La realidad del B2B</div>
+            <p>Muchos clientes industriales (si vendes pintura a otras fabricas, por ejemplo) exigen que el bidon llegue con un papel que certifique la calidad: un <strong>Certificate of Analysis (COA)</strong>. Hoy esto se hace en Excel o Word, manualmente, lote por lote.</p>
+            <div class="label label-native">Nuestra solucion (Print Formats + Jinja)</div>
+            <p>Usaremos el motor de <strong>Print Formats (Jinja)</strong> de ERPNext. Al aprobar el lote, el sistema generara automaticamente un <strong>PDF profesional</strong> con el logo de la empresa, los resultados exactos del test de laboratorio de ese lote especifico, y la firma digital del Quimico. <strong>Cero Excel, cero Word, cero papel manual.</strong></p>
+            <ul class="role-points">
+              <li>COA auto-generado al aprobar el lote.</li>
+              <li>PDF profesional listo para adjuntar a la entrega o enviar por email.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 4 · Diagramas ────────────────────────────────────────── -->
+
+      <section aria-labelledby="diagramas-bloque-4-title" id="diagramas-bloque-4">
+        <div class="section-header">
+          <div class="section-kicker">Mermaid</div>
+          <h2 class="section-title" id="diagramas-bloque-4-title">Diagramas del Bloque 4</h2>
+          <p class="section-intro">Estos diagramas muestran la trazabilidad bidireccional que permite rastrear desde el cliente hasta el proveedor, y el flujo completo de calidad desde cuarentena hasta la generacion del certificado de analisis.</p>
+        </div>
+
+        <div class="diagram-grid">
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Arbol genealogico bidireccional del lote</h3>
+                <p>Muestra como desde un lote de producto terminado se puede rastrear hacia atras (proveedores, operarios) y hacia adelante (otros productos afectados por la misma materia prima).</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart TD
+    subgraph PROVEEDORES["Proveedores"]
+        PR1["Proveedor X - Lote A Resina"]
+        PR2["Proveedor Y - Lote B Titanio"]
+        PR3["Proveedor Z - Lote C Solvente"]
+    end
+
+    subgraph PRODUCCION["Produccion"]
+        WO1["Work Order - Martes"]
+        OP1["Operario Y - Mezcladora 1"]
+    end
+
+    subgraph TERMINADOS["Productos Terminados"]
+        L999["Lote 999 - Pintura Blanca"]
+        L1001["Lote 1001 - Pintura Gris"]
+        L1005["Lote 1005 - Esmalte"]
+    end
+
+    subgraph CLIENTES["Clientes"]
+        CL1["Cliente Casablanca"]
+        CL2["Distribuidor Rabat"]
+    end
+
+    PR1 --> WO1
+    PR2 --> WO1
+    WO1 --> OP1
+    OP1 --> L999
+
+    PR1 --> L1001
+    PR1 --> L1005
+
+    L999 --> CL1
+    L1001 --> CL2
+
+    CL1 -.->|Queja Lote 999| L999
+    L999 -.->|Rastreo atras| PR1
+    PR1 -.->|Rastreo adelante| L1001
+    PR1 -.->|Rastreo adelante| L1005
+              </pre>
+            </div>
+            <p class="diagram-hint">Las lineas punteadas muestran el camino de investigacion: desde la queja del cliente hasta el proveedor, y desde el proveedor hasta todos los lotes afectados.</p>
+          </article>
+
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Flujo de calidad: del lote en cuarentena al COA</h3>
+                <p>El recorrido completo desde que termina la produccion hasta que el lote queda liberado, etiquetado y con certificado de analisis listo para el cliente B2B.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart LR
+    A[Produccion finaliza lote] --> B[Workflow: lote a CUARENTENA auto]
+    B --> C[Alerta al Quimico: Lote listo para test]
+    C --> D[Quimico abre lote en Frappe]
+    D --> E[Introduce Viscosidad, pH, Color...]
+    E --> F{Valores en rango?}
+    F -->|Si| G["Boton: APROBAR LOTE"]
+    F -->|No| H[Lote marcado RECHAZADO]
+    H --> I[Investigacion + reproceso]
+    G --> J[Server Script Python 20 lineas]
+    J --> K[Stock Entry: Cuarentena a Prod. Terminado]
+    J --> L[Impresion etiquetas comerciales]
+    J --> M["Genera COA (PDF con Jinja)"]
+    K --> N[Comercial B2B puede vender]
+    M --> O[PDF adjunto al lote para cliente]
+              </pre>
+            </div>
+            <p class="diagram-hint">Un solo boton de aprobacion dispara tres acciones automaticas: liberacion de stock, etiquetado y generacion del certificado de analisis.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="closing-card" id="cierre-bloque-4" aria-labelledby="cierre-bloque-4-title">
+        <h3 id="cierre-bloque-4-title">Conclusiones operativas del Bloque 4</h3>
+        <p>ERPNext ya tiene el motor de trazabilidad bidireccional (Batch Lineage) y un modulo de inspecciones con plantillas y rangos. Lo que falta es <strong>automatizar el flujo de cuarentena post-produccion</strong>, hacer la experiencia del quimico mas directa con campos personalizados y un boton de aprobacion, y conectar la liberacion con la generacion automatica de etiquetas y certificados COA. Con <strong>3 hacks de Frappe (Workflows + Custom DocTypes + Server Script de 20 lineas)</strong>, el control de calidad pasa de ser burocracia a ser un flujo invisible que protege la reputacion de la empresa.</p>
+        <div class="tag-row" aria-label="Temas clave del bloque 4">
+          <span class="tag">Batch Lineage</span>
+          <span class="tag">Quality Inspection</span>
+          <span class="tag">Cuarentena auto</span>
+          <span class="tag">Custom DocTypes QC</span>
+          <span class="tag">Server Script liberacion</span>
+          <span class="tag">COA con Jinja</span>
+          <span class="tag">Trazabilidad 30s</span>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- BLOQUE 5 — COMERCIAL Y B2B                                          -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="block-divider" id="bloque-5" aria-labelledby="bloque-5-title">
+        <div>
+          <div class="section-kicker">Bloque 5</div>
+          <h2 id="bloque-5-title">Comercial y B2B</h2>
+          <p>Capturar el pedido del cliente lo mas rapido posible, asegurar que el precio es el correcto, bloquear la venta si el cliente debe dinero, cargar el camion sin errores y generar la documentacion legal automaticamente. Del comercial en la medina al camion en la carretera.</p>
+        </div>
+        <div class="block-divider-meta" aria-label="Resumen del bloque 5">
+          <article class="stat-card">
+            <span class="stat-label">Eje del bloque</span>
+            <strong class="stat-value">Pricing, credito, pedidos movil, FEFO logistico y albaran legal</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Mayor riesgo</span>
+            <strong class="stat-value">Impago B2B y seleccion manual de lotes en expedicion</strong>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 5 · Parte 1: La Venta y el Riesgo ─────────────────────── -->
+
+      <section aria-labelledby="b5-parte1-title" id="b5-parte1">
+        <div class="section-header">
+          <div class="section-kicker">Bloque 5 · Parte 1</div>
+          <h2 class="section-title" id="b5-parte1-title">La venta y el riesgo</h2>
+          <p class="section-intro">Capturar la intencion de compra del cliente, validar el precio de forma automatica y proteger a la empresa de clientes morosos. Al final de esta parte, el pedido de venta (Sales Order) esta firme y seguro en el cerebro de ERPNext.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="b5-pricing">
+            <div class="role-index">1</div>
+            <h3>El Motor de Precios (Pricing Rules)</h3>
+            <p class="role-subtitle">A la Drogueria A no se le cobra lo mismo que al Mayorista B</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Un motor de <strong>Pricing Rules</strong> brutal. Puedes configurar listas de precios base y aplicar descuentos automaticos por volumen (<strong>"Si compra mas de 50 bidones, aplicar 10% de descuento"</strong>) o por categoria de cliente. Tarifas distintas para droguerias, distribuidores y mayoristas.</p>
+            <div class="label label-gap">Nuestra estrategia</div>
+            <p>El comercial <strong>no debe teclear el precio nunca</strong>. Al seleccionar el cliente y el producto, ERPNext inyecta el precio exacto automaticamente. Esto evita el <strong>"fraude de precios"</strong> y los errores de calculo en la calle.</p>
+            <ul class="role-points">
+              <li>Precios automaticos por cliente, canal y volumen.</li>
+              <li>Cero discrecionalidad del comercial sobre las tarifas.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b5-pedidos">
+            <div class="role-index">2</div>
+            <h3>Toma de Pedidos en la Calle</h3>
+            <p class="role-subtitle">Prise de Commande movil</p>
+            <div class="label label-gap">El problema real</div>
+            <p>El comercial esta en la medina o en la zona industrial visitando una drogueria. El cliente dice: <strong>"Mandame 20 cajas de limpiasuelos y 10 de pintura"</strong>. Si lo anota en una libreta o lo envia por audio de WhatsApp a la fabrica, el "Cero Papel" ha muerto y empieza el telefono descacharrado.</p>
+            <div class="label label-native">Dos opciones tecnicas</div>
+            <p><strong>Opcion A (Rapida y Barata):</strong> Crear una <strong>Web Form nativa en Frappe</strong>, adaptada 100% a moviles. El comercial entra desde el navegador, elige el cliente, anade cantidades y pulsa "Enviar".</p>
+            <p><strong>Opcion B (Ingenieria de Guerrilla):</strong> Un <strong>Bot de Telegram/WhatsApp</strong> conectado a la API de ERPNext. El comercial escribe: <em>"Pedido Cliente 105: 20 Limpiasuelos, 10 Pintura Blanca"</em>. El backend parsea el mensaje y crea el Sales Order directamente en el ERP.</p>
+            <ul class="role-points">
+              <li>Pedido capturado en segundos, sin papel ni audios.</li>
+              <li>Los comerciales aman la opcion del Bot por su velocidad.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b5-credito">
+            <div class="role-index">3</div>
+            <h3>El Escudo Financiero: Limites de Credito</h3>
+            <p class="role-subtitle">El salvavidas contra el impago B2B</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Puedes asignar a cada drogueria un <strong>Limite de Credito</strong> (ej. 50,000 MAD). Si el cliente ya debe 45,000 MAD en facturas no pagadas y el comercial intenta meter un pedido de 10,000 MAD, el sistema <strong>bloquea el pedido en seco</strong>: "Limite de credito excedido".</p>
+            <div class="label label-gap">Flujo de aprobacion (Workflow)</div>
+            <p>El comercial <strong>no puede saltarse este bloqueo</strong>. El pedido queda en estado "Borrador" y el sistema envia una alerta automatica al Gerente. Solo el Gerente, desde su movil, puede darle a un boton de <strong>[Forzar Aprobacion]</strong> si decide asumir el riesgo.</p>
+            <ul class="role-points">
+              <li>Bloqueo automatico por deuda pendiente.</li>
+              <li>Solo el Gerente puede forzar excepciones.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b5-stock">
+            <div class="role-index">4</div>
+            <h3>Visibilidad de Stock en Tiempo Real</h3>
+            <p class="role-subtitle">Available to Promise</p>
+            <div class="label label-gap">El problema real</div>
+            <p>El comercial vende 500 litros de pintura, pero no sabe que la mezcladora se rompio ayer y <strong>no hay stock</strong>. El cliente se enfada cuando no le llega la mercancia.</p>
+            <div class="label label-native">Nuestra solucion</div>
+            <p>A traves de la interfaz del comercial (Web Form o Bot), le mostraremos el <strong>"Stock Real Disponible"</strong> consultando la API (descontando lo ya reservado para otros clientes). Si no hay stock, el sistema le permite tomar el pedido pero le avisa de que entrara en <strong>cola de fabricacion (Backorder)</strong>.</p>
+            <ul class="role-points">
+              <li>El comercial ve el stock real antes de comprometerse.</li>
+              <li>Backorder transparente si no hay existencias.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 5 · Parte 2: Expedicion y Logistica ───────────────────── -->
+
+      <section aria-labelledby="b5-parte2-title" id="b5-expedicion">
+        <div class="section-header">
+          <div class="section-kicker">Bloque 5 · Parte 2</div>
+          <h2 class="section-title" id="b5-parte2-title">Expedicion y logistica</h2>
+          <p class="section-intro">Cargar el camion rapido, sin errores humanos, obligando a usar la regla FEFO (Primero en Caducar, Primero en Salir) y generando la documentacion legal automaticamente. Del almacen a la carretera sin papel.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" id="b5-fefo">
+            <div class="role-index">1</div>
+            <h3>Seleccion Automatica de Lotes (FEFO)</h3>
+            <p class="role-subtitle">Eliminando la eleccion humana</p>
+            <div class="label label-gap">El riesgo del ERP nativo</div>
+            <p>Cuando se crea un <strong>Delivery Note</strong> en ERPNext estandar, el sistema pide al usuario que seleccione de un menu desplegable que lote va a enviar. Un mozo con prisas elegira el primer lote de la lista o el pale mas cerca de la puerta, <strong>ignorando las fechas de caducidad</strong>.</p>
+            <div class="label label-native">Nuestra solucion (Backend)</div>
+            <p>Un <strong>Server Script en Python</strong> que, cuando el pedido pase a estado "Para Entregar", <strong>pre-asignara automaticamente los lotes</strong> basandose estrictamente en la fecha de caducidad (FEFO). El sistema le dira al operario que lote exacto debe coger; <strong>no le dara opcion a elegir</strong>.</p>
+            <ul class="role-points">
+              <li>Cero discrecionalidad del mozo sobre que lote sale.</li>
+              <li>FEFO aplicado por software, no por buena voluntad.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b5-picking">
+            <div class="role-index">2</div>
+            <h3>El Kiosco de Picking</h3>
+            <p class="role-subtitle">La interfaz del Magasinier</p>
+            <div class="label label-gap">Flujo Poka-Yoke</div>
+            <p>El operario usa la misma PDA o tablet con lector laser del Bloque 2. La pantalla muestra: <strong>"Preparar Pedido #105 – Drogueria Casablanca"</strong>. El sistema le ordena: <strong>"Ve al pasillo 2 y coge 50 bidones del LOTE-2026-A"</strong>.</p>
+            <div class="label label-native">Validacion critica</div>
+            <p>El operario escanea el QR del bidon. Si escanea por error un bidon del <strong>LOTE-2027-B</strong> (que caduca mas tarde y deberia quedarse en el almacen), la PDA emite un <strong>pitido de error y la pantalla se pone en ROJO</strong>. El sistema no le deja cargar ese bidon. Solo avanzara cuando escanee el lote correcto.</p>
+            <ul class="role-points">
+              <li>Picking guiado paso a paso con validacion QR.</li>
+              <li>Imposible cargar un lote incorrecto en el camion.</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b5-albaran">
+            <div class="role-index">3</div>
+            <h3>Bon de Livraison (Albaran Legal)</h3>
+            <p class="role-subtitle">El documento que va en el camion</p>
+            <div class="label label-native">Lo que nos da ERPNext</div>
+            <p>Un motor de impresion (<strong>Print Formats</strong> basado en Jinja y HTML). El formato estandar de ERPNext no sirve para Marruecos.</p>
+            <div class="label label-gap">Nuestra adaptacion para Marruecos</div>
+            <p>Desarrollaremos una plantilla HTML que cumpla con la <strong>normativa marroqui al milimetro</strong>:</p>
+            <ul class="role-points">
+              <li>Datos empresa: <strong>ICE, RC, Patente, IF</strong> (Identifiant Fiscal).</li>
+              <li>Datos del cliente (vital para el B2B) y lista exacta de productos con sus lotes.</li>
+              <li><strong>Codigo QR de validacion</strong> en la esquina del documento.</li>
+              <li>Al validar la carga, ERPNext envia <strong>automaticamente un PDF</strong> por WhatsApp o Email al cliente: "Tu pedido acaba de salir de fabrica".</li>
+            </ul>
+          </article>
+
+          <article class="role-card" id="b5-pod">
+            <div class="role-index">4</div>
+            <h3>Prueba de Entrega (Proof of Delivery)</h3>
+            <p class="role-subtitle">Fase 2: cerrar el ciclo logistico</p>
+            <div class="label label-gap">El reto</div>
+            <p>El camion llega a la drogueria. El cliente recibe 50 bidones, pero dice que <strong>2 llegaron abollados</strong>. Si no lo registramos en el momento, el comercial tendra problemas a la hora de cobrar la factura.</p>
+            <div class="label label-native">La solucion (Fase 2)</div>
+            <p>Dar a los choferes un <strong>acceso minimo web</strong> donde, al entregar la mercancia, el cliente <strong>firme con el dedo en la pantalla</strong> del movil del chofer, o el chofer haga una <strong>foto a los bidones entregados</strong>. Eso se adjunta automaticamente al Delivery Note en ERPNext, <strong>cerrando el ciclo logistico completo</strong>.</p>
+            <ul class="role-points">
+              <li>Firma digital del cliente en el movil del chofer.</li>
+              <li>Evidencia fotografica adjunta al albaran en el ERP.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── Bloque 5 · Diagramas ────────────────────────────────────────── -->
+
+      <section aria-labelledby="diagramas-bloque-5-title" id="diagramas-bloque-5">
+        <div class="section-header">
+          <div class="section-kicker">Mermaid</div>
+          <h2 class="section-title" id="diagramas-bloque-5-title">Diagramas del Bloque 5</h2>
+          <p class="section-intro">El flujo comercial completo desde el comercial en la calle hasta la prueba de entrega, pasando por validacion de precios, credito, picking FEFO y documentacion legal.</p>
+        </div>
+
+        <div class="diagram-grid">
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Flujo comercial: del pedido al Sales Order seguro</h3>
+                <p>El recorrido desde que el comercial captura el pedido en la calle hasta que queda validado con precio automatico, credito comprobado y stock visible.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart LR
+    A[Comercial visita drogueria] --> B{Canal de pedido}
+    B -->|Web Form movil| C[Selecciona cliente + productos]
+    B -->|Bot Telegram| D["Mensaje: Pedido Cliente 105..."]
+    C --> E[Pricing Rules inyectan precio auto]
+    D --> E
+    E --> F{Limite de credito}
+    F -->|OK| G[Sales Order confirmado]
+    F -->|Excedido| H[Pedido bloqueado en Borrador]
+    H --> I[Alerta al Gerente]
+    I --> J{Gerente decide}
+    J -->|Forzar Aprobacion| G
+    J -->|Rechazar| K[Pedido cancelado]
+    G --> L[Stock disponible consultado via API]
+    L -->|Hay stock| M[Pedido listo para expedicion]
+    L -->|Sin stock| N[Backorder en cola de fabricacion]
+              </pre>
+            </div>
+            <p class="diagram-hint">El diagrama muestra los dos canales de captura (Web Form y Bot), la proteccion de precios y credito, y la bifurcacion entre stock disponible y backorder.</p>
+          </article>
+
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-text">
+                <h3>Flujo de expedicion: del almacen a la prueba de entrega</h3>
+                <p>Desde la asignacion automatica de lotes FEFO hasta la firma del cliente en el movil del chofer, pasando por picking validado y albaran legal marroqui.</p>
+              </div>
+              <div class="diagram-actions">
+                <button class="diagram-button diagram-expand" type="button">Ampliar diagrama</button>
+              </div>
+            </div>
+            <div class="diagram-surface">
+              <pre class="mermaid">
+flowchart LR
+    A[Sales Order confirmado] --> B[Server Script: pre-asigna lotes FEFO]
+    B --> C[Delivery Note con lotes exactos]
+    C --> D[Kiosco Picking: Pantalla guia al mozo]
+    D --> E[Operario escanea QR del bidon]
+    E --> F{Lote correcto?}
+    F -->|Si| G[Bidon validado - siguiente]
+    F -->|No| H[Pantalla ROJA + pitido]
+    H --> E
+    G --> I[Carga completa validada]
+    I --> J["Imprime Bon de Livraison (ICE, RC, QR)"]
+    I --> K[PDF enviado auto por WhatsApp/Email]
+    J --> L[Camion sale de fabrica]
+    L --> M[Chofer entrega al cliente]
+    M --> N["Firma digital + foto (Fase 2)"]
+    N --> O[POD adjunto al Delivery Note]
+              </pre>
+            </div>
+            <p class="diagram-hint">FEFO automatico, picking validado por QR, albaran legal marroqui y prueba de entrega digital cierran un ciclo logistico completo sin papel.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="closing-card" id="cierre-bloque-5" aria-labelledby="cierre-bloque-5-title">
+        <h3 id="cierre-bloque-5-title">Conclusiones operativas del Bloque 5</h3>
+        <p>ERPNext ya trae el motor de precios, los limites de credito y el Delivery Note. Lo que hace falta es <strong>cerrar las grietas operativas</strong>: captura movil rapida (Web Form o Bot), precio inyectado sin intervencion del comercial, bloqueo de credito con aprobacion del Gerente por Workflow, stock visible en tiempo real, asignacion automatica de lotes FEFO en expedicion, picking validado por QR Poka-Yoke, albaran adaptado a la legislacion marroqui y prueba de entrega digital. <strong>Del comercial en la medina al camion en la carretera, todo trazado y sin papel.</strong></p>
+        <div class="tag-row" aria-label="Temas clave del bloque 5">
+          <span class="tag">Pricing Rules</span>
+          <span class="tag">Bot Telegram</span>
+          <span class="tag">Credit Limits</span>
+          <span class="tag">Available to Promise</span>
+          <span class="tag">FEFO logistico</span>
+          <span class="tag">Picking Poka-Yoke</span>
+          <span class="tag">Bon de Livraison</span>
+          <span class="tag">Proof of Delivery</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="diagram-modal" id="diagram-modal" aria-labelledby="diagram-modal-title">
+    <div class="diagram-modal-head">
+      <h3 id="diagram-modal-title">Vista ampliada del diagrama</h3>
+      <button class="diagram-modal-close" id="diagram-modal-close" type="button">Cerrar</button>
+    </div>
+    <div class="diagram-modal-body" id="diagram-modal-body"></div>
+  </dialog>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'neutral',
+      securityLevel: 'loose',
+      themeVariables: {
+        fontSize: '18px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 35,
+        rankSpacing: 45
+      }
+    });
+
+    const dialog = document.getElementById('diagram-modal');
+    const dialogBody = document.getElementById('diagram-modal-body');
+    const dialogClose = document.getElementById('diagram-modal-close');
+    const dialogTitle = document.getElementById('diagram-modal-title');
+
+    const openDiagramModal = (button) => {
+      const card = button.closest('.diagram-card');
+      const title = card.querySelector('h3')?.textContent?.trim() || 'Vista ampliada del diagrama';
+      const renderedDiagram = card.querySelector('.mermaid svg');
+      const sourceNode = renderedDiagram || card.querySelector('.mermaid');
+
+      dialogTitle.textContent = title;
+      dialogBody.innerHTML = '';
+      dialogBody.appendChild(sourceNode.cloneNode(true));
+      dialog.showModal();
+    };
+
+    document.querySelectorAll('.diagram-expand').forEach((button) => {
+      button.addEventListener('click', () => openDiagramModal(button));
+    });
+
+    dialogClose.addEventListener('click', () => dialog.close());
+
+    dialog.addEventListener('click', (event) => {
+      const bounds = dialog.getBoundingClientRect();
+      const clickedOutside =
+        event.clientX < bounds.left ||
+        event.clientX > bounds.right ||
+        event.clientY < bounds.top ||
+        event.clientY > bounds.bottom;
+
+      if (clickedOutside) {
+        dialog.close();
+      }
+    });
+  </script>
+</body>
+</html>

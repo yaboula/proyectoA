@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERPNext | Diseño Técnico — Data Foundation & PoC Sandbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --bg-strong: #e8dcc6;
+      --panel: rgba(255, 252, 246, 0.84);
+      --panel-strong: #fffaf2;
+      --text: #1f2933;
+      --muted: #52606d;
+      --accent: #0b6e4f;
+      --accent-2: #d96c06;
+      --accent-3: #1a56db;
+      --line: rgba(31, 41, 51, 0.1);
+      --shadow: 0 20px 60px rgba(58, 44, 24, 0.12);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --sidebar-width: 320px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(217, 108, 6, 0.14), transparent 28%),
+        radial-gradient(circle at top right, rgba(11, 110, 79, 0.12), transparent 32%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────── */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      background: rgba(22, 33, 43, 0.96);
+      color: #f8f4ec;
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      overflow-y: auto;
+    }
+
+    .brand { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+    .brand-kicker { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.74rem; font-weight: 600; color: #d4b483; }
+    .brand h1 { font-family: "Space Grotesk", sans-serif; margin: 10px 0 0; font-size: 1.45rem; line-height: 1.15; }
+    .brand p { margin: 12px 0 0; color: rgba(248, 244, 236, 0.72); line-height: 1.55; font-size: 0.92rem; }
+    .nav-group { margin-bottom: 18px; }
+    .nav-title { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(248, 244, 236, 0.5); margin-bottom: 8px; }
+    .sidebar nav a {
+      display: block; color: #f8f4ec; text-decoration: none; padding: 8px 12px;
+      border-radius: 10px; margin-bottom: 4px; font-size: 0.92rem;
+      transition: background-color 0.22s ease, transform 0.22s ease; line-height: 1.4;
+    }
+    .sidebar nav a:hover, .sidebar nav a:focus-visible { background: rgba(255, 255, 255, 0.08); transform: translateX(3px); outline: none; }
+    .sidebar-note {
+      margin-top: 20px; padding: 14px; border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px; background: rgba(255, 255, 255, 0.04);
+      color: rgba(248, 244, 236, 0.72); font-size: 0.88rem; line-height: 1.55;
+    }
+
+    /* ── Content ──────────────────────────────────────── */
+    .content { padding: 32px; max-width: 1100px; }
+
+    .hero {
+      position: relative; overflow: hidden;
+      background: linear-gradient(135deg, rgba(255, 250, 242, 0.95), rgba(232, 220, 198, 0.92));
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 30px; padding: 34px; box-shadow: var(--shadow); margin-bottom: 28px;
+    }
+    .hero::after { content: ""; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(11, 110, 79, 0.18), transparent 70%); }
+    .hero-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start; position: relative; z-index: 1; }
+
+    .section-kicker { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.74rem; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+    .hero h2, .section-title, .block-divider h2 { font-family: "Space Grotesk", sans-serif; margin: 0; }
+    .hero h2 { font-size: clamp(1.9rem, 3.5vw, 3rem); line-height: 1; margin-top: 10px; }
+    .hero p { color: var(--muted); font-size: 1.02rem; line-height: 1.75; max-width: 70ch; }
+
+    .stat-card, .card, .config-card, .closing-card {
+      background: var(--panel); backdrop-filter: blur(8px);
+      border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow);
+    }
+    .stat-card { padding: 18px; }
+    .stat-label { color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .stat-value { display: block; margin-top: 8px; font-size: 1.7rem; font-weight: 700; font-family: "Space Grotesk", sans-serif; }
+    .hero-stats { display: grid; gap: 14px; }
+
+    .section-header { margin: 38px 0 18px; }
+    .section-title { font-size: clamp(1.5rem, 2.2vw, 2.2rem); margin-bottom: 8px; }
+    .section-intro { margin: 0; max-width: 72ch; color: var(--muted); line-height: 1.75; }
+
+    .block-divider {
+      display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; align-items: center;
+      margin: 42px 0 24px; padding: 24px 26px; border-radius: 28px;
+      background: linear-gradient(135deg, rgba(11, 110, 79, 0.1), rgba(217, 108, 6, 0.08));
+      border: 1px solid rgba(31, 41, 51, 0.08); box-shadow: var(--shadow);
+    }
+    .block-divider h2 { font-size: clamp(1.7rem, 2.8vw, 2.5rem); margin-top: 8px; }
+    .block-divider p { margin: 10px 0 0; color: var(--muted); line-height: 1.8; max-width: 72ch; }
+    .block-divider-meta { display: grid; gap: 12px; }
+    .block-divider-meta .stat-card { background: rgba(255, 250, 242, 0.88); }
+
+    /* ── Cards ────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
+    .grid-1 { display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 20px; }
+
+    .card { padding: 24px; position: relative; overflow: hidden; }
+    .card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(145deg, rgba(255, 255, 255, 0.26), transparent 40%); pointer-events: none; }
+    .card h3 { font-family: "Space Grotesk", sans-serif; font-size: 1.2rem; margin: 0 0 6px; }
+    .card h4 { font-family: "Space Grotesk", sans-serif; font-size: 1.05rem; margin: 18px 0 8px; color: var(--accent); }
+    .card p { margin: 0 0 12px; line-height: 1.75; color: var(--muted); }
+    .card strong { color: var(--text); }
+    .card ul { margin: 0 0 12px; padding-left: 18px; color: var(--muted); line-height: 1.7; }
+
+    .config-card { padding: 24px; margin-bottom: 20px; }
+    .config-card h3 { font-family: "Space Grotesk", sans-serif; font-size: 1.15rem; margin: 0 0 14px; }
+
+    .closing-card { padding: 24px; margin-bottom: 32px; }
+    .closing-card h3 { font-family: "Space Grotesk", sans-serif; font-size: 1.15rem; margin: 0 0 10px; }
+    .closing-card p { margin: 0 0 12px; line-height: 1.75; color: var(--muted); }
+
+    .label {
+      display: inline-block; padding: 6px 10px; border-radius: 999px;
+      font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin-bottom: 10px;
+    }
+    .label-native { background: rgba(11, 110, 79, 0.12); color: var(--accent); }
+    .label-config { background: rgba(26, 86, 219, 0.1); color: var(--accent-3); }
+    .label-gap { background: rgba(217, 108, 6, 0.12); color: var(--accent-2); }
+    .label-poc { background: rgba(139, 92, 246, 0.12); color: #7c3aed; }
+
+    .tag-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .tag { padding: 8px 12px; border-radius: 999px; background: rgba(31, 41, 51, 0.06); color: var(--text); font-size: 0.88rem; font-weight: 500; }
+
+    .role-index {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 999px;
+      background: rgba(11, 110, 79, 0.12); color: var(--accent);
+      font-weight: 700; margin-bottom: 14px;
+    }
+
+    /* ── Code blocks ─────────────────────────────────── */
+    .code-block {
+      margin: 12px 0; padding: 16px 18px;
+      background: rgba(22, 33, 43, 0.94); color: #e2e8f0;
+      border-radius: var(--radius-sm); font-family: "IBM Plex Mono", monospace;
+      font-size: 0.85rem; line-height: 1.65; overflow-x: auto; white-space: pre;
+    }
+    .code-block .comment { color: #6b7b8d; }
+    .code-block .key { color: #7dd3fc; }
+    .code-block .val { color: #86efac; }
+    .code-block .str { color: #fcd34d; }
+    .code-block .warn { color: #fb923c; }
+    .code-block .head { color: #c4b5fd; font-weight: 600; }
+
+    /* ── Table ────────────────────────────────────────── */
+    .data-table {
+      width: 100%; border-collapse: collapse; margin: 12px 0;
+      font-size: 0.9rem; line-height: 1.55;
+    }
+    .data-table th {
+      text-align: left; padding: 10px 14px;
+      background: rgba(11, 110, 79, 0.08); color: var(--accent);
+      font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em;
+      border-bottom: 2px solid rgba(11, 110, 79, 0.15);
+    }
+    .data-table td {
+      padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--muted);
+    }
+    .data-table td strong { color: var(--text); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table code {
+      font-family: "IBM Plex Mono", monospace; font-size: 0.84rem;
+      background: rgba(31, 41, 51, 0.06); padding: 2px 6px; border-radius: 6px;
+    }
+
+    /* ── Diagram ──────────────────────────────────────── */
+    .diagram-card {
+      background: var(--panel); backdrop-filter: blur(8px);
+      border: 1px solid var(--line); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow); padding: 22px; margin-bottom: 20px;
+    }
+    .diagram-card h3 { font-family: "Space Grotesk", sans-serif; font-size: 1.05rem; margin: 0 0 6px; }
+    .diagram-card p { margin: 0 0 12px; color: var(--muted); line-height: 1.7; }
+    .diagram-surface {
+      margin-top: 14px; padding: 18px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, #fffdf9 0%, #f6efe3 100%);
+      border: 1px solid rgba(31, 41, 51, 0.08); overflow: auto;
+    }
+    .mermaid { margin-top: 0; min-width: 900px; }
+    .mermaid svg { display: block; width: 100%; height: auto; }
+    .diagram-hint { margin-top: 10px; color: var(--muted); font-size: 0.88rem; }
+
+    /* ── Step cards (Happy Path) ──────────────────────── */
+    .step-flow { display: grid; gap: 0; margin-bottom: 20px; }
+    .step-card {
+      background: var(--panel); border: 1px solid var(--line);
+      padding: 22px 24px; position: relative;
+    }
+    .step-card:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+    .step-card:last-child { border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+    .step-card + .step-card { border-top: none; }
+    .step-card::before {
+      content: ""; position: absolute; left: 36px; top: -1px; width: 2px; height: 100%;
+      background: rgba(11, 110, 79, 0.15); z-index: 0;
+    }
+    .step-card:first-child::before { top: 50%; height: 50%; }
+    .step-card:last-child::before { height: 50%; }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; border-radius: 999px;
+      background: var(--accent); color: white;
+      font-weight: 700; font-size: 0.88rem; position: relative; z-index: 1;
+      margin-bottom: 10px;
+    }
+    .step-card h4 { font-family: "Space Grotesk", sans-serif; font-size: 1.08rem; margin: 0 0 6px; }
+    .step-card p { margin: 0 0 8px; color: var(--muted); line-height: 1.7; font-size: 0.94rem; }
+    .step-card ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.7; font-size: 0.94rem; }
+    .step-card code { font-family: "IBM Plex Mono", monospace; font-size: 0.84rem; background: rgba(31, 41, 51, 0.06); padding: 2px 6px; border-radius: 6px; }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 1180px) { .grid-2, .grid-3, .hero-grid, .block-divider { grid-template-columns: 1fr; } }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; }
+      .content { padding: 20px; }
+    }
+    @media (max-width: 640px) { .content { padding: 14px; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- SIDEBAR                                                            -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-kicker">Diseño Técnico</div>
+        <h1>Data Foundation &amp; PoC Sandbox</h1>
+        <p>Espina Dorsal de Datos Maestros, configuración nativa de ERPNext y ciclo Happy Path para la fábrica química en Marruecos.</p>
+      </div>
+
+      <nav aria-label="Índice lateral">
+        <div class="nav-group">
+          <div class="nav-title">Parte 1 — Datos Maestros</div>
+          <a href="#empresa">1. Estructura de Empresas</a>
+          <a href="#item-groups">2. Jerarquía Item Groups</a>
+          <a href="#item-master">3. Item Master (Químicos)</a>
+          <a href="#item-envases">4. Item Master (Envases)</a>
+          <a href="#warehouses">5. Arbol de Almacenes</a>
+          <a href="#uom">6. Unidades de Medida</a>
+          <a href="#batch-naming">7. Naming Series y Lotes</a>
+          <a href="#proveedores-clientes">8. Proveedores y Clientes</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Parte 2 — Parámetros Nativos</div>
+          <a href="#stock-settings">1. Stock Settings</a>
+          <a href="#manufacturing-settings">2. Manufacturing Settings</a>
+          <a href="#selling-settings">3. Selling Settings</a>
+          <a href="#buying-settings">4. Buying Settings</a>
+          <a href="#quality-settings">5. Quality Settings</a>
+          <a href="#accounts-settings">6. Accounts Settings</a>
+          <a href="#system-settings">7. System Settings</a>
+          <a href="#workflows">8. Workflows Nativos</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Parte 3 — Happy Path PoC</div>
+          <a href="#poc-intro">Objetivo del Sandbox</a>
+          <a href="#poc-seed">Seed Data</a>
+          <a href="#poc-flow">Ciclo Happy Path</a>
+          <a href="#poc-steps">Paso a Paso</a>
+          <a href="#poc-validation">Criterios de Éxito</a>
+          <a href="#poc-diagram">Diagrama del Ciclo</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Cicatrices — Guardrails</div>
+          <a href="#cicatriz-server-script">G1. Server Script try/except</a>
+          <a href="#cicatriz-coa-parity">G2. Paridad CoA Consolidación</a>
+          <a href="#cicatriz-item-code-qr">G3. Item Code solo en QR</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-title">Cierre</div>
+          <a href="#resumen-final">Resumen Ejecutivo</a>
+        </div>
+      </nav>
+
+      <div class="sidebar-note">
+        Documento generado como entregable de la Fase de Diseño Técnico. Cada decisión está justificada desde los requisitos del FSD aprobado por Arquitectura.
+      </div>
+    </aside>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- CONTENT                                                            -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <main class="content">
+
+      <!-- ── Hero ──────────────────────────────────────────────────────── -->
+      <section class="hero" id="resumen">
+        <div class="hero-grid">
+          <div>
+            <div class="section-kicker">Diseño Técnico</div>
+            <h2>Data Foundation &amp; PoC Sandbox</h2>
+            <p>Este documento traduce los 5 bloques del FSD aprobado en una arquitectura de datos maestros concreta, la configuración exacta de parámetros nativos de ERPNext, y el diseño del ciclo Happy Path para validar el modelo completo en un entorno Sandbox antes de tocar producción.</p>
+          </div>
+          <div class="hero-stats" aria-label="Métricas del documento">
+            <article class="stat-card">
+              <span class="stat-label">Empresas</span>
+              <strong class="stat-value">2 + 1 Consolidada</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Almacenes Lógicos</span>
+              <strong class="stat-value">12 nodos</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Parámetros Críticos</span>
+              <strong class="stat-value">8 módulos</strong>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- PARTE 1 — MODELADO DE DATOS MAESTROS                              -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="block-divider" id="parte-1" aria-labelledby="parte-1-title">
+        <div>
+          <div class="section-kicker">Parte 1</div>
+          <h2 id="parte-1-title">Modelado de Datos Maestros</h2>
+          <p>La espina dorsal sobre la que se construirá todo: estructura empresarial, catálogo de artículos para químicos y envases, árbol de almacenes lógicos, unidades de medida con conversión por densidad, y la lógica de nomenclatura para lotes y series.</p>
+        </div>
+        <div class="block-divider-meta">
+          <article class="stat-card">
+            <span class="stat-label">Principio rector</span>
+            <strong class="stat-value">Máximo nativo, mínimo custom</strong>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 1.1 Estructura de Empresas ──────────────────────────────────── -->
+      <section id="empresa">
+        <div class="section-header">
+          <div class="section-kicker">1.1 — Company</div>
+          <h2 class="section-title">Estructura de Empresas</h2>
+          <p class="section-intro">ERPNext soporta multi-company nativa con contabilidad separada y consolidación. Modelamos dos empresas operativas bajo una empresa padre virtual para reporting consolidado del Gerente.</p>
+        </div>
+
+        <div class="config-card">
+          <h3>Arquitectura Company Tree</h3>
+          <div class="code-block"><span class="head">Company Tree (Setup > Company)</span>
+
+<span class="comment">── Empresa padre (solo consolidación, no opera)</span>
+<span class="key">Groupe Chimique MA</span>                        <span class="comment"># abbr: GCMA</span>
+  <span class="val">├── Peintures du Maroc SARL</span>              <span class="comment"># abbr: PDM  │ División Pinturas</span>
+  <span class="val">└── Produits d'Entretien du Maroc SARL</span>   <span class="comment"># abbr: PEM  │ División Limpieza</span></div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Campo</th>
+                <th>Peintures du Maroc (PDM)</th>
+                <th>Produits d'Entretien (PEM)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Company Name</strong></td>
+                <td>Peintures du Maroc SARL</td>
+                <td>Produits d'Entretien du Maroc SARL</td>
+              </tr>
+              <tr>
+                <td><strong>Abbreviation</strong></td>
+                <td><code>PDM</code></td>
+                <td><code>PEM</code></td>
+              </tr>
+              <tr>
+                <td><strong>Default Currency</strong></td>
+                <td>MAD</td>
+                <td>MAD</td>
+              </tr>
+              <tr>
+                <td><strong>Country</strong></td>
+                <td>Morocco</td>
+                <td>Morocco</td>
+              </tr>
+              <tr>
+                <td><strong>Parent Company</strong></td>
+                <td>Groupe Chimique MA</td>
+                <td>Groupe Chimique MA</td>
+              </tr>
+              <tr>
+                <td><strong>Default Cost Center</strong></td>
+                <td><code>Main - PDM</code></td>
+                <td><code>Main - PEM</code></td>
+              </tr>
+              <tr>
+                <td><strong>Chart of Accounts</strong></td>
+                <td colspan="2">Plan Comptable Marocain (carga manual — archivo PCM seed)</td>
+              </tr>
+              <tr>
+                <td><strong>Tax ID (IF)</strong></td>
+                <td>Identifiant Fiscal PDM</td>
+                <td>Identifiant Fiscal PEM</td>
+              </tr>
+              <tr>
+                <td><strong>ICE</strong></td>
+                <td>Custom Field <code>ice_number</code></td>
+                <td>Custom Field <code>ice_number</code></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h4>Justificación técnica</h4>
+          <ul>
+            <li><strong>Empresa Padre virtual (GCMA):</strong> No genera transacciones. Existe solo para que el Gerente use <code>Consolidated Financial Statement</code> y vea ambas divisiones juntas en los dashboards.</li>
+            <li><strong>2 empresas hijas operativas:</strong> Cada una tiene su propio plan contable, centros de costo, almacenes y stock. Esto garantiza separación fiscal y contable total (exigencia del contable marroquí).</li>
+            <li><strong>Custom Fields fiscales:</strong> Añadiremos <code>ice_number</code>, <code>rc_number</code> y <code>patente_number</code> al DocType Company via Customize Form, sin tocar core.</li>
+            <li><strong>⚠ GUARDRAIL — Paridad de Plan Contable:</strong> El <code>Consolidated Financial Statement</code> de ERPNext cruza cuentas entre empresas hijas <strong>por nombre exacto de cuenta</strong>. Si el contable crea una cuenta en PDM y no la replica en PEM (o viceversa), la consolidación la ignora silenciosamente. <u>Regla inviolable:</u> ambas empresas se inicializan desde el <strong>mismo archivo seed PCM JSON</strong>. Cualquier alta/modificación de cuenta contable posterior se ejecuta vía script que replica en ambas empresas simultáneamente. En el PoC validaremos esto con un paso explícito (ver Guardrail G2).</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── 1.2 Jerarquía Item Groups ───────────────────────────────────── -->
+      <section id="item-groups">
+        <div class="section-header">
+          <div class="section-kicker">1.2 — Item Group</div>
+          <h2 class="section-title">Jerarquía del Catálogo (Item Groups)</h2>
+          <p class="section-intro">La clasificación de artículos es la base de los reportes de inventario, los filtros de BOM y las reglas de precios. Diseñamos un árbol de 3 niveles que separa materias primas por función química, envases por tipo y producto terminado por línea de negocio.</p>
+        </div>
+
+        <div class="config-card">
+          <h3>Árbol Item Group</h3>
+          <div class="code-block"><span class="head">Item Group Tree (Setup > Item Group)</span>
+
+<span class="key">All Item Groups</span>
+  <span class="val">├── Materias Primas</span>
+  │     <span class="str">├── Resinas y Ligantes</span>        <span class="comment"># Resina alquídica, acrílica, vinílica</span>
+  │     <span class="str">├── Pigmentos y Cargas</span>        <span class="comment"># Dióxido de titanio, carbonato, talco</span>
+  │     <span class="str">├── Solventes y Diluyentes</span>    <span class="comment"># White spirit, agua desmineralizada</span>
+  │     <span class="str">├── Tensioactivos y Surfactantes</span> <span class="comment"># LABSA, SLES (limpieza)</span>
+  │     <span class="str">├── Perfumes y Colorantes</span>     <span class="comment"># Fragancias, colorantes líquidos</span>
+  │     <span class="str">└── Aditivos Químicos</span>         <span class="comment"># Espesantes, conservantes, antiespumantes</span>
+  │
+  <span class="val">├── Material de Envasado</span>
+  │     <span class="str">├── Bidones y Cubetas</span>         <span class="comment"># 1L, 4L, 10L, 20L, 200L</span>
+  │     <span class="str">├── Botellas PET/HDPE</span>         <span class="comment"># Frascos limpieza 500ml, 1L, 5L</span>
+  │     <span class="str">├── Tapas y Cierres</span>           <span class="comment"># Tapas rosca, tapas dosificadoras</span>
+  │     <span class="str">├── Etiquetas</span>                 <span class="comment"># Etiquetas pre-impresas, rollos térmicos</span>
+  │     <span class="str">└── Embalaje Secundario</span>       <span class="comment"># Cajas, film retráctil, pallets</span>
+  │
+  <span class="val">├── Producto Terminado</span>
+  │     <span class="str">├── Pinturas</span>
+  │     │     <span class="comment">├── Pintura Mate</span>
+  │     │     <span class="comment">├── Pintura Satinada</span>
+  │     │     <span class="comment">├── Esmalte</span>
+  │     │     <span class="comment">└── Imprimación</span>
+  │     <span class="str">└── Limpieza</span>
+  │           <span class="comment">├── Limpiasuelos</span>
+  │           <span class="comment">├── Lejía / Eau de Javel</span>
+  │           <span class="comment">├── Lavavajillas</span>
+  │           <span class="comment">└── Multiusos</span>
+  │
+  <span class="val">├── Subproducto / Scrap</span>           <span class="comment"># Mermas recuperables, residuos</span>
+  <span class="val">└── Consumibles de Planta</span>          <span class="comment"># Guantes, filtros, discos mezcladoras</span></div>
+
+          <h4>Reglas de diseño</h4>
+          <ul>
+            <li><strong>Nivel 1 (raíz):</strong> Separa la función logística — entra como MP, se transforma, sale como PT.</li>
+            <li><strong>Nivel 2:</strong> Agrupa por familia química/física. Es el nivel que alimenta las Pricing Rules y los reportes del Gerente.</li>
+            <li><strong>Nivel 3 (solo PT):</strong> Subtipos de producto para granularidad comercial. Las Pricing Rules pueden engancharse aquí para aplicar descuentos por familia.</li>
+            <li><strong>Subproducto/Scrap:</strong> Grupo separado para capturar mermas recuperables que el módulo de Manufacturing genera. No contamina los reportes de inventario vendible.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── 1.3 Item Master — Químicos ──────────────────────────────────── -->
+      <section id="item-master">
+        <div class="section-header">
+          <div class="section-kicker">1.3 — Item Master</div>
+          <h2 class="section-title">Diseño del Item Master: Materias Primas Químicas</h2>
+          <p class="section-intro">Cada materia prima química requiere trazabilidad por lote, fecha de caducidad obligatoria, conversión de unidades por densidad y un vínculo directo con la inspección de calidad. Esta es la configuración exacta campo por campo.</p>
+        </div>
+
+        <div class="config-card">
+          <h3>Configuración tipo: "Resina Alquídica G-70"</h3>
+          <table class="data-table">
+            <thead><tr><th>Campo ERPNext</th><th>Valor</th><th>Razón</th></tr></thead>
+            <tbody>
+              <tr><td><code>item_code</code></td><td><strong>MP-RES-ALK-G70</strong></td><td>Prefijo MP- indica Materia Prima. Código legible para compras y almacén.</td></tr>
+              <tr><td><code>item_name</code></td><td>Résine Alkyde G-70</td><td>En francés: idioma operativo de la fábrica. El campo arabeizado irá en <code>description</code>.</td></tr>
+              <tr><td><code>item_group</code></td><td>Resinas y Ligantes</td><td>Nivel 2 del árbol.</td></tr>
+              <tr><td><code>stock_uom</code></td><td><strong>Kg</strong></td><td>UoM base de almacén = peso. La fábrica pesa todo lo que entra.</td></tr>
+              <tr><td><code>has_batch_no</code></td><td><strong>1 (Sí)</strong></td><td>Obliga a asignar lote en cada transacción. Sin esto, la trazabilidad muere.</td></tr>
+              <tr><td><code>create_new_batch</code></td><td><strong>1 (Sí)</strong></td><td>ERPNext genera lote interno automáticamente al recibir mercancía.</td></tr>
+              <tr><td><code>batch_number_series</code></td><td><code>LOTE-RES-.YYYY.-.####</code></td><td>Naming Series: LOTE-RES-2026-0001, LOTE-RES-2026-0002...</td></tr>
+              <tr><td><code>has_expiry_date</code></td><td><strong>1 (Sí)</strong></td><td>Activa FEFO automático. La resina caduca y esto controla la selección de lotes.</td></tr>
+              <tr><td><code>shelf_life_in_days</code></td><td>365</td><td>Vida útil por defecto. Si el proveedor indica otra fecha, se sobreescribe en el lote.</td></tr>
+              <tr><td><code>is_stock_item</code></td><td>1</td><td>Es inventariable, genera Stock Ledger Entry.</td></tr>
+              <tr><td><code>is_purchase_item</code></td><td>1</td><td>Aparece en Purchase Orders.</td></tr>
+              <tr><td><code>is_sales_item</code></td><td>0</td><td>Las materias primas NO se venden. Solo se consumen en BOM.</td></tr>
+              <tr><td><code>include_item_in_manufacturing</code></td><td>1</td><td>Disponible para selección en BOMs.</td></tr>
+              <tr><td><code>inspection_required_before_purchase</code></td><td><strong>1 (Sí)</strong></td><td>Obliga a crear Quality Inspection al hacer Purchase Receipt. Flujo de cuarentena.</td></tr>
+              <tr><td><code>quality_inspection_template</code></td><td>QIT-Materia-Prima-General</td><td>Plantilla con parámetros: Viscosidad, pH, Densidad, Color.</td></tr>
+              <tr><td><code>default_warehouse</code></td><td>Cuarentena MP - PDM</td><td>Al recibir, cae siempre en cuarentena. El script lo mueve al aprobar QC.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>UoM Conversion Table (dentro del Item)</h4>
+          <table class="data-table">
+            <thead><tr><th>UoM</th><th>Factor de conversión</th><th>Contexto de uso</th></tr></thead>
+            <tbody>
+              <tr><td><code>Kg</code> (base)</td><td>1</td><td>Stock UoM. Almacén y producción pesan.</td></tr>
+              <tr><td><code>Litre</code></td><td>1 Litre = 1.075 Kg</td><td>Compras a veces negocia en litros. Factor = densidad del producto.</td></tr>
+              <tr><td><code>Bidon 200L</code></td><td>1 Bidon 200L = 215 Kg</td><td>Unidad de compra. Factura del proveedor por bidones.</td></tr>
+              <tr><td><code>g</code></td><td>1 g = 0.001 Kg</td><td>Formulación en BOM. El químico trabaja en gramos.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Custom Fields adicionales (via Customize Form en Item)</h4>
+          <table class="data-table">
+            <thead><tr><th>Fieldname</th><th>Tipo</th><th>Descripción</th></tr></thead>
+            <tbody>
+              <tr><td><code>fiche_securite_url</code></td><td>Data (URL)</td><td>Enlace a la Ficha de Datos de Seguridad (FDS/MSDS) del producto.</td></tr>
+              <tr><td><code>densidad_referencia</code></td><td>Float</td><td>Densidad g/cm³ para validación cruzada con la tabla UoM.</td></tr>
+              <tr><td><code>cas_number</code></td><td>Data</td><td>Número CAS del compuesto químico para regulación.</td></tr>
+              <tr><td><code>clase_peligrosidad</code></td><td>Select</td><td>Opciones: No peligroso / Inflamable / Corrosivo / Tóxico / Oxidante</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 1.4 Item Master — Envases y PT ──────────────────────────────── -->
+      <section id="item-envases">
+        <div class="section-header">
+          <div class="section-kicker">1.4 — Item Master</div>
+          <h2 class="section-title">Item Master: Envases y Productos Terminados</h2>
+          <p class="section-intro">Los envases se modelan como ítems de stock consumibles en la BOM. Los productos terminados son los que salen por la puerta hacia el cliente B2B, con lote, caducidad y trazabilidad completa.</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="role-index">E</div>
+            <h3>Envases y Material de Embalaje</h3>
+            <div class="label label-config">Configuración tipo</div>
+            <table class="data-table">
+              <tbody>
+                <tr><td><code>item_code</code></td><td><strong>ENV-BID-20L-BLC</strong></td></tr>
+                <tr><td><code>item_name</code></td><td>Seau Plastique 20L Blanc</td></tr>
+                <tr><td><code>item_group</code></td><td>Bidones y Cubetas</td></tr>
+                <tr><td><code>stock_uom</code></td><td><strong>Unité (Nos)</strong></td></tr>
+                <tr><td><code>has_batch_no</code></td><td><strong>0</strong></td></tr>
+                <tr><td><code>has_expiry_date</code></td><td>0</td></tr>
+                <tr><td><code>is_purchase_item</code></td><td>1</td></tr>
+                <tr><td><code>is_sales_item</code></td><td>0</td></tr>
+                <tr><td><code>include_item_in_manufacturing</code></td><td><strong>1</strong></td></tr>
+                <tr><td><code>inspection_required</code></td><td>0</td></tr>
+              </tbody>
+            </table>
+            <p><strong>Decisión:</strong> Los envases NO llevan lote. Son fungibles. Lo que importa es que estén en la BOM para descontar stock al fabricar. Si un día se necesita trazabilidad de envases (normativa específica), se activa <code>has_batch_no</code> sin tocar nada más.</p>
+          </div>
+
+          <div class="card">
+            <div class="role-index">P</div>
+            <h3>Producto Terminado</h3>
+            <div class="label label-config">Configuración tipo</div>
+            <table class="data-table">
+              <tbody>
+                <tr><td><code>item_code</code></td><td><strong>PT-PIN-BLC-MAT-20L</strong></td></tr>
+                <tr><td><code>item_name</code></td><td>Peinture Blanche Mate 20L</td></tr>
+                <tr><td><code>item_group</code></td><td>Pinturas > Pintura Mate</td></tr>
+                <tr><td><code>stock_uom</code></td><td><strong>Nos</strong> (unidad = cubeta)</td></tr>
+                <tr><td><code>has_batch_no</code></td><td><strong>1</strong></td></tr>
+                <tr><td><code>batch_number_series</code></td><td><code>LOT-PIN-.YYYY.-.####</code></td></tr>
+                <tr><td><code>has_expiry_date</code></td><td><strong>1</strong></td></tr>
+                <tr><td><code>shelf_life_in_days</code></td><td>730 (2 años)</td></tr>
+                <tr><td><code>is_purchase_item</code></td><td>0</td></tr>
+                <tr><td><code>is_sales_item</code></td><td><strong>1</strong></td></tr>
+                <tr><td><code>inspection_required_before_delivery</code></td><td><strong>1</strong></td></tr>
+                <tr><td><code>quality_inspection_template</code></td><td>QIT-Producto-Terminado</td></tr>
+              </tbody>
+            </table>
+            <p><strong>Decisión:</strong> UoM base = unidad (cubeta/botella). El comercial vende "50 cubetas de 20L", no "1000 litros sueltos". La BOM produce la receta en Kg/L y la conversión a unidades se hace con el rendimiento teórico de la receta.</p>
+          </div>
+        </div>
+
+        <div class="config-card">
+          <h3>Convención de Nomenclatura de <code>item_code</code></h3>
+          <div class="code-block"><span class="head">Patrón de Item Code</span>
+
+<span class="key">MP-</span><span class="val">[FAM]</span>-<span class="val">[SUB]</span>-<span class="val">[VARIANTE]</span>      <span class="comment"># Materia Prima</span>
+<span class="key">ENV-</span><span class="val">[TIPO]</span>-<span class="val">[CAPACIDAD]</span>-<span class="val">[COLOR]</span>   <span class="comment"># Envase</span>
+<span class="key">PT-</span><span class="val">[LINEA]</span>-<span class="val">[PROD]</span>-<span class="val">[ACABADO]</span>-<span class="val">[VOL]</span> <span class="comment"># Producto Terminado</span>
+
+<span class="comment">Ejemplos:</span>
+<span class="str">MP-RES-ALK-G70</span>         → Resina Alquídica G-70
+<span class="str">MP-PIG-TIO2-R902</span>       → Dióxido de Titanio R-902
+<span class="str">MP-SOL-WSPI-STD</span>        → White Spirit Estándar
+<span class="str">MP-TEN-LABSA-96</span>        → LABSA 96% (tensioactivo limpieza)
+<span class="str">ENV-BID-20L-BLC</span>        → Seau 20L Blanc
+<span class="str">ENV-BOT-1L-HDPE</span>        → Botella HDPE 1L
+<span class="str">PT-PIN-BLC-MAT-20L</span>    → Pintura Blanca Mate 20L
+<span class="str">PT-LIM-SUELO-LAV-5L</span>   → Limpiasuelos Lavanda 5L</div>
+
+          <div class="card" style="border-left:4px solid #e74c3c; margin-top:1.5rem;">
+            <h4>⚠ GUARDRAIL — Item Code es INVISIBLE para el operario</h4>
+            <p>Los códigos <code>PT-PIN-BLC-MAT-20L</code>, <code>MP-RES-ALK-G70</code>, etc. son <strong>exclusivamente para la base de datos</strong>. El operario de planta <strong>NUNCA ve ni teclea</strong> un <code>item_code</code>. En la PWA/Kiosco (Bloque 3 del FSD) el operario solo interactúa con:</p>
+            <ul>
+              <li><strong>QR Code escaneado:</strong> El código QR impreso en la etiqueta Zebra contiene el <code>item_code</code> + <code>batch_no</code> codificados. El operario escanea, no lee.</li>
+              <li><strong>Nombre comercial en pantalla:</strong> La PWA muestra <code>item_name</code> ("Pintura Blanca Mate 20L"), nunca el <code>item_code</code>.</li>
+              <li><strong>Print Format sin código:</strong> Las etiquetas de planta muestran nombre + lote + fecha + QR. El <code>item_code</code> no aparece impreso.</li>
+            </ul>
+            <p><strong>Regla de implementación:</strong> Todo Print Format, toda vista Kiosco y todo reporte de operario se diseño con <code>item_name</code> visible y <code>item_code</code> oculto. El código existe en el QR y en la BD, en ningún otro lugar visible al operario. (Ver Guardrail G3).</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 1.5 Árbol de Almacenes ──────────────────────────────────────── -->
+      <section id="warehouses">
+        <div class="section-header">
+          <div class="section-kicker">1.5 — Warehouse</div>
+          <h2 class="section-title">Árbol de Almacenes Lógicos</h2>
+          <p class="section-intro">Cada almacén lógico representa un estado del inventario (cuarentena, aprobado, en proceso, terminado). La separación por empresa es obligatoria: ERPNext vincula cada Warehouse a una Company.</p>
+        </div>
+
+        <div class="config-card">
+          <h3>Warehouse Tree completo</h3>
+          <div class="code-block"><span class="head">Warehouse Tree (Stock > Warehouse)</span>
+
+<span class="key">Groupe Chimique MA</span>                             <span class="comment"># Nodo raíz (no almacena)</span>
+│
+├── <span class="val">Peintures du Maroc - PDM</span>                    <span class="comment"># Company = PDM</span>
+│     ├── <span class="str">Cuarentena MP - PDM</span>                  <span class="comment"># Recepción. Bloqueado hasta QC.</span>
+│     ├── <span class="str">Materia Prima Aprobada - PDM</span>         <span class="comment"># QC pasada. Listo para producción.</span>
+│     ├── <span class="str">Planta Mezclas WIP - PDM</span>             <span class="comment"># Material Transfer for Manufacture.</span>
+│     ├── <span class="str">Cuarentena PT - PDM</span>                  <span class="comment"># PT post-producción sin QC final.</span>
+│     ├── <span class="str">Producto Terminado - PDM</span>             <span class="comment"># Aprobado por QC. Vendible.</span>
+│     └── <span class="str">Expedición / Picking - PDM</span>           <span class="comment"># Zona de carga de camiones.</span>
+│
+└── <span class="val">Produits d'Entretien - PEM</span>                  <span class="comment"># Company = PEM</span>
+      ├── <span class="str">Cuarentena MP - PEM</span>
+      ├── <span class="str">Materia Prima Aprobada - PEM</span>
+      ├── <span class="str">Planta Mezclas WIP - PEM</span>
+      ├── <span class="str">Cuarentena PT - PEM</span>
+      ├── <span class="str">Producto Terminado - PEM</span>
+      └── <span class="str">Expedición / Picking - PEM</span></div>
+
+          <h4>Mapa de estados del inventario</h4>
+          <table class="data-table">
+            <thead><tr><th>Almacén</th><th>Estado financiero</th><th>Quién lo ve disponible</th><th>Trigger de entrada</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Cuarentena MP</strong></td><td>Inmovilizado</td><td>Solo Contable (valor bloqueado)</td><td>Purchase Receipt</td></tr>
+              <tr><td><strong>MP Aprobada</strong></td><td>Disponible</td><td>Jefe Producción / Planificación</td><td>QC Approval → Server Script Stock Entry</td></tr>
+              <tr><td><strong>Planta Mezclas WIP</strong></td><td>En proceso</td><td>Nadie (consumiéndose)</td><td>Material Transfer for Manufacture</td></tr>
+              <tr><td><strong>Cuarentena PT</strong></td><td>Inmovilizado</td><td>Solo Contable</td><td>Manufacture Stock Entry (output)</td></tr>
+              <tr><td><strong>Producto Terminado</strong></td><td>Vendible</td><td>Comercial B2B / Available to Promise</td><td>QC PT Approval → Server Script</td></tr>
+              <tr><td><strong>Expedición / Picking</strong></td><td>Comprometido</td><td>Mozo de almacén</td><td>Delivery Note (draft) / Pick List</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Justificación: ¿Por qué 6 almacenes por empresa y no 3?</h4>
+          <p>El FSD exige doble cuarentena (MP entrante + PT post-producción). Sin <strong>Cuarentena PT</strong>, un producto recién mezclado aparecería como "vendible" antes de que el Químico lo apruebe. Esto rompe el flujo del Bloque 4. El almacén de <strong>Expedición/Picking</strong> es necesario para el Bloque 5: sin él, el stock "vendido pero no cargado" aparece como disponible para otros Sales Orders, causando sobreventas.</p>
+        </div>
+
+        <div class="diagram-card">
+          <h3>Flujo de almacén: vida de un Kg de resina</h3>
+          <p>Desde que entra por la puerta hasta que sale como pintura en el camión del cliente.</p>
+          <div class="diagram-surface">
+            <pre class="mermaid">
+flowchart LR
+    A["🚚 Purchase Receipt"] --> B["Cuarentena MP"]
+    B -->|"QC Aprobada<br/>(Server Script)"| C["MP Aprobada"]
+    C -->|"Material Transfer<br/>for Manufacture"| D["Planta Mezclas WIP"]
+    D -->|"Stock Entry<br/>Manufacture"| E["Cuarentena PT"]
+    E -->|"QC PT Aprobada<br/>(Server Script)"| F["Producto Terminado"]
+    F -->|"Delivery Note /<br/>Pick List"| G["Expedición"]
+    G -->|"Delivery Note<br/>Submit"| H["📦 Cliente B2B"]
+
+    B -->|"QC Rechazada"| I["🔙 Devolución Proveedor"]
+    E -->|"QC Rechazada"| J["⚠️ Reproceso / Scrap"]
+            </pre>
+          </div>
+          <p class="diagram-hint">Los nodos naranjas representan las bifurcaciones de rechazo que el Químico controla desde su tablet.</p>
+        </div>
+      </section>
+
+      <!-- ── 1.6 Unidades de Medida ──────────────────────────────────────── -->
+      <section id="uom">
+        <div class="section-header">
+          <div class="section-kicker">1.6 — UoM</div>
+          <h2 class="section-title">Unidades de Medida y Conversiones</h2>
+          <p class="section-intro">En química, el mismo producto se maneja en hasta 4 unidades distintas según quién lo toque. ERPNext soporta conversión a nivel de ítem (UoM Conversion Factor), que es exactamente lo que necesitamos porque la densidad varía por producto.</p>
+        </div>
+
+        <div class="config-card">
+          <h3>UoMs a crear en el sistema</h3>
+          <table class="data-table">
+            <thead><tr><th>UoM Name</th><th>Must be Whole Number</th><th>Uso principal</th></tr></thead>
+            <tbody>
+              <tr><td><code>Kg</code></td><td>No</td><td>Stock UoM base para todas las materias primas</td></tr>
+              <tr><td><code>g</code></td><td>No</td><td>Formulación en BOM (gramos de cada ingrediente)</td></tr>
+              <tr><td><code>Litre</code></td><td>No</td><td>Compras de líquidos, algunos proveedores facturan en litros</td></tr>
+              <tr><td><code>Nos</code></td><td>Sí</td><td>Unidades discretas: cubetas, botellas, tapas, cajas</td></tr>
+              <tr><td><code>Bidon 200L</code></td><td>Sí</td><td>Unidad de compra para resinas y solventes importados</td></tr>
+              <tr><td><code>Bidon 60L</code></td><td>Sí</td><td>Algunos tensioactivos vienen en bidones de 60L</td></tr>
+              <tr><td><code>Sac 25Kg</code></td><td>Sí</td><td>Pigmentos y cargas minerales vienen en sacos</td></tr>
+              <tr><td><code>Palette</code></td><td>Sí</td><td>Unidad logística para expedición agrupada</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Ejemplo: Tabla de conversión para "Resina Alquídica G-70"</h4>
+          <div class="code-block"><span class="head">Item > UoM Conversion Detail (child table)</span>
+
+<span class="comment">stock_uom = Kg (base)</span>
+
+UoM             Factor              Cálculo
+─────────────── ─────────────────── ────────────────────────────────
+<span class="key">g</span>               <span class="val">0.001</span>               1 g = 0.001 Kg
+<span class="key">Litre</span>           <span class="val">1.075</span>               1 Litre = 1.075 Kg  <span class="warn">(densidad 1.075 g/cm³)</span>
+<span class="key">Bidon 200L</span>      <span class="val">215.0</span>               1 Bidon = 200L × 1.075 = 215 Kg
+</div>
+
+          <h4>Regla de oro</h4>
+          <ul>
+            <li><strong>Stock UoM siempre en Kg</strong> para materias primas: es la unidad que no miente. Los litros dependen de la temperatura; los kilogramos no.</li>
+            <li><strong>Stock UoM en Nos</strong> para envases y producto terminado: se cuentan unidades discretas.</li>
+            <li><strong>Los factores de conversión se definen POR ITEM</strong>, no de forma global. La densidad de la resina alquídica (1.075) no es la misma que la del white spirit (0.780). ERPNext lo maneja perfecto con la tabla <code>UoM Conversion Detail</code> del Item.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── 1.7 Naming Series y Batch ───────────────────────────────────── -->
+      <section id="batch-naming">
+        <div class="section-header">
+          <div class="section-kicker">1.7 — Naming Series</div>
+          <h2 class="section-title">Naming Series y Nomenclatura de Lotes</h2>
+          <p class="section-intro">La nomenclatura de documentos y lotes es lo que permite que un código QR impreso en una etiqueta Zebra sea legible por un humano Y parseable por un escáner. Diseñamos convenciones que cumplen ambos requisitos.</p>
+        </div>
+
+        <div class="config-card">
+          <h3>Naming Series por DocType</h3>
+          <table class="data-table">
+            <thead><tr><th>DocType</th><th>Naming Series</th><th>Ejemplo</th></tr></thead>
+            <tbody>
+              <tr><td>Purchase Order</td><td><code>PO-PDM-.YYYY.-.#####</code></td><td>PO-PDM-2026-00012</td></tr>
+              <tr><td>Purchase Receipt</td><td><code>PR-PDM-.YYYY.-.#####</code></td><td>PR-PDM-2026-00045</td></tr>
+              <tr><td>Sales Order</td><td><code>SO-PDM-.YYYY.-.#####</code></td><td>SO-PDM-2026-00101</td></tr>
+              <tr><td>Delivery Note</td><td><code>DN-PDM-.YYYY.-.#####</code></td><td>DN-PDM-2026-00078</td></tr>
+              <tr><td>Sales Invoice</td><td><code>FA-PDM-.YYYY.-.#####</code></td><td>FA-PDM-2026-00055</td></tr>
+              <tr><td>Work Order</td><td><code>WO-PDM-.YYYY.-.#####</code></td><td>WO-PDM-2026-00033</td></tr>
+              <tr><td>Stock Entry</td><td><code>SE-PDM-.YYYY.-.#####</code></td><td>SE-PDM-2026-00200</td></tr>
+              <tr><td>Quality Inspection</td><td><code>QI-PDM-.YYYY.-.#####</code></td><td>QI-PDM-2026-00015</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Nota:</strong> Todas las series se duplican para PEM (<code>PO-PEM-.YYYY.-.#####</code>, etc.). La empresa se identifica en el código del documento.</p>
+
+          <h4>Batch Naming Series por tipo de producto</h4>
+          <table class="data-table">
+            <thead><tr><th>Tipo</th><th>batch_number_series</th><th>Ejemplo</th></tr></thead>
+            <tbody>
+              <tr><td>Resinas</td><td><code>LOTE-RES-.YYYY.-.####</code></td><td>LOTE-RES-2026-0001</td></tr>
+              <tr><td>Pigmentos</td><td><code>LOTE-PIG-.YYYY.-.####</code></td><td>LOTE-PIG-2026-0044</td></tr>
+              <tr><td>Solventes</td><td><code>LOTE-SOL-.YYYY.-.####</code></td><td>LOTE-SOL-2026-0012</td></tr>
+              <tr><td>Tensioactivos</td><td><code>LOTE-TEN-.YYYY.-.####</code></td><td>LOTE-TEN-2026-0008</td></tr>
+              <tr><td>Pintura (PT)</td><td><code>LOT-PIN-.YYYY.-.####</code></td><td>LOT-PIN-2026-0150</td></tr>
+              <tr><td>Limpieza (PT)</td><td><code>LOT-LIM-.YYYY.-.####</code></td><td>LOT-LIM-2026-0075</td></tr>
+            </tbody>
+          </table>
+          <p><strong>El prefijo del lote es la clave:</strong> Un operario que ve una etiqueta <code>LOTE-RES-2026-0001</code> sabe inmediatamente que es una resina del 2026, lote número 1. Esto complementa (no substituye) al QR impreso.</p>
+        </div>
+      </section>
+
+      <!-- ── 1.8 Proveedores y Clientes ──────────────────────────────────── -->
+      <section id="proveedores-clientes">
+        <div class="section-header">
+          <div class="section-kicker">1.8 — Supplier &amp; Customer</div>
+          <h2 class="section-title">Proveedores y Clientes Maestros</h2>
+          <p class="section-intro">Estructura mínima viable para el PoC. Solo necesitamos los campos que alimentan el flujo Happy Path: límite de crédito, grupo de clientes (para Pricing Rules) y la moneda del proveedor.</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>Supplier Master (PoC Seed)</h3>
+            <table class="data-table">
+              <tbody>
+                <tr><td><strong>Supplier Group</strong></td><td><code>Chimie Import</code> / <code>Emballage Local</code></td></tr>
+                <tr><td><strong>Default Currency</strong></td><td>EUR (importados) / MAD (locales)</td></tr>
+                <tr><td><strong>Default Payment Terms</strong></td><td>Net 30 / Net 60</td></tr>
+                <tr><td><strong>Custom: supplier_country</strong></td><td>Para Landed Cost (distinguir si es importación)</td></tr>
+              </tbody>
+            </table>
+            <p>Para el PoC crearemos 2 proveedores: uno europeo (resinas en EUR) y uno local (envases en MAD).</p>
+          </div>
+
+          <div class="card">
+            <h3>Customer Master (PoC Seed)</h3>
+            <table class="data-table">
+              <tbody>
+                <tr><td><strong>Customer Group</strong></td><td><code>Droguerie</code> / <code>Distributeur</code> / <code>Grossiste</code></td></tr>
+                <tr><td><strong>Territory</strong></td><td><code>Casablanca</code> / <code>Rabat</code> / <code>Autre</code></td></tr>
+                <tr><td><strong>Default Price List</strong></td><td><code>Tarif Droguerie</code> / <code>Tarif Distributeur</code></td></tr>
+                <tr><td><strong>Credit Limit</strong></td><td>50,000 MAD (Droguerie) / 200,000 MAD (Distributeur)</td></tr>
+                <tr><td><strong>Default Currency</strong></td><td>MAD</td></tr>
+                <tr><td><strong>Custom: ice_client</strong></td><td>ICE del cliente (obligatorio Bon de Livraison)</td></tr>
+              </tbody>
+            </table>
+            <p>Para el PoC crearemos 2 clientes: una droguería con crédito bajo y un distribuidor con crédito alto. Ambos en Casablanca.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- PARTE 2 — PARAMETROS NATIVOS ERPNext                               -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="block-divider" id="parte-2" aria-labelledby="parte-2-title">
+        <div>
+          <div class="section-kicker">Parte 2</div>
+          <h2 id="parte-2-title">Parámetros Nativos de ERPNext</h2>
+          <p>La configuración exacta de cada módulo nativo. Estos settings se aplican una sola vez en el Setup Wizard y afectan el comportamiento global del sistema. Cada parámetro está justificado desde los bloques del FSD.</p>
+        </div>
+        <div class="block-divider-meta">
+          <article class="stat-card">
+            <span class="stat-label">Módulos configurados</span>
+            <strong class="stat-value">8 bloques de settings</strong>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 2.1 Stock Settings ──────────────────────────────────────────── -->
+      <section id="stock-settings">
+        <div class="section-header">
+          <div class="section-kicker">2.1 — Stock Settings</div>
+          <h2 class="section-title">Configuración de Inventario</h2>
+        </div>
+        <div class="config-card">
+          <table class="data-table">
+            <thead><tr><th>Parámetro</th><th>Valor</th><th>Justificación (Bloque FSD)</th></tr></thead>
+            <tbody>
+              <tr><td><code>auto_insert_price_list_rate_if_missing</code></td><td><strong>1</strong></td><td>Alimenta automáticamente las Price Lists a partir de las compras/ventas reales.</td></tr>
+              <tr><td><code>allow_negative_stock</code></td><td><strong>0 (Desactivado)</strong></td><td><strong>CRÍTICO.</strong> En química, el stock negativo es una mentira contable. Si no hay material, no se puede fabricar. (Bloque 3)</td></tr>
+              <tr><td><code>valuation_method</code></td><td><strong>FIFO</strong></td><td>Se alinea con FEFO de lotes. Al usar batches con expiry, FIFO + FEFO trabajan juntos. El lote más viejo se consume y valora primero.</td></tr>
+              <tr><td><code>show_barcode_field</code></td><td><strong>1</strong></td><td>Necesario para las etiquetas QR/código de barras del Bloque 2 (Zebra) y validación Poka-Yoke del Bloque 3.</td></tr>
+              <tr><td><code>stock_frozen_upto</code></td><td>(vacío)</td><td>Se configurará al cierre de cada mes fiscal. Impide ediciones retroactivas en inventario.</td></tr>
+              <tr><td><code>default_warehouse</code></td><td>(Per Company)</td><td>No global. Cada empresa tiene su almacén por defecto en la configuración de Company.</td></tr>
+              <tr><td><code>over_delivery_receipt_allowance (%)</code></td><td><strong>5</strong></td><td>Tolerancia del 5% en recepción de químicos (merma de transporte, diferencias de peso).</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 2.2 Manufacturing Settings ──────────────────────────────────── -->
+      <section id="manufacturing-settings">
+        <div class="section-header">
+          <div class="section-kicker">2.2 — Manufacturing Settings</div>
+          <h2 class="section-title">Configuración de Fabricación</h2>
+        </div>
+        <div class="config-card">
+          <table class="data-table">
+            <thead><tr><th>Parámetro</th><th>Valor</th><th>Justificación</th></tr></thead>
+            <tbody>
+              <tr><td><code>default_wip_warehouse</code></td><td><strong>(Per Company)</strong></td><td>PDM → "Planta Mezclas WIP - PDM" / PEM → "Planta Mezclas WIP - PEM"</td></tr>
+              <tr><td><code>default_fg_warehouse</code></td><td><strong>(Per Company)</strong></td><td>PDM → "Cuarentena PT - PDM" (NO Producto Terminado, porque falta QC post-producción)</td></tr>
+              <tr><td><code>backflush_raw_materials_based_on</code></td><td><strong>BOM</strong></td><td>Backflush teórico desde la BOM. El operario ajusta manualmente vía Kiosco si hay diferencia real. (Bloque 3)</td></tr>
+              <tr><td><code>material_consumption</code></td><td><strong>1 (Activado)</strong></td><td>Permite registrar consumo real diferenciado del teórico. Clave para el botón [+AÑADIR EXTRA] del Kiosco.</td></tr>
+              <tr><td><code>overproduction_percentage_for_work_order</code></td><td><strong>10</strong></td><td>Tolerancia del 10% de sobreproducción. En química, la mezcla puede rendir un poco más de lo previsto.</td></tr>
+              <tr><td><code>capacity_planning_for_work_order</code></td><td><strong>0 (Desactivado)</strong></td><td>La fábrica tiene pocas mezcladoras y la planificación es manual por el Jefe de Planta. No añade valor ahora.</td></tr>
+              <tr><td><code>disable_capacity_planning</code></td><td><strong>1</strong></td><td>Simplifica el Work Order. Se activa en Fase 2 si crecen las líneas de producción.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Decisión crítica: <code>default_fg_warehouse</code> = Cuarentena PT</h4>
+          <p>Este es el hack que soporta el flujo del Bloque 4. Cuando la Work Order termina y se hace el Stock Entry tipo Manufacture, el producto terminado cae en <strong>Cuarentena PT</strong>, NO en el almacén vendible. Solo cuando el Químico aprueba la QC, el Server Script lo mueve a Producto Terminado. Sin esta configuración, el comercial podría vender pintura que aún no ha pasado control de calidad.</p>
+        </div>
+      </section>
+
+      <!-- ── 2.3 Selling Settings ────────────────────────────────────────── -->
+      <section id="selling-settings">
+        <div class="section-header">
+          <div class="section-kicker">2.3 — Selling Settings</div>
+          <h2 class="section-title">Configuración Comercial</h2>
+        </div>
+        <div class="config-card">
+          <table class="data-table">
+            <thead><tr><th>Parámetro</th><th>Valor</th><th>Justificación</th></tr></thead>
+            <tbody>
+              <tr><td><code>customer_naming_by</code></td><td><strong>Naming Series</strong></td><td><code>CLI-.#####</code> para evitar duplicados por nombres similares en árabe/francés.</td></tr>
+              <tr><td><code>selling_price_list</code></td><td><strong>Tarif Standard MAD</strong></td><td>Lista base en MAD. Las Pricing Rules aplican descuentos sobre esta base.</td></tr>
+              <tr><td><code>so_required</code></td><td><strong>1 (Sí)</strong></td><td>Obligar Sales Order antes de Delivery Note. Sin esto, el mozo puede sacar stock sin pedido formal.</td></tr>
+              <tr><td><code>dn_required</code></td><td><strong>1 (Sí)</strong></td><td>Obligar Delivery Note antes de Sales Invoice. Trazabilidad: la factura siempre tiene albarán asociado.</td></tr>
+              <tr><td><code>allow_against_multiple_purchase_orders</code></td><td><strong>0</strong></td><td>Un SO se cumple con un DN limpio. Simplifica la trazabilidad del Bloque 5.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Pricing Rules a configurar (Bloque 5)</h4>
+          <div class="code-block"><span class="head">Pricing Rule #1: Descuento por volumen Droguerie</span>
+<span class="key">Apply On:</span>          <span class="val">Item Group</span>
+<span class="key">Item Group:</span>        <span class="val">Producto Terminado</span>
+<span class="key">Min Qty:</span>           <span class="val">50</span>
+<span class="key">Max Qty:</span>           <span class="val">200</span>
+<span class="key">Discount %:</span>        <span class="val">5</span>
+<span class="key">Applicable For:</span>    <span class="val">Customer Group = Droguerie</span>
+<span class="key">Valid From:</span>        <span class="val">2026-01-01</span>
+<span class="key">Valid Upto:</span>        <span class="val">2026-12-31</span>
+<span class="key">Priority:</span>          <span class="val">10</span>
+
+<span class="head">Pricing Rule #2: Tarifa especial Distributeur</span>
+<span class="key">Apply On:</span>          <span class="val">Item Group</span>
+<span class="key">Item Group:</span>        <span class="val">Producto Terminado</span>
+<span class="key">Min Qty:</span>           <span class="val">200</span>
+<span class="key">Discount %:</span>        <span class="val">12</span>
+<span class="key">Applicable For:</span>    <span class="val">Customer Group = Distributeur</span>
+<span class="key">Priority:</span>          <span class="val">20</span></div>
+        </div>
+      </section>
+
+      <!-- ── 2.4 Buying Settings ─────────────────────────────────────────── -->
+      <section id="buying-settings">
+        <div class="section-header">
+          <div class="section-kicker">2.4 — Buying Settings</div>
+          <h2 class="section-title">Configuración de Compras</h2>
+        </div>
+        <div class="config-card">
+          <table class="data-table">
+            <thead><tr><th>Parámetro</th><th>Valor</th><th>Justificación</th></tr></thead>
+            <tbody>
+              <tr><td><code>supplier_naming_by</code></td><td><strong>Naming Series</strong></td><td><code>FRN-.#####</code></td></tr>
+              <tr><td><code>buying_price_list</code></td><td><strong>Standard Buying MAD</strong></td><td>Precios base de compra.</td></tr>
+              <tr><td><code>po_required</code></td><td><strong>1 (Sí)</strong></td><td>Obligar PO antes de Receipt. Trazabilidad de aprobación de compras.</td></tr>
+              <tr><td><code>pr_required</code></td><td><strong>1 (Sí)</strong></td><td>Obligar Receipt antes de Invoice. El contable no paga sin confirmar recepción.</td></tr>
+              <tr><td><code>maintain_same_rate</code></td><td><strong>1</strong></td><td>La tarifa de la PO se mantiene hasta el Receipt. Variaciones se gestionan vía Landed Cost.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 2.5 Quality Settings ────────────────────────────────────────── -->
+      <section id="quality-settings">
+        <div class="section-header">
+          <div class="section-kicker">2.5 — Quality Module</div>
+          <h2 class="section-title">Configuración de Calidad</h2>
+        </div>
+        <div class="config-card">
+          <h3>Quality Inspection Templates</h3>
+          <div class="code-block"><span class="head">Template: QIT-Materia-Prima-General</span>
+<span class="comment">── Se vincula a Items con inspection_required_before_purchase = 1</span>
+
+<span class="key">Parámetro 1:</span> <span class="val">Viscosidad (cP)</span>
+    Mínimo: <span class="str">80</span>    Máximo: <span class="str">150</span>    Obligatorio: <span class="str">Sí</span>
+
+<span class="key">Parámetro 2:</span> <span class="val">pH</span>
+    Mínimo: <span class="str">6.5</span>   Máximo: <span class="str">8.0</span>    Obligatorio: <span class="str">Sí</span>
+
+<span class="key">Parámetro 3:</span> <span class="val">Densidad (g/cm³)</span>
+    Mínimo: <span class="str">0.95</span>  Máximo: <span class="str">1.20</span>   Obligatorio: <span class="str">Sí</span>
+
+<span class="key">Parámetro 4:</span> <span class="val">Color / Aspecto</span>
+    Tipo: <span class="str">Aceptación manual (OK / NOK)</span>    Obligatorio: <span class="str">Sí</span>
+
+<span class="head">Template: QIT-Producto-Terminado</span>
+<span class="comment">── Se vincula a Items con inspection_required_before_delivery = 1</span>
+
+<span class="key">Parámetro 1:</span> <span class="val">Viscosidad (cP)</span>
+    Mínimo: <span class="str">90</span>    Máximo: <span class="str">130</span>    Obligatorio: <span class="str">Sí</span>
+
+<span class="key">Parámetro 2:</span> <span class="val">pH</span>
+    Mínimo: <span class="str">7.0</span>   Máximo: <span class="str">7.5</span>    Obligatorio: <span class="str">Sí</span>
+
+<span class="key">Parámetro 3:</span> <span class="val">Densidad (g/cm³)</span>
+    Mínimo: <span class="str">1.20</span>  Máximo: <span class="str">1.45</span>   Obligatorio: <span class="str">Sí</span>
+
+<span class="key">Parámetro 4:</span> <span class="val">Color (ΔE)</span>
+    Mínimo: <span class="str">0</span>     Máximo: <span class="str">2.0</span>    Obligatorio: <span class="str">Sí</span>
+
+<span class="key">Parámetro 5:</span> <span class="val">Poder Cubriente (%)</span>
+    Mínimo: <span class="str">92</span>    Máximo: <span class="str">100</span>    Obligatorio: <span class="str">Sí</span></div>
+        </div>
+      </section>
+
+      <!-- ── 2.6 Accounts Settings ───────────────────────────────────────── -->
+      <section id="accounts-settings">
+        <div class="section-header">
+          <div class="section-kicker">2.6 — Accounts Settings</div>
+          <h2 class="section-title">Configuración Contable</h2>
+        </div>
+        <div class="config-card">
+          <table class="data-table">
+            <thead><tr><th>Parámetro</th><th>Valor</th><th>Justificación</th></tr></thead>
+            <tbody>
+              <tr><td><code>acc_frozen_upto</code></td><td>(por mes)</td><td>Se congela el mes anterior al cerrar. Impide modificaciones retroactivas.</td></tr>
+              <tr><td><code>credit_controller</code></td><td><strong>Role: Gerente</strong></td><td>Solo el Gerente puede forzar bypass del límite de crédito. (Bloque 5)</td></tr>
+              <tr><td><code>determine_address_tax_category_from</code></td><td><strong>Billing Address</strong></td><td>La TVA se determina por la dirección de facturación del cliente.</td></tr>
+              <tr><td><code>automatically_fetch_payment_terms</code></td><td><strong>1</strong></td><td>Hereda términos de pago del Customer Master al crear Sales Invoice.</td></tr>
+              <tr><td><code>book_asset_depreciation_entry_automatically</code></td><td><strong>0</strong></td><td>No relevante para PoC. Se activa en Fase 2 si se registran activos.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Currencies habilitadas</h4>
+          <table class="data-table">
+            <thead><tr><th>Currency</th><th>Uso</th></tr></thead>
+            <tbody>
+              <tr><td><code>MAD</code> (Dirham Marroquí)</td><td>Moneda base de ambas empresas. Ventas B2B locales.</td></tr>
+              <tr><td><code>EUR</code> (Euro)</td><td>Compras de importación (resinas europeas). Tipo de cambio diario.</td></tr>
+              <tr><td><code>USD</code> (Dólar)</td><td>Compras puntuales de Asia. Secundaria.</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Impuestos (Tax Templates)</h4>
+          <div class="code-block"><span class="head">Sales Taxes and Charges Template: TVA Maroc Standard</span>
+<span class="key">Charge Type:</span>     <span class="val">On Net Total</span>
+<span class="key">Account Head:</span>    <span class="val">TVA Collectée - PDM</span> <span class="comment">(/ PEM para la otra empresa)</span>
+<span class="key">Rate:</span>            <span class="val">20%</span>             <span class="comment"># TVA estándar Marruecos</span>
+
+<span class="head">Purchase Taxes and Charges Template: TVA Achat Standard</span>
+<span class="key">Charge Type:</span>     <span class="val">On Net Total</span>
+<span class="key">Account Head:</span>    <span class="val">TVA Déductible - PDM</span>
+<span class="key">Rate:</span>            <span class="val">20%</span>
+
+<span class="head">Tax Template: Exonerado</span>
+<span class="key">Rate:</span>            <span class="val">0%</span>              <span class="comment"># Para exportaciones o productos exentos</span></div>
+        </div>
+      </section>
+
+      <!-- ── 2.7 System Settings ─────────────────────────────────────────── -->
+      <section id="system-settings">
+        <div class="section-header">
+          <div class="section-kicker">2.7 — System Settings</div>
+          <h2 class="section-title">Configuración General del Sistema</h2>
+        </div>
+        <div class="config-card">
+          <table class="data-table">
+            <thead><tr><th>Parámetro</th><th>Valor</th><th>Justificación</th></tr></thead>
+            <tbody>
+              <tr><td><code>language</code></td><td><strong>Français (fr)</strong></td><td>Idioma operativo de la fábrica. ERPNext tiene traducción francesa nativa.</td></tr>
+              <tr><td><code>time_zone</code></td><td><strong>Africa/Casablanca</strong></td><td>UTC+1. Marruecos no cambia horario desde 2018.</td></tr>
+              <tr><td><code>date_format</code></td><td><strong>dd/mm/yyyy</strong></td><td>Formato francófono estándar. Los operarios lo reconocen inmediatamente.</td></tr>
+              <tr><td><code>number_format</code></td><td><strong>#.###,##</strong></td><td>Coma decimal, punto separador de miles. Convención francesa.</td></tr>
+              <tr><td><code>currency_precision</code></td><td><strong>2</strong></td><td>MAD tiene céntimos (centimes).</td></tr>
+              <tr><td><code>float_precision</code></td><td><strong>4</strong></td><td>Necesario para conversiones de densidad (1.0750 Kg/L).</td></tr>
+              <tr><td><code>allow_login_using_mobile_no</code></td><td><strong>1</strong></td><td>Los comerciales en ruta usan móvil. Login por número = menos fricción.</td></tr>
+              <tr><td><code>session_expiry</code></td><td><strong>24:00</strong></td><td>Sesión larga para tablets de planta/kiosco. El operario no debe re-loguearse cada hora.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── 2.8 Workflows ───────────────────────────────────────────────── -->
+      <section id="workflows">
+        <div class="section-header">
+          <div class="section-kicker">2.8 — Workflows</div>
+          <h2 class="section-title">Workflows Nativos a Activar</h2>
+          <p class="section-intro">Los Workflows de ERPNext controlan las transiciones de estado de los documentos y quién puede hacer qué. Son el arma principal para automatizar las cuarentenas y los flujos de aprobación sin código custom pesado.</p>
+        </div>
+
+        <div class="grid-1">
+          <div class="config-card">
+            <h3>Workflow 1: Cuarentena MP → Aprobación QC</h3>
+            <div class="code-block"><span class="head">Workflow: QC Materia Prima</span>
+<span class="key">Document Type:</span>    <span class="val">Quality Inspection</span>
+<span class="key">Is Active:</span>        <span class="val">1</span>
+
+<span class="comment">Estados:</span>
+  <span class="str">Pendiente</span>       → Rol: Lab Technician     <span class="comment"># Estado inicial al crear</span>
+  <span class="str">En Revisión</span>     → Rol: Quality Manager    <span class="comment"># Químico revisa resultados</span>
+  <span class="str">Aprobado</span>        → Rol: Quality Manager    <span class="comment"># Trigger: Server Script mueve stock</span>
+  <span class="str">Rechazado</span>       → Rol: Quality Manager    <span class="comment"># Trigger: genera Return contra PO</span>
+
+<span class="comment">Transiciones:</span>
+  Pendiente     → En Revisión    <span class="warn">(Lab Technician completa datos)</span>
+  En Revisión   → Aprobado       <span class="warn">(Quality Manager valida rangos)</span>
+  En Revisión   → Rechazado      <span class="warn">(Quality Manager rechaza)</span></div>
+
+            <h3>Workflow 2: Límite de Crédito → Aprobación Gerente</h3>
+            <div class="code-block"><span class="head">Workflow: Aprobación Crédito Excedido</span>
+<span class="key">Document Type:</span>    <span class="val">Sales Order</span>
+<span class="key">Is Active:</span>        <span class="val">1</span>
+
+<span class="comment">Estados:</span>
+  <span class="str">Borrador</span>            → Rol: Sales User
+  <span class="str">Pendiente Crédito</span>   → Rol: Sales Manager     <span class="comment"># Automático si credit_limit excedido</span>
+  <span class="str">Aprobado</span>            → Rol: Sales Manager
+  <span class="str">Rechazado</span>           → Rol: Sales Manager
+
+<span class="comment">Transiciones:</span>
+  Borrador            → Pendiente Crédito   <span class="warn">(auto si outstanding > credit_limit)</span>
+  Borrador            → Aprobado            <span class="warn">(si crédito OK, flujo directo)</span>
+  Pendiente Crédito   → Aprobado            <span class="warn">(Solo Sales Manager / Gerente)</span>
+  Pendiente Crédito   → Rechazado           <span class="warn">(Solo Sales Manager / Gerente)</span></div>
+
+            <h3>Workflow 3: Cuarentena PT → Liberación Comercial</h3>
+            <div class="code-block"><span class="head">Workflow: QC Producto Terminado</span>
+<span class="key">Document Type:</span>    <span class="val">Quality Inspection</span> <span class="comment">(filtrado por inspection_type = "In Process")</span>
+
+<span class="comment">─ Mismo patrón que WF1 pero con Server Script diferente:</span>
+<span class="comment">─ Al APROBAR: mueve de "Cuarentena PT" → "Producto Terminado"</span>
+<span class="comment">─ Al APROBAR: dispara impresión de etiquetas comerciales</span>
+<span class="comment">─ Al APROBAR: genera PDF del COA (Certificate of Analysis)</span></div>
+
+            <div class="card" style="border-left:4px solid #e74c3c; margin-top:1.5rem;">
+              <h4>⚠ GUARDRAIL — Patrón obligatorio try/except en Server Scripts</h4>
+              <p>Los Server Scripts que crean Stock Entry al aprobar QC son <strong>el punto más frágil</strong> del flujo. Si el almacén destino tiene restricciones, si el lote está bloqueado, o si hay un conflicto de concurrencia, el script falla con un traceback Python incomprensible para el Químico.</p>
+              <p><strong>Regla inviolable:</strong> TODO Server Script que mueva stock DEBE seguir este patrón:</p>
+              <div class="code-block"><span class="head">Server Script: Patrón obligatorio (ejemplo WF1 — QC MP Aprobada)</span>
+
+<span class="key">DocType:</span>        <span class="val">Quality Inspection</span>
+<span class="key">Event:</span>          <span class="val">on_update</span>
+<span class="key">Condition:</span>      <span class="val">doc.workflow_state == "Aprobado" and doc.inspection_type == "Incoming"</span>
+
+<span class="comment"># ── Script Python ──</span>
+<span class="str">try:</span>
+    se = frappe.new_doc("Stock Entry")
+    se.stock_entry_type = "Material Transfer"
+    se.company = doc.company
+    se.append("items", {
+        "item_code": doc.item_code,
+        "qty": doc.qty,
+        "batch_no": doc.batch_no,
+        "s_warehouse": "Cuarentena MP - " + doc.company_abbr,
+        "t_warehouse": "MP Aprobada - " + doc.company_abbr,
+    })
+    se.insert(ignore_permissions=True)
+    se.submit()
+    frappe.msgprint(
+        msg=f"Stock déplacé vers MP Approuvée. Entrée: {se.name}",
+        title="✓ Transfert réussi",
+        indicator="green"
+    )
+<span class="str">except Exception as e:</span>
+    frappe.log_error(
+        title=f"Échec transfert stock QC {doc.name}",
+        message=frappe.get_traceback()
+    )
+    frappe.throw(
+        msg="Impossible de déplacer le stock. "
+            "Veuillez contacter l'administrateur.",
+        title="Erreur de transfert"
+    )
+    <span class="comment"># El error queda en Error Log para el admin.</span>
+    <span class="comment"># El Químico ve un mensaje en francés, limpio, sin traceback.</span></div>
+              <p><strong>Mismo patrón para WF3</strong> (QC PT → Producto Terminado), cambiando solo <code>s_warehouse</code>, <code>t_warehouse</code>, <code>inspection_type</code> y el mensaje. Sin excepción. (Ver Guardrail G1).</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- PARTE 3 — HAPPY PATH PoC SANDBOX                                   -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="block-divider" id="poc-intro" aria-labelledby="parte-3-title">
+        <div>
+          <div class="section-kicker">Parte 3</div>
+          <h2 id="parte-3-title">Happy Path — PoC Sandbox</h2>
+          <p>El objetivo del Sandbox no es probar todo el FSD. Es validar un único ciclo completo de principio a fin: desde que llega la materia prima hasta que el camión sale con el producto vendido. Si este ciclo funciona sin grietas, la Data Foundation está sólida.</p>
+        </div>
+        <div class="block-divider-meta">
+          <article class="stat-card">
+            <span class="stat-label">Duración estimada del ciclo</span>
+            <strong class="stat-value">1 sesión de trabajo</strong>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 3.1 Seed Data ───────────────────────────────────────────────── -->
+      <section id="poc-seed">
+        <div class="section-header">
+          <div class="section-kicker">3.1 — Datos Semilla</div>
+          <h2 class="section-title">Seed Data para el Sandbox</h2>
+          <p class="section-intro">El conjunto mínimo de datos maestros que debemos cargar antes de ejecutar el Happy Path. Todo se centra en la empresa PDM (Pinturas) con un único producto: Pintura Blanca Mate 20L.</p>
+        </div>
+
+        <div class="config-card">
+          <h3>Inventario del Seed</h3>
+          <table class="data-table">
+            <thead><tr><th>Categoría</th><th>Qué se crea</th><th>Cantidad</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Empresa</strong></td><td>Peintures du Maroc SARL (PDM) + padre GCMA</td><td>2</td></tr>
+              <tr><td><strong>Almacenes</strong></td><td>Los 6 nodos de PDM</td><td>6</td></tr>
+              <tr><td><strong>Items — MP</strong></td><td>Resina Alquídica G-70, Dióxido de Titanio R-902, White Spirit Estándar, Agua Desmineralizada</td><td>4</td></tr>
+              <tr><td><strong>Items — Envase</strong></td><td>Seau Plastique 20L Blanc, Tapa, Etiqueta pre-impresa</td><td>3</td></tr>
+              <tr><td><strong>Items — PT</strong></td><td>Peinture Blanche Mate 20L</td><td>1</td></tr>
+              <tr><td><strong>BOM</strong></td><td>Receta "1 cubeta de Pintura Blanca Mate 20L"</td><td>1</td></tr>
+              <tr><td><strong>Proveedor</strong></td><td>ChimEurope SARL (Resinas+Solventes, EUR) + PlastiMaroc (Envases, MAD)</td><td>2</td></tr>
+              <tr><td><strong>Cliente</strong></td><td>Droguerie Atlas (Casablanca) + Distrib Maghreb (Rabat)</td><td>2</td></tr>
+              <tr><td><strong>Price Lists</strong></td><td>Standard Buying MAD, Standard Buying EUR, Tarif Droguerie, Tarif Distributeur</td><td>4</td></tr>
+              <tr><td><strong>QI Templates</strong></td><td>QIT-Materia-Prima-General, QIT-Producto-Terminado</td><td>2</td></tr>
+              <tr><td><strong>UoMs</strong></td><td>Kg, g, Litre, Nos, Bidon 200L, Sac 25Kg</td><td>6</td></tr>
+            </tbody>
+          </table>
+
+          <h4>BOM de prueba: Pintura Blanca Mate 20L</h4>
+          <div class="code-block"><span class="head">BOM: PT-PIN-BLC-MAT-20L (Qty: 1 Nos = 1 cubeta de 20L)</span>
+
+<span class="comment">Ingredientes:</span>
+<span class="key">MP-RES-ALK-G70</span>    <span class="val">6.0 Kg</span>     <span class="warn">Scrap: 2%</span>    → Consumo real: 6.12 Kg
+<span class="key">MP-PIG-TIO2-R902</span>  <span class="val">8.0 Kg</span>     <span class="warn">Scrap: 1%</span>    → Consumo real: 8.08 Kg
+<span class="key">MP-SOL-WSPI-STD</span>   <span class="val">3.0 Kg</span>     <span class="warn">Scrap: 3%</span>    → Consumo real: 3.09 Kg
+<span class="key">MP-H2O-DESMIN</span>     <span class="val">9.0 Kg</span>     <span class="warn">Scrap: 0%</span>    → Consumo real: 9.00 Kg
+
+<span class="comment">Envases (sin merma):</span>
+<span class="key">ENV-BID-20L-BLC</span>   <span class="val">1 Nos</span>
+<span class="key">ENV-TAP-BID-20L</span>   <span class="val">1 Nos</span>
+<span class="key">ENV-ETQ-PIN-BLC</span>   <span class="val">1 Nos</span>
+
+<span class="comment">Peso total mezcla: ~26 Kg → rellena cubeta de 20L (densidad ~1.30)</span>
+<span class="comment">Coste calculado automáticamente por ERPNext al enviar la BOM</span></div>
+        </div>
+      </section>
+
+      <!-- ── 3.2 Ciclo Happy Path ────────────────────────────────────────── -->
+      <section id="poc-flow">
+        <div class="section-header">
+          <div class="section-kicker">3.2 — El Ciclo</div>
+          <h2 class="section-title">Happy Path: Del proveedor al cliente en 12 pasos</h2>
+          <p class="section-intro">Cada paso es una transacción en ERPNext que valida un aspecto crítico de la Data Foundation. Si un paso falla, hemos encontrado un gap en el modelado de datos antes de llegar a producción.</p>
+        </div>
+      </section>
+
+      <section id="poc-steps">
+        <div class="step-flow">
+
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h4>Purchase Order a ChimEurope (Resinas en EUR)</h4>
+            <p>Crear PO por <strong>5 Bidon 200L de Resina Alquídica G-70</strong> a ChimEurope, en EUR.</p>
+            <ul>
+              <li><strong>Valida:</strong> Multi-moneda (EUR → MAD), UoM de compra (Bidon 200L), conversión automática a Kg en stock.</li>
+              <li><strong>DocType:</strong> <code>Purchase Order</code> → PO-PDM-2026-00001</li>
+              <li><strong>Item UoM:</strong> Bidon 200L (cantidad: 5) = 1075 Kg equivalentes en stock.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h4>Purchase Receipt + Batch automático</h4>
+            <p>Recibir la mercancía desde la PO. Se genera Purchase Receipt en <strong>Cuarentena MP - PDM</strong>.</p>
+            <ul>
+              <li><strong>Valida:</strong> Creación automática de Batch (<code>LOTE-RES-2026-0001</code>), fecha de caducidad auto-calculada (shelf_life), stock aparece en Cuarentena y NO en MP Aprobada.</li>
+              <li><strong>Checkpoint:</strong> Verificar Stock Balance — debe haber 1075 Kg en <code>Cuarentena MP - PDM</code> y 0 Kg en <code>MP Aprobada - PDM</code>.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h4>Landed Cost Voucher</h4>
+            <p>Aplicar costes de importación (Douane, transporte) al Purchase Receipt.</p>
+            <ul>
+              <li><strong>Valida:</strong> El Landed Cost Voucher distribuye el gasto adicional sobre el valor del lote de resina. El coste unitario del Kg sube de X EUR a X+Y MAD (coste real puesto en fábrica).</li>
+              <li><strong>Checkpoint:</strong> Stock Ledger Entry muestra el nuevo coste inflado por el LCV.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <h4>Quality Inspection — MP Aprobada</h4>
+            <p>El Químico crea una Quality Inspection para el lote <code>LOTE-RES-2026-0001</code>, introduce valores de Viscosidad, pH, Densidad, Color. Todo dentro de rango → APROBADO.</p>
+            <ul>
+              <li><strong>Valida:</strong> La plantilla QIT funciona, los rangos bloquean si se mete un valor fuera de rango, y al aprobar se dispara el Workflow.</li>
+              <li><strong>Server Script trigger:</strong> Auto-crea un <code>Stock Entry</code> (Material Transfer) de <code>Cuarentena MP → MP Aprobada</code>.</li>
+              <li><strong>Checkpoint:</strong> Stock ahora en <code>Materia Prima Aprobada - PDM</code>. Cuarentena vacía.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <h4>Repetir pasos 1-4 para el resto de materias primas</h4>
+            <p>Comprar Titanio (local, MAD, Sac 25Kg), White Spirit (EUR, Bidon 200L), Agua (local, MAD, Litre) y envases (local, MAD, Nos). QC solo para químicos, no para envases.</p>
+            <ul>
+              <li><strong>Valida:</strong> Todas las UoM y sus conversiones, envases sin batch ni QC (flujo limpio), facturas multi-moneda mezcladas.</li>
+              <li><strong>Checkpoint:</strong> Todo el stock necesario para la BOM está en <code>MP Aprobada - PDM</code> o en almacén genérico para envases.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">6</div>
+            <h4>Work Order: fabricar 50 cubetas de Pintura Blanca</h4>
+            <p>Crear Work Order con <strong>Qty: 50</strong> referenciando la BOM de <code>PT-PIN-BLC-MAT-20L</code>. ERPNext explota la BOM × 50 y verifica stock.</p>
+            <ul>
+              <li><strong>Valida:</strong> Explosión de BOM (50 × 6.12 Kg resina = 306 Kg necesarios), verificación de stock suficiente, generación de Material Transfer for Manufacture a WIP.</li>
+              <li><strong>Checkpoint:</strong> Stock de MP sale de <code>MP Aprobada</code> → entra en <code>Planta Mezclas WIP - PDM</code>. Batch de cada MP se registra (trazabilidad).</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">7</div>
+            <h4>Stock Entry — Manufacture (Backflush)</h4>
+            <p>Completar la producción. Stock Entry tipo <strong>Manufacture</strong>: consume MP del WIP y genera 50 unidades de PT en <strong>Cuarentena PT - PDM</strong>.</p>
+            <ul>
+              <li><strong>Valida:</strong> Backflush automático consume las cantidades teóricas (con mermas), nuevo Batch generado para PT (<code>LOT-PIN-2026-0001</code>), PT cae en CUARENTENA (no en vendible).</li>
+              <li><strong>Adjustment test:</strong> Simular que el operario gastó 2 Kg extra de White Spirit → sobreescribir backflush. Verificar que el coste del lote sube.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">8</div>
+            <h4>Quality Inspection — PT Aprobada</h4>
+            <p>El Químico inspecciona <code>LOT-PIN-2026-0001</code> usando la plantilla QIT-Producto-Terminado. Aprueba.</p>
+            <ul>
+              <li><strong>Server Script trigger:</strong> Mueve 50 cubetas de <code>Cuarentena PT → Producto Terminado - PDM</code>. Genera COA en PDF.</li>
+              <li><strong>Checkpoint:</strong> 50 cubetas ahora visibles como "vendibles" para el Comercial. <code>available_qty</code> > 0 en <code>Producto Terminado - PDM</code>.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">9</div>
+            <h4>Sales Order: Droguerie Atlas pide 30 cubetas</h4>
+            <p>Crear SO para <strong>Droguerie Atlas</strong> con 30 × PT-PIN-BLC-MAT-20L.</p>
+            <ul>
+              <li><strong>Valida:</strong> Pricing Rule inyecta precio automático de <code>Tarif Droguerie</code>, Credit Limit verifica que Atlas no tiene deuda pendiente. Si la hubiera, el SO queda en "Pendiente Crédito".</li>
+              <li><strong>Checkpoint:</strong> SO confirmado → SO-PDM-2026-00001. El precio no fue editado manualmente.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">10</div>
+            <h4>Delivery Note con FEFO automático</h4>
+            <p>Crear Delivery Note desde el SO. El Server Script pre-asigna el lote <code>LOT-PIN-2026-0001</code> (el único, pero la lógica FEFO elegiría el más próximo a caducar si hubiera varios).</p>
+            <ul>
+              <li><strong>Valida:</strong> Selección automática de Batch por FEFO, stock sale de <code>Producto Terminado - PDM</code>, el DN tiene los 30 bidones con su lote exacto.</li>
+              <li><strong>Checkpoint:</strong> Stock restante = 20 cubetas. El lote y la trazabilidad están intactos.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">11</div>
+            <h4>Sales Invoice + TVA</h4>
+            <p>Crear Sales Invoice desde el Delivery Note. Aplicar <strong>TVA 20% Maroc</strong>.</p>
+            <ul>
+              <li><strong>Valida:</strong> Tax Template correcto, factura en MAD, vínculo DN→SI intacto, asientos contables (Revenue + TVA Collectée + Receivable).</li>
+              <li><strong>Checkpoint:</strong> General Ledger muestra los asientos correctos en las cuentas del Plan Comptable.</li>
+            </ul>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">12</div>
+            <h4>Trazabilidad completa: Batch Lineage</h4>
+            <p>Verificar la cadena de trazabilidad bidireccional.</p>
+            <ul>
+              <li><strong>Hacia atrás:</strong> Desde <code>LOT-PIN-2026-0001</code> → Work Order → Batches de MP consumidos (<code>LOTE-RES-2026-0001</code>, etc.) → Purchase Receipts → Proveedores.</li>
+              <li><strong>Hacia adelante:</strong> Desde <code>LOTE-RES-2026-0001</code> → Qué lotes de PT se fabricaron con esa resina → A qué clientes se vendieron.</li>
+              <li><strong>Checkpoint:</strong> La cadena completa está intacta. Si "llama el cliente de Casablanca enfadado", podemos rastrear hasta ChimEurope en 30 segundos.</li>
+            </ul>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── 3.3 Criterios de Éxito ──────────────────────────────────────── -->
+      <section id="poc-validation">
+        <div class="section-header">
+          <div class="section-kicker">3.3 — Gate de Validación</div>
+          <h2 class="section-title">Criterios de Éxito del PoC</h2>
+          <p class="section-intro">Si todos estos checkpoints se cumplen, la Data Foundation está validada y podemos pasar a implementación real con confianza.</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>Inventario y Almacenes</h3>
+            <ul>
+              <li>Stock nunca está en negativo en ningún almacén.</li>
+              <li>La cuarentena bloquea efectivamente el uso de MP/PT no aprobados.</li>
+              <li>El WIP aísla el material en mezcla del stock disponible.</li>
+              <li>Las UoM se convierten correctamente (Bidon → Kg → g).</li>
+              <li>El Landed Cost Voucher infla el coste correctamente.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3>Producción y Calidad</h3>
+            <ul>
+              <li>La BOM explota correctamente con mermas incluidas.</li>
+              <li>El Backflush consume las cantidades teóricas y permite ajuste.</li>
+              <li>La QC post-producción bloquea la venta del PT hasta aprobación.</li>
+              <li>El Server Script mueve stock automáticamente al aprobar QC.</li>
+              <li>Los Batch IDs se propagan correctamente en toda la cadena.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3>Comercial y Financiero</h3>
+            <ul>
+              <li>El Pricing Rule inyecta el precio sin intervención manual.</li>
+              <li>El Credit Limit bloquea pedidos de clientes morosos.</li>
+              <li>FEFO selecciona automáticamente el lote correcto en expedición.</li>
+              <li>La factura genera asientos contables correctos con TVA 20%.</li>
+              <li>Sales Order → Delivery Note → Sales Invoice: cadena ininterrumpida.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3>Trazabilidad</h3>
+            <ul>
+              <li>Desde cualquier lote de PT se puede llegar al proveedor de MP.</li>
+              <li>Desde cualquier lote de MP se pueden identificar todos los PT afectados.</li>
+              <li>Desde cualquier Delivery Note se puede rastrear el lote exacto entregado.</li>
+              <li>Las Naming Series son coherentes y legibles.</li>
+              <li>Los Batch IDs son únicos y secuenciales.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 3.4 Diagrama del ciclo ──────────────────────────────────────── -->
+      <section id="poc-diagram">
+        <div class="section-header">
+          <div class="section-kicker">3.4 — Diagrama</div>
+          <h2 class="section-title">Vista completa del Happy Path</h2>
+        </div>
+
+        <div class="diagram-card">
+          <h3>Los 12 pasos del ciclo PoC</h3>
+          <p>Cada nodo es una transacción que genera un documento formal en ERPNext. Las flechas muestran las dependencias obligatorias.</p>
+          <div class="diagram-surface">
+            <pre class="mermaid">
+flowchart TD
+    subgraph COMPRAS["🛒 Aprovisionamiento (Bloque 2)"]
+        S1["① Purchase Order<br/>5 Bidon Resina · EUR"]
+        S2["② Purchase Receipt<br/>→ Cuarentena MP<br/>+ Batch Auto"]
+        S3["③ Landed Cost Voucher<br/>Douane + Transporte"]
+        S4["④ Quality Inspection MP<br/>Viscosidad · pH · Densidad"]
+        S4A["Stock Entry auto<br/>Cuarentena → MP Aprobada"]
+        S5["⑤ Repetir para<br/>Titanio · Solvente · Agua · Envases"]
+    end
+
+    subgraph PRODUCCION["🏭 Producción (Bloque 3)"]
+        S6["⑥ Work Order<br/>50 × Pintura Blanca 20L"]
+        S6A["Material Transfer<br/>MP Aprobada → WIP"]
+        S7["⑦ Stock Entry Manufacture<br/>Backflush + ajuste real<br/>→ Cuarentena PT"]
+    end
+
+    subgraph CALIDAD["🔬 Calidad (Bloque 4)"]
+        S8["⑧ Quality Inspection PT<br/>Viscosidad · Color · Cubriente"]
+        S8A["Stock Entry auto<br/>Cuarentena PT → Prod. Terminado<br/>+ COA PDF"]
+    end
+
+    subgraph VENTAS["📦 Comercial B2B (Bloque 5)"]
+        S9["⑨ Sales Order<br/>30 cubetas · Droguerie Atlas<br/>Pricing auto · Credit check"]
+        S10["⑩ Delivery Note<br/>FEFO auto · Batch asignado"]
+        S11["⑪ Sales Invoice<br/>TVA 20% · MAD"]
+    end
+
+    subgraph TRAZA["🔎 Validación"]
+        S12["⑫ Batch Lineage<br/>Trazabilidad bidireccional"]
+    end
+
+    S1 --> S2
+    S2 --> S3
+    S2 --> S4
+    S3 --> S4
+    S4 -->|Aprobado| S4A
+    S4A --> S5
+    S5 --> S6
+    S6 --> S6A
+    S6A --> S7
+    S7 --> S8
+    S8 -->|Aprobado| S8A
+    S8A --> S9
+    S9 --> S10
+    S10 --> S11
+    S11 --> S12
+            </pre>
+          </div>
+          <p class="diagram-hint">Si algún paso falla o produce datos inconsistentes, la Data Foundation tiene un gap que debe corregirse antes de avanzar.</p>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- CICATRICES — GUARDRAILS ARQUITECTÓNICOS                            -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="block-divider" id="cicatriz-server-script" aria-labelledby="guardrails-title">
+        <div>
+          <div class="section-kicker">Cicatrices Arquitectónicas</div>
+          <h2 id="guardrails-title">Guardrails — Lecciones aprendidas antes de empezar</h2>
+          <p>Estas 3 reglas no son mejoras futuras: son <strong>restricciones de diseño</strong> que se aplican desde el primer día del PoC. Nacen de errores reales en implementaciones ERPNext de manufactura. Si no se respetan, el sistema compilará pero fallará en producción.</p>
+        </div>
+      </section>
+
+      <section id="guardrail-g1">
+        <div class="section-header">
+          <div class="section-kicker">G1 — Server Script Error Handling</div>
+          <h2 class="section-title">Todo Server Script que mueva stock: try/except con mensaje en francés</h2>
+          <p class="section-intro">El Químico no es desarrollador. Si el Server Script de QC falla (almacén lleno, lote bloqueado, error de concurrencia), el traceback Python es ilegible y bloquea la operación. La fábrica se para hasta que alguien de TI interviene.</p>
+        </div>
+        <div class="config-card">
+          <h3>Regla</h3>
+          <ul>
+            <li>Todo Server Script que cree <code>Stock Entry</code>, <code>Journal Entry</code> o cualquier documento contable/de stock va envuelto en <code>try/except</code>.</li>
+            <li>El <code>except</code> escribe en <code>Error Log</code> (con traceback completo para el admin) y lanza <code>frappe.throw()</code> con mensaje en <strong>francés</strong>, limpio, sin jerga técnica.</li>
+            <li>El mensaje de éxito también es en francés: <code>"Stock déplacé vers MP Approuvée"</code>.</li>
+            <li>El patrón exacto de código está en la <a href="#workflows">Sección 2.8 Workflows</a>, después de la definición de WF3.</li>
+          </ul>
+          <h3>Consecuencia si se ignora</h3>
+          <p>El Químico ve un error <code>500 Internal Server Error</code> o un traceback con <code>frappe.exceptions.ValidationError: Insufficient Stock</code>. No sabe qué hacer. Llama al Gerente. El Gerente llama al desarrollador. 45 minutos de planta parada por un mensaje que debería decir: <em>"Impossible de déplacer le stock. Veuillez contacter l'administrateur."</em></p>
+        </div>
+      </section>
+
+      <section id="cicatriz-coa-parity">
+        <div class="section-header">
+          <div class="section-kicker">G2 — Chart of Accounts Parity</div>
+          <h2 class="section-title">PDM y PEM deben tener un Plan Contable estructuralmente idéntico</h2>
+          <p class="section-intro">El <code>Consolidated Financial Statement</code> de ERPNext cruza cuentas entre empresas hijas por <strong>nombre exacto</strong>. No hay mapeo inteligente ni fuzzy matching. Si una cuenta existe en PDM pero no en PEM, los saldos de esa cuenta desaparecen de la consolidación sin aviso.</p>
+        </div>
+        <div class="config-card">
+          <h3>Regla</h3>
+          <ul>
+            <li><strong>Inicialización:</strong> Ambas empresas (PDM y PEM) se cargan desde el <u>mismo archivo JSON seed</u> del Plan Comptable Marocain. Cero diferencias al nacer.</li>
+            <li><strong>Mantenimiento:</strong> Cualquier alta, baja o modificación de cuenta contable se ejecuta con un script <code>bench execute</code> que replica la operación en ambas empresas simultáneamente. Nunca se crea una cuenta manualmente en una sola empresa.</li>
+            <li><strong>Validación periódica:</strong> En el PoC incluimos un paso explícito de comparación: <code>frappe.get_all("Account", filters={"company": "PDM"}, fields=["name","account_type","root_type","parent_account"])</code> vs el equivalente PEM. Si hay diferencias, se corrigen antes de continuar.</li>
+            <li><strong>Governance post-go-live:</strong> El Contable NO tiene permisos para crear cuentas contables directamente. Solo el rol <code>Accounts Manager</code> con supervisión del Gerente puede ejecutar el script de replicación.</li>
+          </ul>
+          <h3>Consecuencia si se ignora</h3>
+          <p>El Gerente abre <code>Consolidated Financial Statement</code>. Ve que el balance consolidado no cuadra. Las cuentas de PDM suman 4.2M MAD y las de PEM 1.8M MAD, pero el consolidado muestra 5.5M MAD en vez de 6.0M MAD. Los 500K MAD que faltan están en una cuenta que existe en PEM pero no en PDM. ERPNext la ignora en silencio. El Gerente pierde la confianza en el sistema.</p>
+        </div>
+      </section>
+
+      <section id="cicatriz-item-code-qr">
+        <div class="section-header">
+          <div class="section-kicker">G3 — Item Code solo en QR</div>
+          <h2 class="section-title">El operario nunca ve ni teclea un item_code. Solo existe dentro del QR.</h2>
+          <p class="section-intro">La nomenclatura <code>PT-PIN-BLC-MAT-20L</code> es para la base de datos, para los reportes del Gerente y para los filtros del Químico. El operario de planta interactúa exclusivamente con el nombre comercial en pantalla y con el código QR escaneado.</p>
+        </div>
+        <div class="config-card">
+          <h3>Regla</h3>
+          <ul>
+            <li><strong>PWA / Kiosco (Bloque 3 FSD):</strong> Toda pantalla del operario muestra <code>item_name</code> ("Pintura Blanca Mate 20L"), jamás <code>item_code</code>. Los campos de búsqueda usan <code>item_name</code> como display y <code>item_code</code> como value oculto.</li>
+            <li><strong>Etiquetas Zebra:</strong> Imprimen nombre comercial + lote + fecha de caducidad + código QR. El QR contiene <code>item_code</code> + <code>batch_no</code> codificados. El texto visible NO incluye el <code>item_code</code>.</li>
+            <li><strong>Print Formats de planta:</strong> (Ficha de Producción, Orden de Mezcla, etc.) muestran nombre, cantidad, lote. El code interno está oculto.</li>
+            <li><strong>Escaneo = único input:</strong> En la PWA, cuando el operario necesita identificar un producto, escanea el QR. La cámara lee el <code>item_code</code> embebido y la pantalla muestra el <code>item_name</code> correspondiente. Cero tipeo.</li>
+          </ul>
+          <h3>Consecuencia si se ignora</h3>
+          <p>Un operario ve <code>MP-RES-ALK-G70</code> en pantalla y tiene que teclearlo manualmente. Se confunde con <code>MP-RES-AKR-G70</code> (que no existe). Error de grabación. Stock corrupto. Trazabilidad rota. El lote sale con datos cruzados y el COA no corresponde al producto real. Un cliente revisa el certificado, no cuadra, y devuelve el pedido.</p>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- RESUMEN FINAL                                                      -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+      <section class="closing-card" id="resumen-final" aria-labelledby="resumen-final-title">
+        <h3 id="resumen-final-title">Resumen Ejecutivo de la Data Foundation</h3>
+        <p>El modelo de datos está diseñado para maximizar el uso nativo de ERPNext y minimizar el desarrollo custom. Las decisiones clave son:</p>
+        <ul>
+          <li><strong>2 empresas operativas + 1 consolidada:</strong> Separación fiscal y contable completa con reporting unificado para el Gerente.</li>
+          <li><strong>12 almacenes lógicos (6×2):</strong> Cada estado del inventario tiene un almacén propio. La cuarentena es un almacén, no un campo. Esto la hace inviolable.</li>
+          <li><strong>Batch obligatorio + FEFO:</strong> Trazabilidad desde el proveedor hasta el cliente. Cero selección manual de lotes.</li>
+          <li><strong>UoM por densidad a nivel de Item:</strong> Cada producto tiene su conversión Kg↔Litro↔Bidon. Sin calculadoras externas.</li>
+          <li><strong><code>default_fg_warehouse</code> = Cuarentena PT:</strong> El hack que impide vender producto sin QC. Un cambio de 1 parámetro que protege toda la operación.</li>
+          <li><strong>3 Workflows + 2-3 Server Scripts:</strong> Todo el automatismo de cuarentena y liberación sin tocar core ni crear módulos pesados.</li>
+          <li><strong>3 Guardrails arquitectónicos:</strong> Server Scripts con try/except en francés (G1), CoA idéntico entre PDM y PEM para consolidación (G2), e <code>item_code</code> invisible para el operario — solo vive dentro del QR (G3). Son restricciones de diseño, no mejoras futuras.</li>
+          <li><strong>Happy Path de 12 pasos:</strong> Valida los 5 bloques del FSD en una sesión. Si pasa, la fundación de datos soporta la operación.</li>
+        </ul>
+        <p><strong>Lo que falta para Fase 2 y no entra en esta Data Foundation:</strong> La PWA del operario (Kiosco), el Bot de Telegram del Comercial, el Print Format del Bon de Livraison marroquí, el Proof of Delivery, y la carga real del Plan Comptable Marocain. Todo eso se construye SOBRE esta fundación, no dentro de ella.</p>
+        <div class="tag-row">
+          <span class="tag">Multi-Company</span>
+          <span class="tag">12 Warehouses</span>
+          <span class="tag">Batch + FEFO</span>
+          <span class="tag">UoM por Densidad</span>
+          <span class="tag">BOM + Scrap</span>
+          <span class="tag">Doble Cuarentena</span>
+          <span class="tag">Pricing Rules</span>
+          <span class="tag">Credit Limit</span>
+          <span class="tag">Landed Cost</span>
+          <span class="tag">Quality Inspection</span>
+          <span class="tag">3 Workflows</span>
+          <span class="tag">3 Guardrails</span>
+          <span class="tag">try/except FR</span>
+          <span class="tag">CoA Parity</span>
+          <span class="tag">QR-Only item_code</span>
+          <span class="tag">Happy Path 12 pasos</span>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ── Mermaid ───────────────────────────────────────────────────────── -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'neutral',
+      securityLevel: 'loose',
+      themeVariables: { fontSize: '16px' },
+      flowchart: { curve: 'basis', nodeSpacing: 30, rankSpacing: 40 }
+    });
+  </script>
+</body>
+</html>

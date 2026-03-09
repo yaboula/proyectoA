@@ -1,0 +1,42 @@
+# ═══════════════════════════════════════════════════════════════
+# GCMA Kiosco — .gitignore
+# ═══════════════════════════════════════════════════════════════
+
+# ── Docker (upstream frappe_docker repo — has its own .git) ──
+frappe_docker/
+
+# ── Node / Frontend ──
+kiosco-pwa/node_modules/
+kiosco-pwa/dist/
+kiosco-pwa/.vite/
+*.local
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# ── IDE ──
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ──
+*.log
+npm-debug.log*
+
+# ── Environment ──
+.env
+.env.local
+.env.*.local

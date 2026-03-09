@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* ── Industrial kiosk overrides ── */
+html {
+  font-size: 18px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+body {
+  min-height: 100dvh;
+  overscroll-behavior: none;
+}
