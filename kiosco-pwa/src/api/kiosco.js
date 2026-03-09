@@ -11,8 +11,10 @@ export function loginOperario(qrToken) {
 }
 
 /** EP2 — Tareas (Work Orders pendientes) */
-export function getTareas() {
-  return client.get(`${BASE}.get_tareas`)
+export function getTareas(company, warehouse) {
+  const params = { company }
+  if (warehouse) params.warehouse = warehouse
+  return client.get(`${BASE}.get_tareas`, { params })
 }
 
 /** EP3 — Validar material (Poka-Yoke) */

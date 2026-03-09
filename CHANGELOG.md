@@ -3,6 +3,30 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.2.0] — 2026-03-09
+
+### Added
+
+**Frontend — TareasList.vue (EP2)**
+- Tarjetas industriales gigantes con nombre del producto, cantidad pendiente, badge de estado
+- Indicador de stock de materiales (✓ Stock complet / ⚠ Stock insuffisant)
+- Botón "DÉMARRER LA PRODUCTION ▶" por tarjeta
+- Estados: loading, error con retry, empty state
+- Botón refresh + logout en header
+
+**Frontend — PokaYokeScanner.vue (EP3)**
+- Checklist de ingredientes con tracking local de validación
+- Escáner USB HID con guard de modal y guard de error
+- UX semafórica: flash verde por material, overlay rojo STOP pantalla completa
+- Overlay CRITICO con `animate-pulse` para errores de seguridad (material incorrecto, lote caducado)
+- Barra de estado coloreada (ready/scanning/loading/success)
+- Entrada manual (Saisie Manuelle) con auto-focus
+- Botón pulsante "FINALISER LE MÉLANGE ✓" cuando todos los materiales están validados
+- Contador de progreso en header (X/Y validés)
+
+### Changed
+- `kiosco.js`: `getTareas()` ahora acepta `company` y `warehouse` como parámetros
+
 ## [0.1.0] — 2025-07-25
 
 ### Added

@@ -112,6 +112,53 @@ Los escáneres de código de barras USB se comportan como un teclado: envían ca
 - `manualOpen = true` pausa el listener del escáner
 - Mismo pipeline `handleLogin()` que el escáner
 
+## TareasList — Lista de Work Orders
+
+Pantalla principal post-login. Consume EP2 con `company` y `warehouse` del store Pinia.
+
+### Características
+- Llama `getTareas(company, warehouse)` en `onMounted`
+- Tarjetas gigantes con: nombre del producto, cantidad pendiente (font 5xl), badge de estado, indicador de stock de materiales
+- Botón "DÉMARRER LA PRODUCTION ▶" por tarjeta → navega a `/poka-yoke/:workOrder`
+- Estados: loading (spinner), error (con "Réessayer"), empty (mensaje)
+- Botón refresh (↻) en header + botón Déconnexion
+- Layout: fondo `slate-100`, cards `white` con esquinas `3xl`, sombras `lg`
+
+### Indicador de Stock
+- **✓ Stock complet** (verde): todos los materiales tienen `suficiente: true`
+- **⚠ Stock insuffisant** (ámbar): al menos un material sin stock suficiente
+
+## PokaYokeScanner — Validación de Materiales
+
+Pantalla crítica de validación Poka-Yoke. Carga materiales de la WO via EP2, luego valida cada escaneo via EP3.
+
+### Flujo
+1. `onMounted` → carga tarea via `getTareas()` → filtra por `workOrder` → construye checklist con `status: 'pending'`
+2. Escáner USB captura QR → `handleScan(qrData)` → llama EP3 `validarMaterial()`
+3. Si EP3 `valido: true` → marca material matching como `'validated'` → flash verde en la card
+4. Si EP3 `valido: false` → overlay rojo STOP pantalla completa (Teleport)
+5. Cuando todos los materiales están validados → botón pulsante "FINALISER LE MÉLANGE ✓"
+
+### UX Semafórica
+- **Verde**: Material validado → card pasa a fondo `green-50`, icono ✓ verde, flash `scale-[1.02]` durante 1.5s
+- **Rojo STOP**: Error → overlay `fixed inset-0` rojo con mensaje en `text-3xl`, botón FERMER. Para `alerta_nivel: 'CRITICO'` → overlay pulsa (`animate-pulse`)
+- **Barra de estado**: zona inferior con colores por estado (slate=ready, blue=scanning, amber=loading, green=success)
+
+### Checklist de Ingredientes
+- Cada material muestra: número ordinal, `item_name`, `qty_requerida` + `uom`, badge stock
+- Al validar: icono cambia a ✓ verde, se muestra `batch_no` del lote escaneado
+- Contador en header: `validatedCount / materials.length`
+
+### Entrada Manual
+- Botón "⌨ Saisie Manuelle" abre modal (Teleport)
+- Input con auto-focus (`watch` + `nextTick`), placeholder `CODE|LOT`
+- `manualOpen = true` pausa el listener del escáner USB
+- Mismo pipeline `handleScan()` que el escáner
+
+### Guards del Scanner
+- `if (manualOpen.value) return` — pausa durante entrada manual
+- `if (scanState.value === 'error') return` — ignora scans durante overlay rojo (debe cerrar primero)
+
 ## PWA Config
 
 Manifest generado por `vite-plugin-pwa`:
