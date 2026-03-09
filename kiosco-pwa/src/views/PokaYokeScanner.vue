@@ -9,7 +9,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOperarioStore } from '../stores/operario'
-import { getTareas, validarMaterial } from '../api/kiosco'
+import { getTareas, validarMaterial, reportarConsumo } from '../api/kiosco'
 import {
   ArrowLeft,
   Loader2,
@@ -22,6 +22,8 @@ import {
   ScanBarcode,
   Check,
   Beaker,
+  Scale,
+  PackageCheck,
 } from 'lucide-vue-next'
 
 const props = defineProps({ workOrder: String })
@@ -43,6 +45,12 @@ const recentlyValidated = ref(-1)
 const manualOpen = ref(false)
 const manualInput = ref('')
 const manualInputRef = ref(null)
+
+// ── Finalization / EP4 state ──
+const finalizePhase = ref('idle') // idle | asking | extras | submitting | success | error
+const extras = ref([])           // [{item_name, qty_extra}]
+const finalizeResult = ref(null)
+const finalizeError = ref('')
 
 // ── Computed ──
 const allValidated = computed(() =>
@@ -170,8 +178,48 @@ function submitManual() {
 function goBack() { router.push({ name: 'tareas' }) }
 
 function finalizeMix() {
-  // EP4 TODO — for now, navigate back to task list
-  router.push({ name: 'tareas' })
+  finalizePhase.value = 'asking'
+}
+
+function confirmStandard() {
+  callEP4([])
+}
+
+function showExtras() {
+  extras.value = materials.value.map(m => ({
+    item_name: m.item_name,
+    uom: m.uom,
+    qty_extra: 0,
+  }))
+  finalizePhase.value = 'extras'
+}
+
+function submitExtras() {
+  const withExtra = extras.value.filter(e => e.qty_extra > 0)
+  callEP4(withExtra)
+}
+
+async function callEP4(extrasList) {
+  finalizePhase.value = 'submitting'
+  finalizeError.value = ''
+  try {
+    const data = await reportarConsumo(props.workOrder, extrasList)
+    if (data.success) {
+      finalizeResult.value = data
+      finalizePhase.value = 'success'
+      setTimeout(() => router.push({ name: 'tareas' }), 3000)
+    } else {
+      finalizeError.value = data.message_fr ?? 'Erreur lors de l\'enregistrement.'
+      finalizePhase.value = 'error'
+    }
+  } catch (err) {
+    finalizeError.value = err?.message_fr ?? 'Erreur de communication avec le serveur.'
+    finalizePhase.value = 'error'
+  }
+}
+
+function retryFinalize() {
+  finalizePhase.value = 'asking'
 }
 
 // ── Lifecycle ──
@@ -247,6 +295,153 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+    </div>
+  </Teleport>
+
+  <!-- ═══ EP4 — "Standard ou Extra ?" DIALOG ═══ -->
+  <Teleport to="body">
+    <div v-if="finalizePhase === 'asking'"
+         class="fixed inset-0 z-40 bg-black/70 flex items-center justify-center px-5">
+      <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-md p-6
+                  shadow-2xl animate-fade-in">
+        <div class="flex items-center gap-3 mb-5">
+          <Scale :size="28" class="text-amber-400" />
+          <h2 class="text-xl font-bold text-slate-100">Ajustement Consommation</h2>
+        </div>
+        <p class="text-slate-300 text-base mb-6 leading-relaxed">
+          Le mélange est prêt. La consommation correspond-elle aux quantités standard ?
+        </p>
+        <div class="space-y-3">
+          <button @click="confirmStandard"
+                  class="w-full h-16 rounded-md bg-emerald-600 text-white text-lg font-bold
+                         flex items-center justify-center gap-3
+                         active:bg-emerald-700 transition">
+            <Check :size="22" :stroke-width="3" />
+            NON, consommation standard
+          </button>
+          <button @click="showExtras"
+                  class="w-full h-16 rounded-md bg-amber-600 text-white text-lg font-bold
+                         flex items-center justify-center gap-3
+                         active:bg-amber-700 transition">
+            <Scale :size="22" :stroke-width="2.5" />
+            OUI, ajouter un extra
+          </button>
+        </div>
+        <button @click="finalizePhase = 'idle'"
+                class="w-full mt-4 h-12 rounded-md bg-slate-700 border border-slate-600
+                       text-slate-400 text-sm font-semibold active:bg-slate-600 transition">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- ═══ EP4 — EXTRAS INPUT FORM ═══ -->
+  <Teleport to="body">
+    <div v-if="finalizePhase === 'extras'"
+         class="fixed inset-0 z-40 bg-black/70 flex items-center justify-center px-5">
+      <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-md
+                  shadow-2xl animate-fade-in max-h-[90dvh] flex flex-col">
+        <div class="p-6 pb-3 flex items-center justify-between">
+          <h2 class="text-xl font-bold text-slate-100">Quantités Extra</h2>
+          <button @click="finalizePhase = 'asking'"
+                  class="h-10 w-10 flex items-center justify-center rounded-md
+                         text-slate-500 hover:text-slate-300 active:bg-slate-700 transition">
+            <X :size="20" />
+          </button>
+        </div>
+        <p class="px-6 text-slate-400 text-sm mb-4">
+          Indiquez la quantité supplémentaire (Kg/L) pour chaque ingrédient :
+        </p>
+        <div class="flex-1 overflow-y-auto px-6 space-y-3 pb-4">
+          <div v-for="(ex, i) in extras" :key="i"
+               class="rounded-md bg-slate-900 border border-slate-700 p-4">
+            <p class="text-base font-bold text-slate-200 mb-2 truncate">
+              {{ ex.item_name }}
+            </p>
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-slate-500">Extra :</span>
+              <input v-model.number="ex.qty_extra"
+                     type="number" min="0" step="0.1"
+                     class="flex-1 bg-slate-800 border border-slate-600 rounded-md
+                            px-3 py-3 text-lg font-mono text-slate-100
+                            focus:border-amber-500 focus:outline-none
+                            focus:ring-1 focus:ring-amber-500/30"
+                     placeholder="0" />
+              <span class="text-sm text-slate-400 font-medium">{{ ex.uom }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="p-6 pt-3 space-y-3 border-t border-slate-700">
+          <button @click="submitExtras"
+                  class="w-full h-16 rounded-md bg-emerald-600 text-white text-lg font-bold
+                         flex items-center justify-center gap-3
+                         active:bg-emerald-700 transition">
+            <PackageCheck :size="22" :stroke-width="2.5" />
+            Valider et Enregistrer
+          </button>
+          <button @click="finalizePhase = 'asking'"
+                  class="w-full h-12 rounded-md bg-slate-700 border border-slate-600
+                         text-slate-400 text-sm font-semibold active:bg-slate-600 transition">
+            Retour
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- ═══ EP4 — SUBMITTING OVERLAY ═══ -->
+  <Teleport to="body">
+    <div v-if="finalizePhase === 'submitting'"
+         class="fixed inset-0 z-50 bg-slate-900/95 flex flex-col items-center justify-center">
+      <Loader2 :size="64" :stroke-width="2" class="text-emerald-400 animate-spin mb-6" />
+      <p class="text-slate-300 text-xl font-bold">Enregistrement en cours…</p>
+    </div>
+  </Teleport>
+
+  <!-- ═══ EP4 — SUCCESS OVERLAY — "LOT TERMINÉ" with 3s redirect ═══ -->
+  <Teleport to="body">
+    <div v-if="finalizePhase === 'success'"
+         class="fixed inset-0 z-50 bg-emerald-700 flex flex-col items-center justify-center
+                px-8 animate-fade-in">
+      <PackageCheck :size="80" :stroke-width="1.5" class="text-white mb-6" />
+      <p class="text-white text-3xl font-black text-center mb-2">LOT TERMINÉ</p>
+      <p class="text-emerald-100 text-xl font-semibold text-center leading-relaxed">
+        Placer en zone de Quarantaine
+      </p>
+      <div v-if="finalizeResult?.alerta"
+           class="mt-6 rounded-md bg-amber-900/60 border border-amber-500/50 px-5 py-3 max-w-sm">
+        <p class="text-amber-200 text-sm font-bold text-center">
+          <TriangleAlert :size="16" class="inline mr-1 -mt-0.5" />
+          {{ finalizeResult.message_fr }}
+        </p>
+      </div>
+      <p class="mt-10 text-emerald-200/60 text-sm font-medium tracking-wide">
+        Redirection automatique…
+      </p>
+    </div>
+  </Teleport>
+
+  <!-- ═══ EP4 — ERROR OVERLAY with retry ═══ -->
+  <Teleport to="body">
+    <div v-if="finalizePhase === 'error'"
+         class="fixed inset-0 z-50 bg-rose-700 flex flex-col items-center justify-center px-8">
+      <CircleAlert :size="80" :stroke-width="1.5" class="text-white mb-6" />
+      <p class="text-white text-2xl font-black text-center mb-2">
+        Erreur d'enregistrement
+      </p>
+      <p class="text-rose-100 text-base text-center leading-relaxed max-w-sm">
+        {{ finalizeError }}
+      </p>
+      <button @click="retryFinalize"
+              class="mt-8 h-16 px-10 rounded-md bg-white text-rose-700 text-lg font-black
+                     active:bg-rose-100 transition">
+        Réessayer
+      </button>
+      <button @click="finalizePhase = 'idle'"
+              class="mt-3 text-rose-200/70 text-sm font-medium underline">
+        Annuler
+      </button>
     </div>
   </Teleport>
 

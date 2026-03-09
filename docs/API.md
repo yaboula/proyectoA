@@ -200,11 +200,101 @@ curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.validar_mat
 
 ---
 
-## EP4 — Reportar Consumo (TODO)
+## EP4 — Reportar Consumo
 
-Registrará el consumo real de materiales post-mezcla vía Stock Entry tipo Manufacture.
+Registra el consumo real de materiales al finalizar la mezcla. Calcula desviaciones vs BOM teórica y registra el resultado como Comment en la Work Order. Si alguna desviación supera el 10%, activa alerta WARNING.
 
-**Estado:** Pendiente de implementación.
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/gcma_kiosco.api.kiosco.reportar_consumo` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `work_order` | string | Sí | Nombre de la Work Order (ej. `MFG-WO-2026-00001`) |
+| `extras` | string (JSON) | No | Array JSON de `{"item_name": str, "qty_extra": float}` — materiales con cantidades adicionales a la BOM teórica. Default: `[]` |
+
+> **Nota**: `extras` se envía como JSON string porque el interceptor Axios del frontend serializa a `URLSearchParams` (form-urlencoded), que no soporta arrays anidados.
+
+### Response — Sin desviaciones (200 OK)
+
+```json
+{
+  "success": true,
+  "work_order": "MFG-WO-2026-00001",
+  "resumen": {
+    "qty_producida": 50.0,
+    "desviaciones": [],
+    "merma_total_pct": 0,
+    "estado": "Enregistré"
+  },
+  "message_fr": "Consommation enregistrée. Lot terminé."
+}
+```
+
+### Response — Con desviaciones >10% (200 OK, alerta WARNING)
+
+```json
+{
+  "success": true,
+  "work_order": "MFG-WO-2026-00001",
+  "resumen": {
+    "qty_producida": 50.0,
+    "desviaciones": [
+      {
+        "item_name": "Dioxyde de Titane R-902",
+        "qty_teorica": 400.0,
+        "qty_real": 450.0,
+        "diferencia_kg": 50.0,
+        "diferencia_pct": 12.5
+      }
+    ],
+    "merma_total_pct": 3.4,
+    "estado": "Enregistré"
+  },
+  "alerta": true,
+  "alerta_nivel": "WARNING",
+  "message_fr": "⚠ Écart supérieur à 10% détecté sur Dioxyde de Titane R-902. Le superviseur sera notifié."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` | Causa |
+|------|-------------|-------------|-------|
+| 400 | `MISSING_PARAMS` | Paramètre 'work_order' obligatoire. | Sin `work_order` |
+| 404 | `WO_NOT_FOUND` | Ordre de fabrication introuvable ou non validé. | WO no existe o `docstatus ≠ 1` |
+| — | `WO_NOT_IN_PROCESS` | Cet ordre n'est pas en cours... | WO status no es Not Started / In Process |
+| — | `NO_BOM` | Aucune nomenclature (BOM) associée... | WO sin BOM válida |
+| 500 | `INTERNAL_ERROR` | Erreur interne... | Excepción no controlada |
+
+### Lógica interna
+
+1. Valida que la WO existe, está submitted y en estado activo
+2. Obtiene la BOM y calcula cantidades teóricas × cantidad pendiente
+3. Mapea extras por `item_name` (G3 — sin `item_code` del Kiosco)
+4. Calcula desviación: `qty_real = qty_teorica + qty_extra`
+5. Si `|diferencia_pct| > 10%` → activa alerta WARNING
+6. Registra consumo como Comment `Info` en la Work Order (PoC — sin custom DocType)
+7. Retorna resumen con desviaciones
+
+### curl
+
+```bash
+# Consumo estándar (sin extras)
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_consumo \
+  -b "sid=<session_id>" \
+  -d "work_order=MFG-WO-2026-00001" \
+  -d "extras=[]"
+
+# Con extras (+50 Kg de Titane)
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_consumo \
+  -b "sid=<session_id>" \
+  -d "work_order=MFG-WO-2026-00001" \
+  -d 'extras=[{"item_name":"Dioxyde de Titane R-902","qty_extra":50}]'
+```
 
 ---
 

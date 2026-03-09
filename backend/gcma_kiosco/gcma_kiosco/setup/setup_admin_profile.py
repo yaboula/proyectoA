@@ -56,13 +56,19 @@ def run():
 def _mark_setup_complete():
     """Evita que aparezca el Setup Wizard al entrar."""
     print("── 1/4  Marcando Setup Wizard como completado…")
+    # System Settings (Single doctype)
     frappe.db.set_single_value("System Settings", "setup_complete", 1)
+    # tabDefaultValue — es lo que ERPNext lee en el boot session
+    frappe.db.set_default("setup_complete", "1")
+    frappe.db.set_default("desktop:home_page", "Workspace")
     try:
         ws = frappe.get_single("Website Settings")
         ws.home_page = "desk"
         ws.save(ignore_permissions=True)
     except Exception:
         pass
+    frappe.db.commit()
+    frappe.clear_cache()
     print("   ✓ Setup Wizard desactivado")
 
 

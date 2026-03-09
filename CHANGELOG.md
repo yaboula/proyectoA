@@ -3,6 +3,32 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.4.0] — 2026-03-10
+
+### Added
+
+**Backend — EP4 `reportar_consumo`**
+- Endpoint POST para registrar consumo real de materiales al finalizar la mezcla
+- Calcula desviaciones vs BOM teórica (cantidad, porcentaje)
+- Alerta WARNING si algún material supera 10% de desviación
+- Registra consumo como Comment en la Work Order (PoC, sin custom DocType)
+- Recibe extras por `item_name` (guardrail G3 — nunca `item_code` desde el Kiosco)
+
+**Frontend — Modal de Consumo (EP4) en PokaYokeScanner.vue**
+- Diálogo "Standard ou Extra ?" con 2 botones fat-finger (emerald / amber)
+- Formulario de extras: lista scrollable de ingredientes con inputs numéricos `qty_extra`
+- Overlay de éxito: pantalla completa emerald "LOT TERMINÉ — Placer en zone de Quarantaine" con redirect 3s
+- Overlay de error: pantalla completa rose con botón "Réessayer"
+- Máquina de estados: idle → asking → extras → submitting → success / error
+- Iconos lucide: Scale, PackageCheck
+
+**Frontend — API Wrapper EP4**
+- `reportarConsumo(workOrder, extras)` en `kiosco.js` con `JSON.stringify` para serializar extras como form-urlencoded
+
+### Changed
+- `docs/API.md`: Documentación completa de EP4 (request, response, errores, curl)
+- `docs/FRONTEND.md`: Flujo EP4, tabla de API wrappers
+
 ## [0.3.0] — 2025-07-25
 
 ### Added

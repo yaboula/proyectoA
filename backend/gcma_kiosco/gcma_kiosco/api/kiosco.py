@@ -468,10 +468,191 @@ def validar_material(work_order: str = None, qr_data: str = None):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# EP4 — REPORTAR CONSUMO REAL
+# EP4 — REPORTAR CONSUMO REAL (Post-mezcla)
 # ═══════════════════════════════════════════════════════════════════════════
-# TODO: Tercer módulo pendiente.
-# Arquitectura detallada en: _kiosco_architecture.py → ENDPOINT 4
+#
+# Al terminar la mezcla, el operario confirma si hubo cantidades extra.
+# El backend calcula desviaciones vs BOM teórica y registra el consumo.
+#
+# Ruta: POST /api/method/gcma_kiosco.api.kiosco.reportar_consumo
+# Test: curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_consumo \
+#         -d "work_order=MFG-WO-2026-00001" \
+#         -d 'extras=[]'
+# ═══════════════════════════════════════════════════════════════════════════
+
+@frappe.whitelist()
+def reportar_consumo(work_order: str = None, extras: str = None):
+    """Registra el consumo real de materiales al finalizar la mezcla.
+
+    Args:
+        work_order: Nombre del Work Order
+        extras: JSON string — lista de {"item_name": str, "qty_extra": float}
+                Materiales con cantidades adicionales a la BOM teórica.
+
+    Guardrails:
+        G1 — Mensajes en francés
+        G3 — Recibe item_name (no item_code) desde el Kiosco
+    """
+    import json as _json
+
+    # ── Validación de entrada ──
+    if not work_order:
+        frappe.local.response["http_status_code"] = 400
+        return {
+            "success": False,
+            "error_code": "MISSING_PARAMS",
+            "message_fr": "Paramètre 'work_order' obligatoire.",
+        }
+
+    try:
+        extras_list = _json.loads(extras) if extras else []
+    except (ValueError, TypeError):
+        extras_list = []
+
+    try:
+        # ── Verificar que la Work Order existe y está activa ──
+        wo = frappe.db.get_value(
+            "Work Order",
+            {"name": work_order, "docstatus": 1},
+            ["name", "status", "bom_no", "qty", "produced_qty", "company"],
+            as_dict=True,
+        )
+        if not wo:
+            frappe.local.response["http_status_code"] = 404
+            return {
+                "success": False,
+                "error_code": "WO_NOT_FOUND",
+                "message_fr": "Ordre de fabrication introuvable ou non validé.",
+            }
+
+        if wo.status not in ("Not Started", "In Process"):
+            return {
+                "success": False,
+                "error_code": "WO_NOT_IN_PROCESS",
+                "message_fr": "Cet ordre n'est pas en cours. Vérifiez avec le superviseur.",
+            }
+
+        # ── Explotar BOM para cantidades teóricas ──
+        if not wo.bom_no or not frappe.db.exists("BOM", wo.bom_no):
+            return {
+                "success": False,
+                "error_code": "NO_BOM",
+                "message_fr": "Aucune nomenclature (BOM) associée à cet ordre.",
+            }
+
+        bom_doc = frappe.get_doc("BOM", wo.bom_no)
+        qty_pendiente = flt(wo.qty) - flt(wo.produced_qty)
+
+        # ── Construir mapa de extras por item_name ──
+        extras_map = {}
+        for ex in extras_list:
+            name = ex.get("item_name", "").strip()
+            qty = flt(ex.get("qty_extra", 0))
+            if name and qty > 0:
+                extras_map[name] = qty
+
+        # ── Calcular desviaciones ──
+        desviaciones = []
+        consumos_log = []
+        alerta = False
+
+        for bom_item in bom_doc.items:
+            item_name = (
+                frappe.db.get_value("Item", bom_item.item_code, "item_name")
+                or bom_item.item_code
+            )
+            qty_teorica = round(flt(bom_item.qty) * qty_pendiente, 2)
+            qty_extra = extras_map.get(item_name, 0)
+            qty_real = round(qty_teorica + qty_extra, 2)
+
+            diferencia_kg = round(qty_extra, 2)
+            diferencia_pct = (
+                round((qty_extra / qty_teorica) * 100, 1) if qty_teorica else 0
+            )
+
+            consumos_log.append({
+                "item_name": item_name,
+                "qty_teorica": qty_teorica,
+                "qty_real": qty_real,
+                "uom": bom_item.uom,
+            })
+
+            if abs(diferencia_kg) > 0.01:
+                desviacion = {
+                    "item_name": item_name,
+                    "qty_teorica": qty_teorica,
+                    "qty_real": qty_real,
+                    "diferencia_kg": diferencia_kg,
+                    "diferencia_pct": diferencia_pct,
+                }
+                desviaciones.append(desviacion)
+                if abs(diferencia_pct) > 10:
+                    alerta = True
+
+        # ── Registrar consumo como comentario en la Work Order ──
+        resumen_texto = f"Consommation enregistrée via Kiosco — {len(consumos_log)} matériaux\n"
+        for c in consumos_log:
+            resumen_texto += f"  • {c['item_name']}: {c['qty_real']} {c['uom']}"
+            if c['qty_real'] != c['qty_teorica']:
+                diff = round(c['qty_real'] - c['qty_teorica'], 2)
+                resumen_texto += f" (théorique: {c['qty_teorica']}, écart: +{diff})"
+            resumen_texto += "\n"
+
+        if desviaciones:
+            resumen_texto += "\n⚠ Écarts détectés — validation superviseur requise."
+
+        frappe.get_doc({
+            "doctype": "Comment",
+            "comment_type": "Info",
+            "reference_doctype": "Work Order",
+            "reference_name": work_order,
+            "content": resumen_texto,
+        }).insert(ignore_permissions=True)
+
+        frappe.db.commit()
+
+        # ── Respuesta ──
+        merma_total = 0
+        if desviaciones:
+            total_teo = sum(c["qty_teorica"] for c in consumos_log)
+            total_extra = sum(d["diferencia_kg"] for d in desviaciones)
+            merma_total = round((total_extra / total_teo) * 100, 1) if total_teo else 0
+
+        result = {
+            "success": True,
+            "work_order": work_order,
+            "resumen": {
+                "qty_producida": qty_pendiente,
+                "desviaciones": desviaciones,
+                "merma_total_pct": merma_total,
+                "estado": "Enregistré",
+            },
+            "message_fr": "Consommation enregistrée. Lot terminé.",
+        }
+
+        if alerta:
+            result["alerta"] = True
+            result["alerta_nivel"] = "WARNING"
+            items_alerta = [d["item_name"] for d in desviaciones if abs(d["diferencia_pct"]) > 10]
+            result["message_fr"] = (
+                f"⚠ Écart supérieur à 10% détecté sur {', '.join(items_alerta)}. "
+                "Le superviseur sera notifié."
+            )
+
+        return result
+
+    except Exception:
+        frappe.log_error(
+            title=f"Erreur reportar_consumo — WO {work_order}",
+            message=frappe.get_traceback(),
+        )
+        frappe.local.response["http_status_code"] = 500
+        return {
+            "success": False,
+            "error_code": "INTERNAL_ERROR",
+            "message_fr": "Erreur interne. Veuillez contacter l'administrateur.",
+        }
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # EP5 — INFO LOTE (consulta rápida)

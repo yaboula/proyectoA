@@ -24,3 +24,11 @@ export function validarMaterial(workOrder, qrData) {
     qr_data: qrData,
   })
 }
+
+/** EP4 — Reportar consumo real (cierre producción) */
+export function reportarConsumo(workOrder, extras = []) {
+  return client.post(`${BASE}.reportar_consumo`, {
+    work_order: workOrder,
+    extras: JSON.stringify(extras),
+  })
+}

@@ -18,7 +18,7 @@
 kiosco-pwa/src/
 ├── api/
 │   ├── client.js        # Axios instance (baseURL, interceptors)
-│   └── kiosco.js        # Wrappers tipados EP1/EP2/EP3
+│   └── kiosco.js        # Wrappers tipados EP1/EP2/EP3/EP4
 ├── stores/
 │   └── operario.js      # Pinia store — sesión del operario
 ├── router/
@@ -69,6 +69,15 @@ Redirige a login si no hay sesión, excepto rutas con `meta.guest`.
 |--------|-------------|
 | `login(qrToken)` | Llama EP1, guarda operario + sid |
 | `logout()` | Limpia estado, redirige a `/` |
+
+## API Wrappers (`kiosco.js`)
+
+| Función | Endpoint | Parámetros |
+|---------|----------|------------|
+| `loginOperario(qrToken)` | EP1 `login_operario` | `qr_token` |
+| `getTareas(company, warehouse)` | EP2 `get_tareas` | `company`, `warehouse` |
+| `validarMaterial(workOrder, qrData)` | EP3 `validar_material` | `work_order`, `qr_data` |
+| `reportarConsumo(workOrder, extras)` | EP4 `reportar_consumo` | `work_order`, `extras` (JSON string) |
 
 ## Axios Client (`client.js`)
 
@@ -138,6 +147,12 @@ Pantalla crítica de validación Poka-Yoke. Carga materiales de la WO via EP2, l
 3. Si EP3 `valido: true` → marca material matching como `'validated'` → flash verde en la card
 4. Si EP3 `valido: false` → overlay rojo STOP pantalla completa (Teleport)
 5. Cuando todos los materiales están validados → botón pulsante "FINALISER LE MÉLANGE ✓"
+6. Click "FINALISER" → modal de ajuste de consumo (EP4):
+   - **Fase `asking`**: Diálogo "Consommation standard ou extra ?" con 2 botones h-16 (emerald "NON, standard" / amber "OUI, extra")
+   - **Fase `extras`**: Lista scrollable de ingredientes con inputs numéricos `qty_extra` por material, botón "Valider et Enregistrer"
+   - **Fase `submitting`**: Overlay con spinner
+   - **Fase `success`**: Overlay fullscreen emerald-700 "LOT TERMINÉ — Placer en zone de Quarantaine" con redirect automático a `/tareas` tras 3s. Si hay alerta de desviación >10%, se muestra un banner amber.
+   - **Fase `error`**: Overlay fullscreen rose-700 con "Réessayer" y "Annuler"
 
 ### UX Semafórica
 - **Verde**: Material validado → card pasa a fondo `green-50`, icono ✓ verde, flash `scale-[1.02]` durante 1.5s
