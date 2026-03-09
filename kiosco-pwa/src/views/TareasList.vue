@@ -1,17 +1,26 @@
 ﻿<script setup>
 /**
- * TareasList â€” Liste des ordres de fabrication (EP2).
- * UI industrielle avec PrimeVue + thÃ¨me sombre professionnel.
+ * TareasList — Liste des ordres de fabrication (EP2).
+ *
+ * Design System: thème industriel premium. Cards shadcn-style.
+ * Icônes: lucide-vue-next. Boutons ≥ h-16. rounded-md max.
  */
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOperarioStore } from '../stores/operario'
 import { getTareas } from '../api/kiosco'
-import Button from 'primevue/button'
-import Card from 'primevue/card'
-import Tag from 'primevue/tag'
-import Skeleton from 'primevue/skeleton'
-import Message from 'primevue/message'
+import {
+  Play,
+  RefreshCw,
+  LogOut,
+  Loader2,
+  PackageCheck,
+  TriangleAlert,
+  ClipboardList,
+  Beaker,
+  Clock,
+  CircleAlert,
+} from 'lucide-vue-next'
 
 const router = useRouter()
 const store = useOperarioStore()
@@ -53,124 +62,131 @@ function logout() {
 </script>
 
 <template>
-  <div class="min-h-dvh bg-[#080d1a] flex flex-col">
+  <div class="min-h-dvh bg-slate-900 flex flex-col select-none">
 
-    <!-- â•® Top accent â•¯ -->
-    <div class="h-[3px] bg-gradient-to-r from-transparent via-blue-500 to-transparent shrink-0"></div>
-
-    <!-- â•® Header â•¯ -->
-    <header class="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700/40
-                   px-5 py-4 flex items-center justify-between shrink-0">
+    <!-- ═══ Header ═══ -->
+    <header class="bg-slate-800/80 border-b border-slate-700/50 px-5 py-4
+                    flex items-center justify-between">
       <div class="min-w-0">
-        <h1 class="text-xl font-bold text-white tracking-tight truncate">Ordres de Fabrication</h1>
-        <p class="text-slate-500 text-sm">
-          {{ store.fullName }} Â·
-          <span class="text-blue-400 font-medium">{{ store.operario?.company_abbr }}</span>
+        <h1 class="text-xl font-bold tracking-wide text-slate-100 uppercase truncate">
+          Ordres de Fabrication
+        </h1>
+        <p class="text-sm text-slate-500 mt-0.5 truncate">
+          {{ store.fullName }} · {{ store.operario?.company_abbr }}
         </p>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <Button icon="pi pi-refresh"
-                severity="secondary"
-                text
-                rounded
-                :loading="loading"
-                aria-label="RafraÃ®chir"
-                @click="fetchTareas" />
-        <Button label="DÃ©connexion"
-                icon="pi pi-sign-out"
-                severity="secondary"
-                text
-                class="!text-sm"
-                @click="logout" />
+      <div class="flex gap-2 shrink-0">
+        <button @click="fetchTareas"
+                :disabled="loading"
+                class="h-12 w-12 flex items-center justify-center rounded-md
+                       border border-slate-700 bg-slate-800
+                       text-slate-400 active:bg-slate-700 disabled:opacity-30 transition">
+          <RefreshCw :size="20" :class="{ 'animate-spin': loading }" />
+        </button>
+        <button @click="logout"
+                class="h-12 px-4 flex items-center gap-2 rounded-md
+                       border border-slate-700 bg-slate-800
+                       text-slate-400 text-sm font-semibold
+                       active:bg-slate-700 transition">
+          <LogOut :size="18" />
+          Quitter
+        </button>
       </div>
     </header>
 
-    <!-- â•® Content â•¯ -->
-    <main class="flex-1 overflow-y-auto p-4 space-y-4">
+    <!-- ═══ Content ═══ -->
+    <main class="flex-1 p-4 space-y-4 overflow-y-auto">
 
-      <!-- Loading skeletons -->
-      <template v-if="loading">
-        <div v-for="n in 2" :key="n"
-             class="rounded-2xl bg-slate-900/60 border border-slate-700/30 p-6 space-y-5">
-          <div class="flex justify-between items-start">
-            <Skeleton height="1.6rem" width="65%" />
-            <Skeleton height="1.6rem" width="5rem" border-radius="9999px" />
-          </div>
-          <Skeleton height="4rem" width="45%" />
-          <Skeleton height="1rem" width="55%" />
-          <Skeleton height="3.5rem" border-radius="12px" />
-        </div>
-      </template>
+      <!-- Loading -->
+      <div v-if="loading" class="flex flex-col items-center justify-center py-28 gap-4">
+        <Loader2 :size="48" :stroke-width="2" class="text-slate-500 animate-spin" />
+        <p class="text-slate-500 text-base">Chargement des ordres…</p>
+      </div>
 
       <!-- Error -->
-      <Message v-else-if="error" severity="error" :closable="false" class="w-full">
-        {{ error }}
-      </Message>
+      <div v-else-if="error" class="flex flex-col items-center justify-center py-28 gap-5">
+        <CircleAlert :size="56" :stroke-width="1.5" class="text-rose-500" />
+        <p class="text-rose-400 text-lg font-bold text-center">{{ error }}</p>
+        <button @click="fetchTareas"
+                class="h-14 px-8 rounded-md bg-slate-800 border border-slate-700
+                       text-slate-200 text-base font-semibold
+                       active:bg-slate-700 transition">
+          Réessayer
+        </button>
+      </div>
 
       <!-- Empty -->
       <div v-else-if="tareas.length === 0"
-           class="flex flex-col items-center justify-center py-24 gap-4">
-        <i class="pi pi-inbox text-slate-700" style="font-size: 5rem"></i>
-        <p class="text-slate-500 text-lg font-medium text-center leading-relaxed">
-          Aucun ordre de fabrication<br>en attente.
+           class="flex flex-col items-center justify-center py-28 gap-4">
+        <ClipboardList :size="56" :stroke-width="1.5" class="text-slate-600" />
+        <p class="text-slate-500 text-lg font-semibold text-center">
+          Aucun ordre de fabrication en attente.
         </p>
       </div>
 
-      <!-- â•® Work Order Cards â•¯ -->
+      <!-- ═══ Cards ═══ -->
       <div v-for="t in tareas" :key="t.work_order"
-           class="rounded-2xl bg-slate-900/60 border border-slate-700/30
-                  overflow-hidden transition-shadow hover:shadow-lg hover:shadow-blue-900/20">
+           class="bg-slate-800 border border-slate-700/60 rounded-md overflow-hidden">
 
-        <div class="p-6 space-y-5">
-
-          <!-- Row 1: Product + status badge -->
-          <div class="flex items-start gap-3">
-            <h2 class="flex-1 text-xl font-bold text-white leading-tight min-w-0">
-              {{ t.producto }}
-            </h2>
-            <Tag :severity="t.estado === 'In Process' ? 'warn' : 'secondary'"
-                 :value="t.estado === 'In Process' ? 'â³ En cours' : 'â¸ En attente'"
-                 class="shrink-0" />
+        <div class="p-5">
+          <!-- Top row: status + WO id -->
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <span class="flex items-center gap-1.5 text-xs font-mono text-slate-500 uppercase">
+              <Beaker :size="14" />
+              {{ t.work_order }}
+            </span>
+            <span class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold"
+                  :class="t.estado === 'In Process'
+                    ? 'bg-amber-900/40 text-amber-400 border border-amber-700/50'
+                    : 'bg-slate-700/50 text-slate-400 border border-slate-600/50'">
+              <Clock :size="12" />
+              {{ t.estado === 'In Process' ? 'En cours' : 'Non démarré' }}
+            </span>
           </div>
 
-          <!-- Row 2: Giant quantity -->
-          <div class="flex items-baseline gap-2">
-            <span class="text-[3.5rem] leading-none font-black text-blue-400">
+          <!-- Product name -->
+          <h2 class="text-2xl font-bold text-slate-100 leading-tight">
+            {{ t.producto }}
+          </h2>
+
+          <!-- Quantity -->
+          <div class="mt-3 flex items-baseline gap-2">
+            <span class="text-4xl font-black text-emerald-400">
               {{ t.cantidad_pendiente }}
             </span>
-            <span class="text-2xl text-slate-500 font-medium">{{ t.uom }}</span>
-            <span class="text-slate-600 text-sm ml-1">Ã  produire</span>
+            <span class="text-lg text-slate-400">{{ t.uom }}</span>
+            <span class="text-sm text-slate-600 ml-1">à produire</span>
           </div>
 
-          <!-- Row 3: Materials readiness -->
-          <div class="flex items-center gap-3 flex-wrap">
-            <span class="text-slate-500 text-sm">
-              <i class="pi pi-box mr-1.5"></i>{{ t.materiales?.length ?? 0 }} matÃ©riaux
+          <!-- Materials pills -->
+          <div class="mt-4 flex items-center gap-2 flex-wrap">
+            <span class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold
+                         bg-slate-700/60 text-slate-300 border border-slate-600/50">
+              {{ t.materiales?.length ?? 0 }} matériaux
             </span>
-            <Tag v-if="materialsReady(t)"
-                 severity="success"
-                 value="âœ“ Stock complet"
-                 class="text-xs" />
-            <Tag v-else
-                 severity="warn"
-                 value="âš  Stock insuffisant"
-                 class="text-xs" />
+            <span v-if="materialsReady(t)"
+                  class="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold
+                         bg-emerald-900/30 text-emerald-400 border border-emerald-700/50">
+              <PackageCheck :size="13" />
+              Stock complet
+            </span>
+            <span v-else
+                  class="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold
+                         bg-amber-900/30 text-amber-400 border border-amber-700/50">
+              <TriangleAlert :size="13" />
+              Stock insuffisant
+            </span>
           </div>
-
-          <!-- Work order ID -->
-          <p class="text-slate-700 text-xs font-mono">{{ t.work_order }}</p>
         </div>
 
-        <!-- â•® Action button (full-width footer) â•¯ -->
-        <div class="border-t border-slate-700/30 p-4">
-          <Button label="DÃ‰MARRER LA PRODUCTION"
-                  icon="pi pi-play-circle"
-                  icon-pos="right"
-                  severity="success"
-                  fluid
-                  class="!py-5 !text-base !font-black !tracking-wider"
-                  @click="startProduction(t.work_order)" />
-        </div>
+        <!-- Big action button — masive touch area -->
+        <button @click="startProduction(t.work_order)"
+                class="w-full h-16 flex items-center justify-center gap-3
+                       bg-emerald-600 text-white text-lg font-black tracking-wide
+                       active:bg-emerald-700 transition-colors border-t border-emerald-500/30">
+          <Play :size="24" :stroke-width="2.5" />
+          DÉMARRER LA PRODUCTION
+        </button>
       </div>
     </main>
   </div>

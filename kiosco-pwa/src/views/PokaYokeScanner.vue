@@ -1,55 +1,71 @@
 ﻿<script setup>
 /**
- * PokaYokeScanner â€” Validation des matÃ©riaux par scan QR (EP3).
- * UI industrielle avec PrimeVue + thÃ¨me sombre professionnel.
+ * PokaYokeScanner — Validation des matériaux par scan QR (EP3).
+ *
+ * Design System: thème industriel premium MES.
+ * UX sémaphorique: emerald=validé, rose=erreur STOP avec shake.
+ * Icônes: lucide-vue-next. Boutons ≥ h-16. rounded-md max.
  */
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOperarioStore } from '../stores/operario'
 import { getTareas, validarMaterial } from '../api/kiosco'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import ProgressBar from 'primevue/progressbar'
+import {
+  ArrowLeft,
+  Loader2,
+  CircleAlert,
+  CircleCheckBig,
+  TriangleAlert,
+  Keyboard,
+  ChevronRight,
+  X,
+  ScanBarcode,
+  Check,
+  Beaker,
+} from 'lucide-vue-next'
 
 const props = defineProps({ workOrder: String })
 const router = useRouter()
 const store = useOperarioStore()
 
-// â”€â”€ Tarea data â”€â”€
+// ── Tarea data ──
 const tarea = ref(null)
 const materials = ref([])
 const loadingTarea = ref(true)
 const loadError = ref(null)
 
-// â”€â”€ Scanner state â”€â”€
+// ── Scanner state ──
 const scanState = ref('ready') // ready | scanning | loading | success | error
 const lastResult = ref(null)
 const recentlyValidated = ref(-1)
 
-// â”€â”€ Manual entry â”€â”€
+// ── Manual entry ──
 const manualOpen = ref(false)
 const manualInput = ref('')
 const manualInputRef = ref(null)
 
-// â”€â”€ Computed â”€â”€
-const allValidated = computed(
-  () => materials.value.length > 0 && materials.value.every(m => m.status === 'validated')
+// ── Computed ──
+const allValidated = computed(() =>
+  materials.value.length > 0 && materials.value.every(m => m.status === 'validated')
 )
-const validatedCount = computed(
-  () => materials.value.filter(m => m.status === 'validated').length
-)
-const progressPct = computed(
-  () => materials.value.length ? (validatedCount.value / materials.value.length) * 100 : 0
+const validatedCount = computed(() =>
+  materials.value.filter(m => m.status === 'validated').length
 )
 
-// â”€â”€ Load tarea via EP2 â”€â”€
+// ── Auto-focus manual input ──
+watch(manualOpen, (open) => {
+  if (open) nextTick(() => manualInputRef.value?.focus())
+})
+
+// ── Load tarea from EP2 ──
 async function loadTarea() {
   loadingTarea.value = true
   loadError.value = null
   try {
-    const data = await getTareas(store.operario.company, store.operario.default_warehouse)
+    const data = await getTareas(
+      store.operario.company,
+      store.operario.default_warehouse
+    )
     const found = (data.tareas ?? []).find(t => t.work_order === props.workOrder)
     if (found) {
       tarea.value = found
@@ -59,7 +75,7 @@ async function loadTarea() {
         scanResult: null,
       }))
     } else {
-      loadError.value = 'Ordre de fabrication introuvable.'
+      loadError.value = "Ordre de fabrication introuvable."
     }
   } catch (err) {
     loadError.value = err?.message_fr ?? 'Erreur de chargement.'
@@ -68,7 +84,7 @@ async function loadTarea() {
   }
 }
 
-// â”€â”€ USB HID Scanner â”€â”€
+// ── USB HID Scanner (same pattern as LoginQR) ──
 const SCAN_GAP_MS = 80
 let buffer = ''
 let lastKeyTime = 0
@@ -88,20 +104,27 @@ function onKeyDown(e) {
     if (qr.length >= 3) handleScan(qr)
     return
   }
+
   if (e.key.length === 1) {
     buffer += e.key
-    if (scanState.value === 'ready' || scanState.value === 'success') scanState.value = 'scanning'
+    if (scanState.value === 'ready' || scanState.value === 'success') {
+      scanState.value = 'scanning'
+    }
   }
 }
 
+// ── Validate scanned material via EP3 ──
 async function handleScan(qrData) {
   scanState.value = 'loading'
   lastResult.value = null
+
   try {
     const data = await validarMaterial(props.workOrder, qrData)
     lastResult.value = data
+
     if (data.valido) {
       scanState.value = 'success'
+
       const idx = materials.value.findIndex(
         m => m.item_name === data.item_name && m.status !== 'validated'
       )
@@ -111,13 +134,18 @@ async function handleScan(qrData) {
         recentlyValidated.value = idx
         setTimeout(() => { recentlyValidated.value = -1 }, 1500)
       }
-      setTimeout(() => { if (scanState.value === 'success') scanState.value = 'ready' }, 2500)
+
+      setTimeout(() => {
+        if (scanState.value === 'success') scanState.value = 'ready'
+      }, 2500)
     } else {
       scanState.value = 'error'
     }
   } catch (err) {
     scanState.value = 'error'
-    lastResult.value = { message_fr: err?.message_fr ?? 'Erreur de communication avec le serveur.' }
+    lastResult.value = {
+      message_fr: err?.message_fr ?? 'Erreur de communication avec le serveur.',
+    }
   }
 }
 
@@ -126,241 +154,269 @@ function dismissError() {
   lastResult.value = null
 }
 
-function openManual() { manualOpen.value = true; manualInput.value = '' }
+// ── Manual entry ──
+function openManual() {
+  manualOpen.value = true
+  manualInput.value = ''
+}
 function closeManual() { manualOpen.value = false }
-function onManualDialogShow() { manualInputRef.value?.$el?.focus() }
 function submitManual() {
   const val = manualInput.value.trim()
   closeManual()
   if (val.length >= 3) handleScan(val)
 }
 
+// ── Navigation ──
 function goBack() { router.push({ name: 'tareas' }) }
-function finalizeMix() { router.push({ name: 'tareas' }) }
 
-onMounted(() => { loadTarea(); window.addEventListener('keydown', onKeyDown) })
-onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
+function finalizeMix() {
+  // EP4 TODO — for now, navigate back to task list
+  router.push({ name: 'tareas' })
+}
+
+// ── Lifecycle ──
+onMounted(() => {
+  loadTarea()
+  window.addEventListener('keydown', onKeyDown)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown)
+})
 </script>
 
 <template>
-  <!-- â•® Full-screen STOP error overlay â•¯ -->
+  <!-- ═══ ERROR OVERLAY — full screen rose + shake, tap to dismiss ═══ -->
   <Teleport to="body">
     <div v-if="scanState === 'error'"
+         @click="dismissError"
          class="fixed inset-0 z-50 flex flex-col items-center justify-center px-8
-                bg-red-900"
-         :class="lastResult?.alerta_nivel === 'CRITICO' ? 'animate-pulse' : ''">
-
-      <div class="w-24 h-24 rounded-full bg-red-700/60 flex items-center justify-center mb-8">
-        <i class="pi pi-ban text-white" style="font-size: 3.5rem"></i>
-      </div>
-
-      <p class="text-white font-black text-3xl text-center leading-snug max-w-lg">
+                select-none cursor-pointer animate-shake"
+         :class="lastResult?.alerta_nivel === 'CRITICO'
+           ? 'bg-rose-700'
+           : 'bg-rose-600'">
+      <TriangleAlert :size="80" :stroke-width="2" class="text-white mb-6" />
+      <p class="text-white text-3xl font-black text-center leading-relaxed max-w-lg">
         {{ lastResult?.message_fr ?? 'Erreur inconnue' }}
       </p>
-
-      <div v-if="lastResult?.alerta_nivel === 'CRITICO'"
-           class="mt-4 px-4 py-1.5 rounded-full bg-red-700/60 border border-red-500">
-        <span class="text-red-200 text-sm font-bold tracking-widest uppercase">âš ï¸ Alertre critique</span>
-      </div>
-
-      <Button label="FERMER"
-              severity="secondary"
-              outlined
-              size="large"
-              class="mt-10 !px-12 !py-5 !text-xl !font-black !text-white !border-white/60
-                     hover:!bg-white/10"
-              @click="dismissError" />
+      <p class="mt-10 text-rose-200/70 text-base font-medium tracking-wide">
+        Appuyez pour fermer
+      </p>
     </div>
   </Teleport>
 
-  <!-- â•® Manual entry Dialog â•¯ -->
-  <Dialog v-model:visible="manualOpen"
-          modal
-          :closable="false"
-          header="Saisie Manuelle"
-          :style="{ width: '92vw', maxWidth: '420px' }"
-          @show="onManualDialogShow">
-    <div class="flex flex-col gap-5 pt-1">
-      <p class="text-sm text-slate-400">
-        Entrez le code QR du matÃ©riau (formatÂ : CODE|LOT) :
-      </p>
-      <InputText ref="manualInputRef"
-                 v-model="manualInput"
-                 size="large"
-                 placeholder="CODE|LOT"
-                 autocomplete="off"
-                 @keydown.enter="submitManual" />
-      <div class="flex gap-3">
-        <Button label="Annuler" severity="secondary" outlined class="flex-1 !py-4" @click="closeManual" />
-        <Button label="Valider" severity="primary" class="flex-1 !py-4"
-                :disabled="manualInput.trim().length < 3"
-                @click="submitManual" />
+  <!-- ═══ MANUAL INPUT MODAL — shadcn Dialog style ═══ -->
+  <Teleport to="body">
+    <div v-if="manualOpen"
+         class="fixed inset-0 z-40 bg-black/70 flex items-center justify-center px-5">
+      <div class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-md p-6
+                  shadow-2xl animate-fade-in">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-slate-100">Saisie Manuelle</h2>
+          <button @click="closeManual"
+                  class="h-10 w-10 flex items-center justify-center rounded-md
+                         text-slate-500 hover:text-slate-300 active:bg-slate-700 transition">
+            <X :size="20" />
+          </button>
+        </div>
+        <p class="text-slate-400 mb-5 text-sm">
+          Entrez le code QR du matériau (format : CODE|LOT) :
+        </p>
+        <input ref="manualInputRef"
+               v-model="manualInput"
+               type="text"
+               autocomplete="off"
+               class="w-full text-xl font-mono bg-slate-900 border border-slate-600 rounded-md
+                      px-4 py-4 text-slate-100 placeholder-slate-600
+                      focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+               placeholder="CODE|LOT"
+               @keydown.enter="submitManual" />
+        <div class="mt-5 flex gap-3">
+          <button @click="closeManual"
+                  class="flex-1 h-14 rounded-md bg-slate-700 border border-slate-600
+                         text-slate-300 text-base font-semibold
+                         active:bg-slate-600 transition">
+            Annuler
+          </button>
+          <button @click="submitManual"
+                  :disabled="manualInput.trim().length < 3"
+                  class="flex-1 h-14 rounded-md bg-emerald-600 text-white text-base font-bold
+                         flex items-center justify-center gap-2
+                         active:bg-emerald-700 disabled:opacity-30 transition">
+            Valider
+            <ChevronRight :size="18" />
+          </button>
+        </div>
       </div>
     </div>
-  </Dialog>
+  </Teleport>
 
-  <!-- â•® Main layout â•¯ -->
-  <div class="min-h-dvh bg-[#080d1a] flex flex-col">
-
-    <!-- Top accent -->
-    <div class="h-[3px] bg-gradient-to-r from-transparent via-blue-500 to-transparent shrink-0"></div>
+  <!-- ═══ MAIN LAYOUT ═══ -->
+  <div class="min-h-dvh bg-slate-900 flex flex-col select-none">
 
     <!-- Header -->
-    <header class="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700/40
-                   px-4 py-4 flex items-center gap-4 shrink-0">
-      <Button icon="pi pi-arrow-left"
-              severity="secondary"
-              text
-              rounded
-              aria-label="Retour"
-              @click="goBack" />
+    <header class="bg-slate-800/80 border-b border-slate-700/50 px-5 py-4
+                    flex items-center gap-3">
+      <button @click="goBack"
+              class="shrink-0 h-12 w-12 rounded-md border border-slate-700 bg-slate-800
+                     flex items-center justify-center text-slate-400
+                     active:bg-slate-700 transition">
+        <ArrowLeft :size="20" />
+      </button>
       <div class="flex-1 min-w-0">
-        <h1 class="text-lg font-bold text-white truncate">
-          {{ tarea?.producto ?? 'Validation MatÃ©riaux' }}
+        <h1 class="text-lg font-bold text-slate-100 truncate">
+          {{ tarea?.producto ?? workOrder }}
         </h1>
-        <p class="text-slate-500 text-xs font-mono">{{ workOrder }}</p>
+        <p class="text-xs font-mono text-slate-500 flex items-center gap-1">
+          <Beaker :size="11" />
+          {{ workOrder }}
+        </p>
       </div>
-      <!-- Progress counter badge -->
-      <div class="shrink-0 text-center bg-slate-800 border border-slate-700
-                  rounded-xl px-4 py-2">
-        <span class="text-2xl font-black"
-              :class="allValidated ? 'text-green-400' : 'text-white'">
+      <div class="shrink-0 text-right">
+        <p class="text-3xl font-black"
+           :class="allValidated ? 'text-emerald-400' : 'text-slate-200'">
           {{ validatedCount }}/{{ materials.length }}
-        </span>
-        <p class="text-slate-500 text-[0.6rem] uppercase tracking-wide">validÃ©s</p>
+        </p>
+        <p class="text-xs text-slate-500">validés</p>
       </div>
     </header>
 
-    <!-- Progress bar -->
-    <ProgressBar :value="progressPct"
-                 :showValue="false"
-                 :pt="{ root: { class: '!rounded-none !h-[3px] !bg-slate-800/50' },
-                        value: { class: allValidated ? '!bg-green-500' : '!bg-blue-500' } }" />
-
     <!-- Loading -->
     <div v-if="loadingTarea" class="flex-1 flex items-center justify-center">
-      <i class="pi pi-spin pi-spinner text-slate-600" style="font-size: 3.5rem"></i>
+      <Loader2 :size="48" :stroke-width="2" class="text-slate-500 animate-spin" />
     </div>
 
-    <!-- Load error -->
+    <!-- Load Error -->
     <div v-else-if="loadError"
          class="flex-1 flex flex-col items-center justify-center px-8 gap-5">
-      <p class="text-red-400 text-xl font-bold text-center">{{ loadError }}</p>
-      <Button label="â† Retour aux ordres" severity="secondary" @click="goBack" />
+      <CircleAlert :size="56" :stroke-width="1.5" class="text-rose-500" />
+      <p class="text-rose-400 text-lg font-bold text-center">{{ loadError }}</p>
+      <button @click="goBack"
+              class="h-14 px-8 rounded-md bg-slate-800 border border-slate-700
+                     text-slate-200 text-base font-semibold flex items-center gap-2
+                     active:bg-slate-700 transition">
+        <ArrowLeft :size="18" />
+        Retour aux ordres
+      </button>
     </div>
 
+    <!-- ═══ Main Content ═══ -->
     <template v-else>
 
-      <!-- â•® Ingredients checklist â•¯ -->
-      <section class="flex-1 overflow-y-auto px-4 pt-4 pb-2 space-y-3">
+      <!-- Materials checklist (scrollable) -->
+      <section class="flex-1 overflow-y-auto px-4 pt-4 pb-3 space-y-2.5">
         <div v-for="(mat, i) in materials" :key="i"
-             class="rounded-xl border transition-all duration-500"
+             class="rounded-md p-4 border transition-all duration-500"
              :class="{
-               'bg-green-500/10 border-green-500/50 shadow shadow-green-900/30':  i === recentlyValidated,
-               'bg-green-900/10 border-green-800/30':  mat.status === 'validated' && i !== recentlyValidated,
-               'bg-slate-900/60 border-slate-700/30':  mat.status === 'pending',
+               'bg-emerald-900/40 border-emerald-500/70 scale-[1.01] shadow-lg shadow-emerald-500/20':
+                 i === recentlyValidated,
+               'bg-emerald-900/20 border-emerald-700/50':
+                 mat.status === 'validated' && i !== recentlyValidated,
+               'bg-slate-800 border-slate-700/60':
+                 mat.status === 'pending',
              }">
-          <div class="flex items-center gap-4 p-5">
-
-            <!-- Status indicator -->
+          <div class="flex items-center gap-3.5">
+            <!-- Status icon -->
             <div v-if="mat.status === 'validated'"
-                 class="shrink-0 w-12 h-12 rounded-full bg-green-500/20
-                        border-2 border-green-500 flex items-center justify-center">
-              <i class="pi pi-check text-green-400 text-xl"></i>
+                 class="shrink-0 w-12 h-12 rounded-md bg-emerald-600 flex items-center justify-center">
+              <CircleCheckBig :size="24" :stroke-width="2.5" class="text-white" />
             </div>
             <div v-else
-                 class="shrink-0 w-12 h-12 rounded-full bg-slate-800
-                        border border-slate-600 flex items-center justify-center">
-              <span class="text-slate-500 font-bold">{{ i + 1 }}</span>
+                 class="shrink-0 w-12 h-12 rounded-md border-2 border-slate-600
+                        flex items-center justify-center">
+              <span class="text-slate-500 text-lg font-bold">{{ i + 1 }}</span>
             </div>
 
             <!-- Material info -->
             <div class="flex-1 min-w-0">
-              <p class="text-lg font-semibold leading-tight"
-                 :class="mat.status === 'validated' ? 'text-green-300' : 'text-white'">
+              <p class="text-lg font-bold truncate"
+                 :class="mat.status === 'validated' ? 'text-emerald-300' : 'text-slate-200'">
                 {{ mat.item_name }}
               </p>
-              <p class="text-sm text-slate-500 mt-0.5">
-                {{ mat.qty_requerida }}Â {{ mat.uom }}
-                <span v-if="mat.scanResult?.batch_no" class="text-slate-600">
-                  Â· LotÂ {{ mat.scanResult.batch_no }}
-                </span>
+              <p class="text-sm mt-0.5"
+                 :class="mat.status === 'validated' ? 'text-emerald-500/70' : 'text-slate-500'">
+                {{ mat.qty_requerida }} {{ mat.uom }}
+                <template v-if="mat.scanResult?.batch_no">
+                  · Lot {{ mat.scanResult.batch_no }}
+                </template>
               </p>
             </div>
 
-            <!-- Stock badge (pending items only) -->
-            <Tag v-if="mat.status === 'pending'"
-                 :severity="mat.suficiente ? 'success' : 'danger'"
-                 :value="mat.suficiente ? 'Stock OK' : 'Stock âœ—'"
-                 class="shrink-0" />
+            <!-- Stock badge (pending only) -->
+            <span v-if="mat.status === 'pending'"
+                  class="shrink-0 rounded-md px-2.5 py-1 text-xs font-bold border"
+                  :class="mat.suficiente
+                    ? 'bg-emerald-900/30 text-emerald-400 border-emerald-700/50'
+                    : 'bg-rose-900/30 text-rose-400 border-rose-700/50'">
+              {{ mat.suficiente ? 'Stock OK' : 'Stock ✗' }}
+            </span>
           </div>
         </div>
       </section>
 
-      <!-- â•® Bottom action zone â•¯ -->
-      <section class="px-4 pb-5 pt-3 space-y-3 shrink-0">
+      <!-- Bottom zone: scan status + actions (always visible) -->
+      <section class="px-4 pb-5 pt-3 space-y-3 border-t border-slate-800">
 
         <!-- Scan status indicator -->
         <div v-if="!allValidated"
-             class="rounded-xl px-5 py-4 flex items-center gap-3 border
+             class="rounded-md px-5 py-4 flex items-center justify-center gap-3
                     transition-all duration-300"
              :class="{
-               'bg-slate-900/60 border-slate-700/30':   scanState === 'ready',
-               'bg-blue-500/10  border-blue-500/30':    scanState === 'scanning',
-               'bg-amber-500/10 border-amber-500/30':   scanState === 'loading',
-               'bg-green-500/10 border-green-500/30':   scanState === 'success',
+               'bg-slate-800 border border-slate-700/50':  scanState === 'ready',
+               'bg-slate-800 border border-slate-600':     scanState === 'scanning',
+               'bg-amber-900/40 border border-amber-700/50': scanState === 'loading',
+               'bg-emerald-900/40 border border-emerald-700/50': scanState === 'success',
              }">
-          <i class="text-2xl shrink-0 transition-colors"
-             :class="{
-               'pi pi-qrcode text-slate-500':            scanState === 'ready',
-               'pi pi-barcode text-blue-400':            scanState === 'scanning',
-               'pi pi-spin pi-spinner text-amber-400':   scanState === 'loading',
-               'pi pi-check-circle text-green-400':      scanState === 'success',
-             }"></i>
-          <p class="text-base font-medium transition-colors"
-             :class="{
-               'text-slate-400': scanState === 'ready',
-               'text-blue-300':  scanState === 'scanning',
-               'text-amber-300': scanState === 'loading',
-               'text-green-300': scanState === 'success',
-             }">
-            <template v-if="scanState === 'ready'">Scannez le prochain matÃ©riau</template>
-            <template v-else-if="scanState === 'scanning'">Lecture du codeâ€¦</template>
-            <template v-else-if="scanState === 'loading'">VÃ©rification en coursâ€¦</template>
-            <template v-else-if="scanState === 'success'">{{ lastResult?.item_name }}Â â€” validÃ©</template>
-          </p>
+          <template v-if="scanState === 'ready'">
+            <ScanBarcode :size="22" class="text-slate-400" />
+            <p class="text-slate-400 text-base font-semibold">Scannez le prochain matériau</p>
+          </template>
+          <template v-else-if="scanState === 'scanning'">
+            <Loader2 :size="20" class="text-slate-300 animate-spin" />
+            <p class="text-slate-300 text-base font-semibold">Lecture du code…</p>
+          </template>
+          <template v-else-if="scanState === 'loading'">
+            <Loader2 :size="20" class="text-amber-400 animate-spin" />
+            <p class="text-amber-400 text-base font-semibold">Vérification en cours…</p>
+          </template>
+          <template v-else-if="scanState === 'success'">
+            <CircleCheckBig :size="20" class="text-emerald-400" />
+            <p class="text-emerald-400 text-base font-bold">
+              {{ lastResult?.item_name }} — validé
+            </p>
+          </template>
         </div>
 
         <!-- All validated banner -->
         <div v-if="allValidated"
-             class="rounded-xl border border-green-600/30 bg-green-900/20
-                    px-5 py-4 flex items-center gap-3">
-          <i class="pi pi-check-circle text-green-400 text-2xl"></i>
-          <p class="text-green-300 text-lg font-bold">
-            Tous les matÃ©riaux sont validÃ©s !
+             class="rounded-md bg-emerald-900/40 border border-emerald-600/50 px-5 py-4
+                    flex items-center justify-center gap-3">
+          <CircleCheckBig :size="24" class="text-emerald-400" />
+          <p class="text-emerald-300 text-xl font-black">
+            Tous les matériaux sont validés !
           </p>
         </div>
 
-        <!-- Manual button -->
-        <Button v-if="!allValidated"
-                label="Saisie Manuelle"
-                icon="pi pi-keyboard"
-                severity="secondary"
-                outlined
-                fluid
-                class="!py-4 !text-sm"
-                @click="openManual" />
+        <!-- Manual entry button -->
+        <button v-if="!allValidated"
+                @click="openManual"
+                class="w-full h-14 rounded-md bg-slate-800 border border-slate-700
+                       text-slate-400 text-base font-semibold
+                       flex items-center justify-center gap-2
+                       active:bg-slate-700 transition">
+          <Keyboard :size="18" />
+          Saisie Manuelle
+        </button>
 
         <!-- Finalize button -->
-        <Button v-if="allValidated"
-                label="FINALISER LE MÃ‰LANGE"
-                icon="pi pi-check-circle"
-                icon-pos="right"
-                severity="success"
-                size="large"
-                fluid
-                class="!py-6 !text-xl !font-black !tracking-wider animate-pulse"
-                @click="finalizeMix" />
+        <button v-if="allValidated"
+                @click="finalizeMix"
+                class="w-full h-16 rounded-md bg-emerald-600 text-white text-xl font-black
+                       flex items-center justify-center gap-3
+                       active:bg-emerald-700 transition animate-pulse-ring
+                       shadow-lg shadow-emerald-500/20">
+          <Check :size="24" :stroke-width="3" />
+          FINALISER LE MÉLANGE
+        </button>
       </section>
     </template>
   </div>

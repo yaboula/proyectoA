@@ -2,7 +2,6 @@
 
 /* ── Industrial kiosk overrides ── */
 html {
-  font-family: 'Inter', system-ui, sans-serif;
   font-size: 18px;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -12,53 +11,33 @@ html {
 body {
   min-height: 100dvh;
   overscroll-behavior: none;
-  background-color: #080d1a;
 }
 
-/* ── PrimeVue component overrides for industrial kiosk ── */
-
-/* Ensure PrimeVue dialogs use Inter font */
-.p-dialog, .p-dialog .p-dialog-content, .p-dialog .p-dialog-header {
-  font-family: 'Inter', system-ui, sans-serif;
+/* ── Design System: Shake animation for Poka-Yoke STOP ── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+  20%, 40%, 60%, 80% { transform: translateX(6px); }
+}
+.animate-shake {
+  animation: shake 0.6s ease-in-out;
 }
 
-/* Card: dark glass style */
-.p-card {
-  background: rgba(15, 23, 42, 0.85) !important;
-  border: 1px solid rgba(51, 65, 85, 0.6) !important;
-  backdrop-filter: blur(8px);
+/* ── Design System: Fade-in for modals ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }
 
-/* Remove default p-card shadow on dark bg */
-.p-card .p-card-body {
-  padding: 1.5rem;
+/* ── Design System: Pulse ring for scan area ── */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
-
-/* Dialog: dark professional */
-.p-dialog .p-dialog-header {
-  background: #0f172a !important;
-  border-bottom: 1px solid rgba(51, 65, 85, 0.5) !important;
-  color: #f1f5f9 !important;
-}
-
-.p-dialog .p-dialog-content {
-  background: #0f172a !important;
-  color: #cbd5e1 !important;
-}
-
-.p-dialog .p-dialog-footer {
-  background: #0f172a !important;
-  border-top: 1px solid rgba(51, 65, 85, 0.5) !important;
-}
-
-/* Skeleton: darker for dark theme */
-.p-skeleton {
-  background-color: rgba(51, 65, 85, 0.5) !important;
-}
-
-/* ProgressBar: thinner, full width */
-.p-progressbar {
-  border-radius: 0 !important;
-  height: 3px !important;
-  background: rgba(51, 65, 85, 0.4) !important;
+.animate-pulse-ring {
+  animation: pulse-ring 2s infinite;
 }

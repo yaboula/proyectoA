@@ -48,3 +48,51 @@ Estructura de docs:
   - docs/API.md — Referencia de endpoints REST (request/response/errores/curl)
   - docs/FRONTEND.md — Arquitectura PWA, componentes, estado, patrones
   - docs/RUNBOOK.md — Operaciones Docker, deploy, troubleshooting, lecciones aprendidas
+
+DESIGN SYSTEM — INDUSTRIAL PREMIUM MES (OBLIGATORIO)
+
+El frontend Kiosco usa un Design System industrial de alta gama, tipo MES avanzado.
+Todas las vistas DEBEN cumplir estas reglas sin excepción:
+
+Tema oscuro:
+  - Fondo principal: bg-slate-900
+  - Cards / paneles: bg-slate-800 con border border-slate-700/60 o border-slate-700/50
+  - Header: bg-slate-800/80 con border-b border-slate-700/50
+  - Modales (Dialog): bg-slate-800 border border-slate-700 rounded-md (estilo shadcn)
+
+Paleta de colores:
+  - Primario (acción): emerald-600 / emerald-700 (active)
+  - Éxito / validado: emerald-400 (texto), emerald-900/20-40 (background sutil)
+  - Error / STOP: rose-600 (overlay), rose-500 (iconos), rose-400 (texto), rose-900/30 (badges)
+  - Warning / en proceso: amber-400 (texto), amber-900/40 (background sutil)
+  - Texto principal: slate-100 / slate-200
+  - Texto secundario: slate-400 / slate-500
+  - Texto terciario / mono: slate-500 / slate-600
+
+Iconografía:
+  - Librería: lucide-vue-next (SIEMPRE — nunca usar emoji ni SVG inline para iconos)
+  - Tamaño mínimo para iconos principales: 48px (:size="48")
+  - Tamaño para iconos en botones/badges: 18-24px
+  - Tamaño para iconos en metadatos: 12-14px
+  - Siempre importar solo los iconos necesarios (tree-shaking)
+
+UX Fat-finger:
+  - Botones de acción: mínimo h-16 (64px)
+  - Botones secundarios: mínimo h-12 o h-14
+  - NUNCA usar rounded-2xl, rounded-3xl, rounded-full en cards o botones. Usar rounded-md siempre.
+  - Aplicar select-none en el container principal de cada vista
+  - Inputs: text-xl mínimo, py-4 mínimo
+
+Animaciones (definidas en style.css):
+  - .animate-shake — Error overlay del Poka-Yoke (0.6s, ±6px translateX)
+  - .animate-fade-in — Apertura de modales (0.2s opacity+translateY)
+  - .animate-pulse-ring — Botón finalizar y scan ring (2s infinite emerald glow box-shadow)
+  - animate-spin — Loading spinners (Tailwind built-in)
+
+Patrones de componentes:
+  - Error overlay: Teleport to body, bg-rose-600 fullscreen, icono TriangleAlert 80px, texto blanco, "Appuyez pour fermer" (tap-to-dismiss con @click en todo el overlay, NO botón FERMER)
+  - Modal de saisie manuelle: Teleport to body, backdrop bg-black/70, dialog shadcn-style (bg-slate-800 rounded-md), input font-mono, bouton emerald "Valider" con ChevronRight
+  - Cards de lista: bg-slate-800 border-slate-700/60 rounded-md, información jerárquica con badges rounded-md
+  - Headers: bg-slate-800/80 border-b border-slate-700/50, título uppercase tracking-wide
+
+Idioma UI: Francés (SIEMPRE). Todos los textos visibles al operario DEBEN estar en francés.

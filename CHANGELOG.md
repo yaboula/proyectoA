@@ -3,39 +3,42 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
-## [0.3.0] — 2026-03-10
+## [0.3.0] — 2025-07-25
 
-### Changed — UI redesign complet (PrimeVue 4 + Aura Dark)
+### Added
 
-**Stack frontend**
-- Ajout de `primevue`, `@primeuix/themes` et `primeicons` (PrimeVue 4.x)
-- Thème `KioscoTheme` = preset Aura avec palette primaire bleue (`{blue.*}`)
-- Mode sombre permanent : `class="dark"` sur `<html>`, `darkModeSelector: '.dark'`
-- Police Inter (Google Fonts CDN) remplace la police système
-- `src/style.css` : surcharges PrimeVue (`.p-card`, `.p-dialog`, `.p-progressbar`)
+**Design System — Industrial Premium MES**
+- Tema oscuro industrial (bg-slate-900 fondo, bg-slate-800 cards/headers)
+- Paleta: emerald-600 (acción primaria), rose-600 (errores), amber-400 (warnings)
+- Librería de iconos lucide-vue-next reemplaza todos los emoji y SVG inline
+- Animaciones CSS: shake (error overlay), fade-in (modales), pulse-ring (finalizar)
+- Reglas UX fat-finger: botones h-16 min, rounded-md (no rounded-2xl/3xl), select-none
 
-**LoginQR.vue**
-- Fond `#080d1a` + grille de points + ligne dégradé bleu en haut
-- Composants `<Card>`, `<Button>`, `<Dialog>`, `<InputText>`, `<Divider>` PrimeVue
-- Icône animée (pi-id-card/pi-qrcode/pi-spinner/pi-check-circle/pi-times-circle) selon état
-- Dialog saisie manuelle avec `@show="onDialogShow"` → `$el.focus()` fiable sur InputText PrimeVue
+### Changed
 
-**TareasList.vue**
-- Header dark avec bouton refresh (`<Button icon="pi pi-refresh">`) et déconnexion
-- `<Skeleton>` PrimeVue pour états de chargement
-- `<Message severity="error">` pour états d'erreur
-- `<Tag severity="warn/success/secondary">` pour statut WO et stock mat
-- Quantité pendiente en `text-[3.5rem] font-black text-blue-400`
-- `<Button severity="success" fluid>` DÉMARRER pleine largeur
+**Frontend — LoginQR.vue**
+- Reescrito completo: tema oscuro, iconos lucide (ScanBarcode 64px, ShieldCheck, Loader2, etc.)
+- Modal de saisie manuelle estilo shadcn (bg-slate-800, border-slate-700, rounded-md)
+- Barra superior con ShieldCheck + versión
+- Input font-mono, botón emerald "Valider" con ChevronRight
 
-**PokaYokeScanner.vue**
-- `<ProgressBar>` PrimeVue (3 px, override CSS, couleur selon état)
-- `<Tag severity="success/danger">` pour stock par matériau
-- `<Dialog @show>` + `<InputText>` PrimeVue pour saisie manuelle
-- Overlay STOP rouge conservé en `<Teleport to="body">` (hors PrimeVue)
-- `<Button severity="success" class="animate-pulse">` FINALISER
+**Frontend — TareasList.vue**
+- Reescrito completo: cards bg-slate-800 con border-slate-700/60 rounded-md
+- Header bg-slate-800/80 con RefreshCw y LogOut (lucide icons)
+- Badges de stock (emerald/amber) y estado (amber/slate) con bordes sutiles
+- Botón h-16 bg-emerald-600 "DÉMARRER LA PRODUCTION" con icono Play
+- Metadatos con iconos Beaker y Clock
 
----
+**Frontend — PokaYokeScanner.vue**
+- Reescrito completo: tema oscuro, checklist con cards bg-slate-800
+- Error overlay: bg-rose-600 + animate-shake + TriangleAlert 80px + tap-to-dismiss (sin botón)
+- Modal saisie manuelle estilo shadcn con X close button
+- Checklist: CircleCheckBig para validados, badges rounded-md emerald/rose
+- Scan status bar con iconos lucide (ScanBarcode, Loader2, CircleCheckBig)
+- Botón "FINALISER LE MÉLANGE" con animate-pulse-ring y icono Check
+
+**Instrucciones**
+- Sección DESIGN SYSTEM añadida a context.instructions.md (paleta, iconos, UX, animaciones, patrones)
 
 ## [0.2.0] — 2026-03-09
 
