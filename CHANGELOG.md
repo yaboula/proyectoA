@@ -3,6 +3,40 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.3.0] — 2026-03-10
+
+### Changed — UI redesign complet (PrimeVue 4 + Aura Dark)
+
+**Stack frontend**
+- Ajout de `primevue`, `@primeuix/themes` et `primeicons` (PrimeVue 4.x)
+- Thème `KioscoTheme` = preset Aura avec palette primaire bleue (`{blue.*}`)
+- Mode sombre permanent : `class="dark"` sur `<html>`, `darkModeSelector: '.dark'`
+- Police Inter (Google Fonts CDN) remplace la police système
+- `src/style.css` : surcharges PrimeVue (`.p-card`, `.p-dialog`, `.p-progressbar`)
+
+**LoginQR.vue**
+- Fond `#080d1a` + grille de points + ligne dégradé bleu en haut
+- Composants `<Card>`, `<Button>`, `<Dialog>`, `<InputText>`, `<Divider>` PrimeVue
+- Icône animée (pi-id-card/pi-qrcode/pi-spinner/pi-check-circle/pi-times-circle) selon état
+- Dialog saisie manuelle avec `@show="onDialogShow"` → `$el.focus()` fiable sur InputText PrimeVue
+
+**TareasList.vue**
+- Header dark avec bouton refresh (`<Button icon="pi pi-refresh">`) et déconnexion
+- `<Skeleton>` PrimeVue pour états de chargement
+- `<Message severity="error">` pour états d'erreur
+- `<Tag severity="warn/success/secondary">` pour statut WO et stock mat
+- Quantité pendiente en `text-[3.5rem] font-black text-blue-400`
+- `<Button severity="success" fluid>` DÉMARRER pleine largeur
+
+**PokaYokeScanner.vue**
+- `<ProgressBar>` PrimeVue (3 px, override CSS, couleur selon état)
+- `<Tag severity="success/danger">` pour stock par matériau
+- `<Dialog @show>` + `<InputText>` PrimeVue pour saisie manuelle
+- Overlay STOP rouge conservé en `<Teleport to="body">` (hors PrimeVue)
+- `<Button severity="success" class="animate-pulse">` FINALISER
+
+---
+
 ## [0.2.0] — 2026-03-09
 
 ### Added

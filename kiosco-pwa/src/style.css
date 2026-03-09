@@ -2,6 +2,7 @@
 
 /* ── Industrial kiosk overrides ── */
 html {
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 18px;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -11,4 +12,53 @@ html {
 body {
   min-height: 100dvh;
   overscroll-behavior: none;
+  background-color: #080d1a;
+}
+
+/* ── PrimeVue component overrides for industrial kiosk ── */
+
+/* Ensure PrimeVue dialogs use Inter font */
+.p-dialog, .p-dialog .p-dialog-content, .p-dialog .p-dialog-header {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Card: dark glass style */
+.p-card {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(51, 65, 85, 0.6) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Remove default p-card shadow on dark bg */
+.p-card .p-card-body {
+  padding: 1.5rem;
+}
+
+/* Dialog: dark professional */
+.p-dialog .p-dialog-header {
+  background: #0f172a !important;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5) !important;
+  color: #f1f5f9 !important;
+}
+
+.p-dialog .p-dialog-content {
+  background: #0f172a !important;
+  color: #cbd5e1 !important;
+}
+
+.p-dialog .p-dialog-footer {
+  background: #0f172a !important;
+  border-top: 1px solid rgba(51, 65, 85, 0.5) !important;
+}
+
+/* Skeleton: darker for dark theme */
+.p-skeleton {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+}
+
+/* ProgressBar: thinner, full width */
+.p-progressbar {
+  border-radius: 0 !important;
+  height: 3px !important;
+  background: rgba(51, 65, 85, 0.4) !important;
 }
