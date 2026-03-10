@@ -237,8 +237,8 @@ onMounted(loadTarea)
   >
     <template #alert>
       <div v-if="finalizeResult?.alerta"
-           class="mt-6 rounded-md bg-amber-900/60 border border-amber-500/50 px-5 py-3 max-w-sm">
-        <p class="text-amber-200 text-sm font-bold text-center">
+           class="mt-6 rounded-md bg-amber-50 border border-amber-200 px-5 py-3 max-w-sm">
+        <p class="text-amber-700 text-sm font-bold text-center">
           <TriangleAlert :size="16" class="inline mr-1 -mt-0.5" />
           {{ finalizeResult.message_fr }}
         </p>
@@ -256,11 +256,11 @@ onMounted(loadTarea)
   >
     <template #action>
       <button @click="retryFinalize"
-              class="mt-8 h-16 px-10 rounded-md bg-slate-900 border border-rose-300/30 text-rose-100 text-lg font-black active:bg-slate-800 transition">
+              class="mt-8 h-16 px-10 rounded-md bg-white border border-red-200 text-red-700 text-lg font-black active:bg-red-50 transition">
         Reessayer
       </button>
       <button @click="finalizePhase = 'idle'"
-              class="mt-3 text-rose-200/70 text-sm font-medium underline">
+              class="mt-3 text-red-200 text-sm font-medium underline">
         Annuler
       </button>
     </template>
@@ -281,18 +281,18 @@ onMounted(loadTarea)
   <!-- === EP4 -- "Standard ou Extra ?" DIALOG === -->
   <Teleport to="body">
     <div v-if="finalizePhase === 'asking'"
-         class="fixed inset-0 z-40 bg-black/70 flex items-center justify-center px-5">
-      <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-md p-6 shadow-2xl animate-fade-in">
+         class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center px-5">
+      <div class="w-full max-w-md bg-white border border-zinc-200 rounded-md p-6 shadow-xl animate-fade-in">
         <div class="flex items-center gap-3 mb-5">
-          <Scale :size="28" class="text-amber-400" />
-          <h2 class="text-xl font-bold text-zinc-50">Ajustement Consommation</h2>
+          <Scale :size="28" class="text-amber-600" />
+          <h2 class="text-xl font-bold text-zinc-900">Ajustement Consommation</h2>
         </div>
-        <p class="text-zinc-400 text-base mb-6 leading-relaxed">
+        <p class="text-zinc-500 text-base mb-6 leading-relaxed">
           Le melange est pret. La consommation correspond-elle aux quantites standard ?
         </p>
         <div class="space-y-3">
           <button @click="confirmStandard"
-                  class="w-full h-16 rounded-md bg-zinc-50 text-zinc-900 text-lg font-bold flex items-center justify-center gap-3 active:bg-zinc-200 transition">
+                  class="w-full h-16 rounded-md bg-blue-600 text-white text-lg font-bold flex items-center justify-center gap-3 active:bg-blue-700 transition">
             <Check :size="22" :stroke-width="3" />
             NON, consommation standard
           </button>
@@ -303,7 +303,7 @@ onMounted(loadTarea)
           </button>
         </div>
         <button @click="finalizePhase = 'idle'"
-                class="w-full mt-4 h-12 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 text-sm font-semibold active:bg-zinc-800 transition">
+                class="w-full mt-4 h-12 rounded-md bg-white border border-zinc-300 text-zinc-500 text-sm font-semibold active:bg-zinc-50 transition">
           Annuler
         </button>
       </div>
@@ -313,40 +313,40 @@ onMounted(loadTarea)
   <!-- === EP4 -- EXTRAS INPUT FORM === -->
   <Teleport to="body">
     <div v-if="finalizePhase === 'extras'"
-         class="fixed inset-0 z-40 bg-black/70 flex items-center justify-center px-5">
-      <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-md shadow-2xl animate-fade-in max-h-[90dvh] flex flex-col">
+         class="fixed inset-0 z-40 bg-black/50 flex items-center justify-center px-5">
+      <div class="w-full max-w-md bg-white border border-zinc-200 rounded-md shadow-xl animate-fade-in max-h-[90dvh] flex flex-col">
         <div class="p-6 pb-3 flex items-center justify-between">
-          <h2 class="text-xl font-bold text-zinc-50">Quantites Extra</h2>
+          <h2 class="text-xl font-bold text-zinc-900">Quantites Extra</h2>
           <button @click="finalizePhase = 'asking'"
-                  class="h-10 w-10 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-300 active:bg-zinc-800 transition">
+                  class="h-10 w-10 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-600 active:bg-zinc-100 transition">
             <X :size="20" />
           </button>
         </div>
-        <p class="px-6 text-zinc-400 text-sm mb-4">
+        <p class="px-6 text-zinc-500 text-sm mb-4">
           Indiquez la quantite supplementaire (Kg/L) pour chaque ingredient :
         </p>
         <div class="flex-1 overflow-y-auto px-6 space-y-3 pb-4">
           <div v-for="(ex, i) in extras" :key="i"
-               class="rounded-md bg-zinc-950 border border-zinc-800 p-4">
-            <p class="text-base font-bold text-zinc-50 mb-2 truncate">{{ ex.item_name }}</p>
+               class="rounded-md bg-zinc-50 border border-zinc-200 p-4">
+            <p class="text-base font-bold text-zinc-900 mb-2 truncate">{{ ex.item_name }}</p>
             <div class="flex items-center gap-3">
               <span class="text-sm text-zinc-500">Extra :</span>
               <input v-model.number="ex.qty_extra"
                      type="number" min="0" step="0.1"
-                     class="flex-1 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-3 text-lg font-mono text-zinc-50 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                     class="flex-1 bg-white border border-zinc-300 rounded-md px-3 py-3 text-lg font-mono text-zinc-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
                      placeholder="0" />
-              <span class="text-sm text-zinc-400 font-medium">{{ ex.uom }}</span>
+              <span class="text-sm text-zinc-500 font-medium">{{ ex.uom }}</span>
             </div>
           </div>
         </div>
-        <div class="p-6 pt-3 space-y-3 border-t border-zinc-800">
+        <div class="p-6 pt-3 space-y-3 border-t border-zinc-200">
           <button @click="submitExtras"
-                  class="w-full h-16 rounded-md bg-zinc-50 text-zinc-900 text-lg font-bold flex items-center justify-center gap-3 active:bg-zinc-200 transition">
+                  class="w-full h-16 rounded-md bg-blue-600 text-white text-lg font-bold flex items-center justify-center gap-3 active:bg-blue-700 transition">
             <PackageCheck :size="22" :stroke-width="2.5" />
             Valider et Enregistrer
           </button>
           <button @click="finalizePhase = 'asking'"
-                  class="w-full h-12 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 text-sm font-semibold active:bg-zinc-800 transition">
+                  class="w-full h-12 rounded-md bg-white border border-zinc-300 text-zinc-500 text-sm font-semibold active:bg-zinc-50 transition">
             Retour
           </button>
         </div>
@@ -356,16 +356,16 @@ onMounted(loadTarea)
 
   <!-- === MAIN LAYOUT === -->
   <KioskLayout>
-    <header class="glass-panel kiosk-panel rounded-md p-5">
+    <header class="kiosk-panel rounded-md p-5">
       <div class="gcma-toolbar">
         <div class="flex min-w-0 items-start gap-3">
           <button @click="goBack"
-                  class="shrink-0 h-12 w-12 rounded-md border border-zinc-800 bg-zinc-950 flex items-center justify-center text-zinc-400 active:bg-zinc-900 transition">
+                  class="shrink-0 h-12 w-12 rounded-md border border-zinc-300 bg-white flex items-center justify-center text-zinc-500 active:bg-zinc-50 transition">
             <ArrowLeft :size="20" />
           </button>
           <div class="min-w-0">
             <div class="gcma-section-label">Poka-yoke matiere</div>
-            <h1 class="mt-2 text-3xl font-black tracking-tight text-white truncate">{{ tarea?.producto ?? workOrder }}</h1>
+            <h1 class="mt-2 text-3xl font-black tracking-tight text-zinc-900 truncate">{{ tarea?.producto ?? workOrder }}</h1>
             <p class="mt-2 flex items-center gap-2 text-sm font-mono text-zinc-500">
               <Beaker :size="12" />
               {{ workOrder }}
@@ -373,18 +373,18 @@ onMounted(loadTarea)
           </div>
         </div>
 
-        <div class="grid gap-3 md:grid-cols-3 text-sm text-zinc-400">
+        <div class="grid gap-3 md:grid-cols-3 text-sm text-zinc-500">
           <div class="gcma-stat min-w-[8rem]">
             <div class="gcma-section-label">Valides</div>
-            <div class="mt-1 text-2xl font-black text-zinc-50">{{ validatedCount }}/{{ materials.length }}</div>
+            <div class="mt-1 text-2xl font-black text-zinc-900">{{ validatedCount }}/{{ materials.length }}</div>
           </div>
           <div class="gcma-stat min-w-[8rem]">
             <div class="gcma-section-label">Restants</div>
-            <div class="mt-1 text-2xl font-black text-white">{{ Math.max(materials.length - validatedCount, 0) }}</div>
+            <div class="mt-1 text-2xl font-black text-zinc-900">{{ Math.max(materials.length - validatedCount, 0) }}</div>
           </div>
           <div class="gcma-stat min-w-[10rem]">
             <div class="gcma-section-label">Etat</div>
-            <div class="mt-1 text-sm font-bold" :class="allValidated ? 'text-zinc-50' : 'text-zinc-300'">
+            <div class="mt-1 text-sm font-bold" :class="allValidated ? 'text-green-700' : 'text-zinc-600'">
               {{ allValidated ? 'Pret a cloturer' : 'Controle en cours' }}
             </div>
           </div>
@@ -393,14 +393,14 @@ onMounted(loadTarea)
     </header>
 
     <div v-if="loadingTarea" class="kiosk-panel flex flex-1 items-center justify-center rounded-md">
-      <Loader2 :size="48" :stroke-width="2" class="text-zinc-500 animate-spin" />
+      <Loader2 :size="48" :stroke-width="2" class="text-blue-600 animate-spin" />
     </div>
 
     <div v-else-if="loadError" class="kiosk-panel flex flex-1 flex-col items-center justify-center rounded-md px-8 gap-5">
-      <CircleAlert :size="56" :stroke-width="1.5" class="text-rose-500" />
-      <p class="text-rose-400 text-lg font-bold text-center">{{ loadError }}</p>
+      <CircleAlert :size="56" :stroke-width="1.5" class="text-red-500" />
+      <p class="text-red-600 text-lg font-bold text-center">{{ loadError }}</p>
       <button @click="goBack"
-              class="h-14 px-8 rounded-md bg-zinc-50 border border-zinc-50 text-zinc-900 text-base font-semibold flex items-center gap-2 active:bg-zinc-200 transition">
+              class="h-14 px-8 rounded-md bg-blue-600 text-white text-base font-semibold flex items-center gap-2 active:bg-blue-700 transition">
         <ArrowLeft :size="18" />
         Retour aux ordres
       </button>
@@ -410,10 +410,10 @@ onMounted(loadTarea)
       <div class="grid flex-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <!-- Material checklist -->
         <section class="kiosk-panel flex min-h-0 flex-col rounded-md">
-          <div class="gcma-toolbar border-b border-zinc-800 px-5 py-4">
+          <div class="gcma-toolbar border-b border-zinc-200 px-5 py-4">
             <div>
               <div class="gcma-section-label">Checklist matiere</div>
-              <div class="mt-1 text-xl font-black text-white">Sequence de validation</div>
+              <div class="mt-1 text-xl font-black text-zinc-900">Sequence de validation</div>
             </div>
             <div class="kiosk-chip rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
               {{ materials.length }} lignes BOM
@@ -424,21 +424,21 @@ onMounted(loadTarea)
             <div v-for="(mat, i) in materials" :key="i"
                  class="gcma-data-row p-4 transition-all duration-500"
                  :class="{
-                   'border-zinc-700 bg-zinc-900': i === recentlyValidated,
-                   'border-zinc-800 bg-zinc-900/80': mat.status === 'validated' && i !== recentlyValidated,
+                   'border-green-200 bg-green-50': i === recentlyValidated,
+                   'border-zinc-200 bg-zinc-50': mat.status === 'validated' && i !== recentlyValidated,
                  }">
               <div class="grid gap-4 xl:grid-cols-[auto_1fr_auto] xl:items-center">
                 <div v-if="mat.status === 'validated'"
-                     class="flex h-12 w-12 items-center justify-center rounded-md bg-zinc-50 text-zinc-900">
+                     class="flex h-12 w-12 items-center justify-center rounded-md bg-green-600 text-white">
                   <CircleCheckBig :size="24" :stroke-width="2.5" />
                 </div>
-                <div v-else class="flex h-12 w-12 items-center justify-center rounded-md border-2 border-zinc-700 text-lg font-bold text-zinc-500">
+                <div v-else class="flex h-12 w-12 items-center justify-center rounded-md border-2 border-zinc-300 text-lg font-bold text-zinc-500">
                   {{ i + 1 }}
                 </div>
 
                 <div class="min-w-0">
-                  <p class="text-lg font-bold truncate text-zinc-50">{{ mat.item_name }}</p>
-                  <p class="mt-1 text-sm" :class="mat.status === 'validated' ? 'text-zinc-400' : 'text-zinc-500'">
+                  <p class="text-lg font-bold truncate text-zinc-900">{{ mat.item_name }}</p>
+                  <p class="mt-1 text-sm" :class="mat.status === 'validated' ? 'text-zinc-500' : 'text-zinc-400'">
                     {{ mat.qty_requerida }} {{ mat.uom }}
                     <template v-if="mat.scanResult?.batch_no"> &middot; Lot {{ mat.scanResult.batch_no }}</template>
                   </p>
@@ -447,14 +447,14 @@ onMounted(loadTarea)
                 <div class="flex flex-wrap gap-2 xl:justify-end">
                   <span class="rounded-md px-2.5 py-1 text-xs font-bold border"
                         :class="mat.suficiente
-                          ? 'bg-zinc-950 text-zinc-50 border-zinc-800'
-                          : 'bg-rose-900/30 text-rose-400 border-rose-700/50'">
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : 'bg-red-50 text-red-600 border-red-200'">
                     {{ mat.suficiente ? 'Stock OK' : 'Stock insuffisant' }}
                   </span>
                   <span class="rounded-md px-2.5 py-1 text-xs font-bold border"
                         :class="mat.status === 'validated'
-                          ? 'bg-zinc-950 text-zinc-50 border-zinc-800'
-                          : 'bg-zinc-950 text-zinc-400 border-zinc-800'">
+                          ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-zinc-100 text-zinc-500 border-zinc-200'">
                     {{ mat.status === 'validated' ? 'Valide' : 'En attente' }}
                   </span>
                 </div>
@@ -467,7 +467,7 @@ onMounted(loadTarea)
         <section class="flex flex-col gap-5">
           <div class="kiosk-panel rounded-md p-5">
             <div class="gcma-section-label">Station de scan</div>
-            <div class="mt-2 text-2xl font-black text-white">Lecture en direct</div>
+            <div class="mt-2 text-2xl font-black text-zinc-900">Lecture en direct</div>
             <div class="mt-5">
               <ScanStation
                 :status="scanState === 'ready' ? 'idle' : scanState"
@@ -480,17 +480,17 @@ onMounted(loadTarea)
 
           <div class="kiosk-panel rounded-md p-5">
             <div class="gcma-section-label">Actions</div>
-            <div class="mt-2 text-2xl font-black text-white">Decision operateur</div>
+            <div class="mt-2 text-2xl font-black text-zinc-900">Decision operateur</div>
 
             <div v-if="allValidated" class="mt-5 gcma-data-row flex items-center gap-3 px-4 py-4">
-              <CircleCheckBig :size="24" class="text-emerald-400" />
-              <p class="text-base font-bold text-zinc-50">Tous les materiaux sont valides.</p>
+              <CircleCheckBig :size="24" class="text-green-600" />
+              <p class="text-base font-bold text-zinc-900">Tous les materiaux sont valides.</p>
             </div>
 
             <div class="mt-5 space-y-3">
               <button v-if="!allValidated"
                       @click="openManual"
-                      class="w-full h-14 rounded-md border border-zinc-800 bg-zinc-950 text-zinc-300 text-base font-semibold active:bg-zinc-900 transition">
+                      class="w-full h-14 rounded-md border border-zinc-300 bg-white text-zinc-600 text-base font-semibold active:bg-zinc-50 transition">
                 <span class="inline-flex items-center gap-2">
                   <Keyboard :size="18" />
                   Saisie manuelle
@@ -499,7 +499,7 @@ onMounted(loadTarea)
 
               <button v-if="allValidated"
                       @click="finalizeMix"
-                      class="w-full h-16 rounded-md bg-zinc-50 text-zinc-900 text-base font-black tracking-[0.12em] active:bg-zinc-200 transition animate-pulse-ring">
+                      class="w-full h-16 rounded-md bg-blue-600 text-white text-base font-black tracking-[0.12em] active:bg-blue-700 transition animate-pulse-ring">
                 <span class="inline-flex items-center justify-center gap-3">
                   <Check :size="24" :stroke-width="3" />
                   FINALISER LE MELANGE

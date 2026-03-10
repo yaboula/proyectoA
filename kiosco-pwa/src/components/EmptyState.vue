@@ -15,8 +15,8 @@ defineProps({
   icon: { type: [Object, Function], default: () => ClipboardList },
   title: { type: String, default: 'Aucun élément.' },
   message: { type: String, default: '' },
-  iconClass: { type: String, default: 'text-zinc-600' },
-  titleClass: { type: String, default: 'text-zinc-500' },
+  iconClass: { type: String, default: 'text-zinc-400' },
+  titleClass: { type: String, default: 'text-zinc-600' },
   containerClass: { type: String, default: '' },
 })
 </script>

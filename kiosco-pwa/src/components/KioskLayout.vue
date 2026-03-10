@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-dvh select-none px-5 py-5 text-zinc-50">
+  <div class="min-h-dvh select-none px-5 py-5 text-zinc-900">
     <section class="mx-auto flex min-h-[calc(100dvh-2.5rem)] flex-col gap-5"
              :class="maxWidthClass">
       <slot />

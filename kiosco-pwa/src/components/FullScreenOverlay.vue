@@ -5,11 +5,13 @@
          :class="[bgClass, clickable ? 'cursor-pointer' : '']"
          @click="clickable ? $emit('dismiss') : null">
       <!-- Icon -->
-      <component :is="iconComponent" :size="80" :stroke-width="iconStroke" class="text-white mb-6"
-                 :class="{ 'animate-spin': variant === 'loading', 'animate-shake': variant === 'error' && shake }" />
+      <component :is="iconComponent" :size="80" :stroke-width="iconStroke" class="mb-6"
+                 :class="[variant === 'loading' ? 'text-blue-600' : 'text-white',
+                          { 'animate-spin': variant === 'loading', 'animate-shake': variant === 'error' && shake }]" />
 
       <!-- Title -->
-      <p class="text-white text-3xl font-black text-center leading-relaxed max-w-lg">
+      <p class="text-3xl font-black text-center leading-relaxed max-w-lg"
+         :class="variant === 'loading' ? 'text-zinc-900' : 'text-white'">
         {{ title }}
       </p>
 
@@ -59,23 +61,23 @@ const iconComponent = computed(() => ({
 const iconStroke = computed(() => props.variant === 'loading' ? 2 : 1.5)
 
 const bgClass = computed(() => ({
-  error: 'bg-rose-700',
-  success: 'bg-emerald-700',
-  loading: 'bg-zinc-950/95',
-  info: 'bg-emerald-700',
+  error: 'bg-red-600',
+  success: 'bg-green-600',
+  loading: 'bg-white/95',
+  info: 'bg-green-600',
 })[props.variant])
 
 const subtitleClass = computed(() => ({
-  error: 'text-rose-100',
-  success: 'text-emerald-100',
-  loading: 'text-zinc-300',
-  info: 'text-emerald-100',
+  error: 'text-red-100',
+  success: 'text-green-100',
+  loading: 'text-zinc-500',
+  info: 'text-green-100',
 })[props.variant])
 
 const hintClass = computed(() => ({
-  error: 'text-rose-200/70',
-  success: 'text-emerald-200/60',
+  error: 'text-red-200/70',
+  success: 'text-green-200/60',
   loading: 'text-zinc-400',
-  info: 'text-emerald-200/60',
+  info: 'text-green-200/60',
 })[props.variant])
 </script>
