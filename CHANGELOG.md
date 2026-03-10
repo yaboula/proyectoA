@@ -3,7 +3,45 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
-## [0.5.0] — 2026-03-11
+## [0.7.0] — 2026-03-10
+
+### Changed
+
+**Frontend — Responsividad Mobile/Tablet (toda la app)**
+- `KioskLayout.vue`: corregido bug crítico de Tailwind JIT — `max-w-${props.maxWidth}` reemplazado por lookup map estático (`{ '5xl': 'max-w-5xl', ... }`). Las clases dinámicas construidas con interpolación no se detectan en JIT.
+- `KioskLayout.vue`: padding responsive `px-3 py-3 sm:px-5 sm:py-5`, gap `gap-4 sm:gap-5`
+- `LoginQR.vue`: grid principal `xl:` → `lg:`, heading `text-2xl sm:text-3xl md:text-4xl`, step cards `sm:grid-cols-2 md:grid-cols-3`, botón manual `w-full md:w-auto md:min-w-[15rem]`
+- `ModuleHub.vue`: heading responsive, grid `xl:` → `lg:`, module cards `md:grid-cols-2`, CTA `h-14` → `h-16`
+- `TareasList.vue`: heading responsive, stats `sm:grid-cols-2 md:grid-cols-3`, card grid `xl:` → `lg:`, botón principal `w-full lg:w-auto lg:min-w-[16rem]` (sin overflow en 320px), retry `h-14` → `h-16`
+- `PokaYokeScanner.vue`: heading responsive, grid principal `xl:` → `lg:`, filas de material `xl:` → `sm:`, stats header con `md:min-w-[8rem]` (sin overflow), extras close button `h-10` → `h-12`, extras input `px-3 py-3 text-lg` → `px-4 py-4 text-xl` (cumple spec fat-finger), botón manual `h-14` → `h-16`, botón retry goBack `h-14` → `h-16`
+- `LaboratoireQC.vue`: heading responsive, grid principal `xl:` → `lg:`, metrics `lg:grid-cols-3` → `md:grid-cols-3`, "Lancer l'inspection" `h-13` → `h-16`, lot stats `grid-cols-2` → `grid-cols-1 sm:grid-cols-2`, botón add param `h-11` → `h-12`, toggle num/texte `h-11` → `h-12`, delete param `h-10 w-10` → `h-12 w-12`, drawer inputs `!h-11` → `!h-14`, drawer buttons cancel/submit `h-14` → `h-16`
+- `style.css`: font-size root `16px` en mobile, `18px` desde `sm:` (640px) con `@media (min-width: 640px)`. Todos los rem calculan sobre 16px en móvil.
+
+### Fixed
+- Eliminada "dead zone" en breakpoint `sm:` (640–1023px) donde ningún layout respondía
+- Todos los botones destructivos y secundarios cumplen mínimo h-12 / 48px para uso con guantes
+
+## [0.6.0] — 2026-03-10
+
+### Changed
+
+**Frontend — Migración completa a Light Theme Industrial**
+- `style.css`: removidos todos los overrides oscuros (`bg-slate-*`, `text-slate-*`, PrimeVue dark). Nuevas CSS custom properties: `--gcma-bg: #f4f4f5`, `--gcma-panel: #ffffff`, `--gcma-panel-soft: #fafafa`.
+  Nuevas clases utilitarias: `.kiosk-panel`, `.kiosk-panel-soft`, `.gcma-data-row`, `.gcma-stat`, `.kiosk-chip`, `.gcma-toolbar`, `.gcma-section-label`, `.kiosk-icon-shell`.
+- `App.vue`: `bg-slate-900` → `bg-zinc-100`, shell limpia sin gradientes.
+- `KioskLayout.vue`: reescrito con clases light (bg-zinc-100, gap responsive).
+- `LoginQR.vue`: tema completo light — bg-white panels, text-zinc-900, blue-600 CTA, badges zinc.
+- `ModuleHub.vue`: cards bg-white border-zinc-200, CTA blue-600, badges de módulo light.
+- `TareasList.vue`: cards de WO bg-white, badges stock green/red light, cantidades text-zinc-900.
+- `PokaYokeScanner.vue`: checklist con bg-zinc-50 + border-zinc-200, scanner status light, overlays error/success/loading via FullScreenOverlay (mantiene fondos de color intenso para estados críticos).
+- `LaboratoireQC.vue`: métricas y cards de lote en blanco/zinc, drawer bg-white, decision switch light.
+- `ScanStation.vue`: indicador de estado con iconos y colores light (blue idle, green success, red error).
+- `ManualInputModal.vue`: dialog bg-white border-zinc-200, input bg-zinc-50.
+
+**Instrucciones**
+- `context.instructions.md`: sección DESIGN SYSTEM actualizada de dark a light theme.
+
+
 
 ### Changed
 

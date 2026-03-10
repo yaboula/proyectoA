@@ -52,47 +52,98 @@ Estructura de docs:
 DESIGN SYSTEM — INDUSTRIAL PREMIUM MES (OBLIGATORIO)
 
 El frontend Kiosco usa un Design System industrial de alta gama, tipo MES avanzado.
-Todas las vistas DEBEN cumplir estas reglas sin excepción:
+Todas las vistas DEBEN cumplir estas reglas sin excepción.
 
-Tema oscuro:
-  - Fondo principal: bg-slate-900
-  - Cards / paneles: bg-slate-800 con border border-slate-700/60 o border-slate-700/50
-  - Header: bg-slate-800/80 con border-b border-slate-700/50
-  - Modales (Dialog): bg-slate-800 border border-slate-700 rounded-md (estilo shadcn)
+TEMA: Claro industrial (light) — migrado en v0.6.0. NUNCA usar slate-900/800 ni emerald.
+
+Fondo y superficies:
+  - Fondo de app (body): bg-zinc-100 (#f4f4f5)
+  - Panel / card principal: .kiosk-panel → bg-white border border-zinc-200 rounded-md
+  - Panel suave (sin sombra fuerte): .kiosk-panel-soft → bg-zinc-50 border border-zinc-200
+  - Fila de dato / elemento de lista: .gcma-data-row → bg-zinc-50 border border-zinc-200 rounded-md
+  - Stat box dentro de toolbar: .gcma-stat → bg-white border border-zinc-200 rounded-md p-3
+  - Chip / badge de sección: .kiosk-chip → bg-zinc-100 border border-zinc-200 text-zinc-600
+  - Label de sección uppercase: .gcma-section-label → text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400
+  - Shell de icono: .kiosk-icon-shell → bg-zinc-100 border border-zinc-200
+  - Toolbar de header (flex row wrapping): .gcma-toolbar → flex flex-wrap items-start justify-between gap-4
+
+CSS custom classes: TODAS están definidas en style.css. NUNCA replicarlas inline.
 
 Paleta de colores:
-  - Primario (acción): emerald-600 / emerald-700 (active)
-  - Éxito / validado: emerald-400 (texto), emerald-900/20-40 (background sutil)
-  - Error / STOP: rose-600 (overlay), rose-500 (iconos), rose-400 (texto), rose-900/30 (badges)
-  - Warning / en proceso: amber-400 (texto), amber-900/40 (background sutil)
-  - Texto principal: slate-100 / slate-200
-  - Texto secundario: slate-400 / slate-500
-  - Texto terciario / mono: slate-500 / slate-600
+  - Primario (acción CTA): bg-blue-600 hover/active bg-blue-700, texto white
+  - Éxito / validado: text-green-700, bg-green-50, border-green-200; icono text-green-600
+  - Error / STOP: FullScreenOverlay variant="error" (bg-red-600 fullscreen); badges bg-red-50 text-red-600 border-red-200
+  - Warning / en proceso: bg-amber-50 border-amber-200 text-amber-700
+  - Texto principal: text-zinc-900
+  - Texto secundario: text-zinc-500
+  - Texto label / metadata: text-zinc-400
+  - Bordes generales: border-zinc-200
+  - Fondo separadores / inputs: bg-zinc-50
+
+Font-size root:
+  - Mobile (< 640px): 16px base
+  - Tablet/Desktop (≥ 640px, sm:): 18px base
+  - Definido en style.css con @media (min-width: 640px). NO cambiar sin actualizar esto.
 
 Iconografía:
-  - Librería: lucide-vue-next (SIEMPRE — nunca usar emoji ni SVG inline para iconos)
-  - Tamaño mínimo para iconos principales: 48px (:size="48")
-  - Tamaño para iconos en botones/badges: 18-24px
-  - Tamaño para iconos en metadatos: 12-14px
-  - Siempre importar solo los iconos necesarios (tree-shaking)
+  - Librería: lucide-vue-next (SIEMPRE — nunca usar emoji ni SVG inline)
+  - Tamaño mínimo iconos principales (overlays): 56px (:size="56")
+  - Tamaño iconos de panel/sección: 22-28px
+  - Tamaño iconos en botones/chips: 18-20px
+  - Tamaño iconos en metadatos: 12-14px
+  - Importar solo los iconos usados (tree-shaking)
 
-UX Fat-finger:
-  - Botones de acción: mínimo h-16 (64px)
-  - Botones secundarios: mínimo h-12 o h-14
-  - NUNCA usar rounded-2xl, rounded-3xl, rounded-full en cards o botones. Usar rounded-md siempre.
-  - Aplicar select-none en el container principal de cada vista
-  - Inputs: text-xl mínimo, py-4 mínimo
+UX Fat-finger (operarios con guantes, pantalla sucia, sin teclado físico):
+  - Botones CTA primarios: OBLIGATORIO h-16 (64px). NUNCA h-13 o h-14 para primarios.
+  - Botones secundarios (navegación, cancel): mínimo h-12 (salvo específico h-14)
+  - Touch targets destructivos o críticos (delete, close): mínimo h-12 w-12
+  - Inputs en formularios: text-xl py-4 mínimo; en drawers PrimeVue: !h-14 o !h-16
+  - NUNCA rounded-2xl, rounded-3xl, rounded-full en cards o botones. Usar rounded-md siempre.
+  - Aplicar select-none en KioskLayout (ya aplicado globalmente)
+
+Responsividad (mobile-first, PWA portrait):
+  - Base (0px): una columna, padding compacto px-3 py-3
+  - sm: (640px): activar 18px font, grids de 2 columnas para stats, padding sm:px-5 sm:py-5
+  - md: (768px): grids de 3 columnas para métricas, formularios 2 columnas
+  - lg: (1024px): grids principales de 2 columnas (xl: NUNCA para layouts principales)
+  - xl: (1280px): reservado solo para ajustes finos, NO para layouts de contenido
 
 Animaciones (definidas en style.css):
-  - .animate-shake — Error overlay del Poka-Yoke (0.6s, ±6px translateX)
+  - .animate-shake — Error overlay Poka-Yoke (0.6s, ±6px translateX)
   - .animate-fade-in — Apertura de modales (0.2s opacity+translateY)
-  - .animate-pulse-ring — Botón finalizar y scan ring (2s infinite emerald glow box-shadow)
+  - .animate-pulse-ring — Botón finalizar / scan ring (2s infinite blue glow box-shadow)
   - animate-spin — Loading spinners (Tailwind built-in)
 
-Patrones de componentes:
-  - Error overlay: Teleport to body, bg-rose-600 fullscreen, icono TriangleAlert 80px, texto blanco, "Appuyez pour fermer" (tap-to-dismiss con @click en todo el overlay, NO botón FERMER)
-  - Modal de saisie manuelle: Teleport to body, backdrop bg-black/70, dialog shadcn-style (bg-slate-800 rounded-md), input font-mono, bouton emerald "Valider" con ChevronRight
-  - Cards de lista: bg-slate-800 border-slate-700/60 rounded-md, información jerárquica con badges rounded-md
-  - Headers: bg-slate-800/80 border-b border-slate-700/50, título uppercase tracking-wide
+Componentes compartidos (src/components/):
+  - KioskLayout.vue: shell exterior para TODAS las vistas. Props: maxWidth ('5xl'|'6xl'|'7xl').
+    Clases internas resueltas con lookup map (Tailwind JIT no detecta clases dinámicas construidas).
+  - ScanStation.vue: visualizador del estado del scanner (idle/scanning/loading/success/error)
+  - ManualInputModal.vue: modal de saisie manuelle con Teleport, backdrop bg-black/40, dialog bg-white
+  - FullScreenOverlay.vue: overlay fullscreen teleportado. Props: variant ('error'|'success'|'loading'|'info'),
+    title, subtitle, hint, clickable. Tap-to-dismiss con @click en overlay completo, sin botón FERMER.
+    - variant="error": bg-red-600, icono TriangleAlert blanco, animate-shake
+    - variant="success": bg-green-700, icono CircleCheckBig blanco
+    - variant="loading": bg-blue-600, Loader2 animate-spin
+  - EmptyState.vue: estado vacío reutilizable. Props: icon, title, message.
+
+Patrones de componentes inline (cuando no se usa FullScreenOverlay):
+  - Error inline: rounded-md border border-red-200 bg-red-50 p-5 text-sm text-red-700
+  - Loading skeleton: animate-pulse rounded-md bg-zinc-200
+  - Badge success: bg-green-50 text-green-700 border-green-200 rounded-md px-2.5 py-1 text-xs font-bold
+  - Badge error: bg-red-50 text-red-600 border-red-200 (mismas clases)
+  - Badge pending/info: bg-blue-50 text-blue-700 border-blue-200
+
+Modales / Dialogs custom (sin PrimeVue):
+  - Teleport to body, backdrop: fixed inset-0 z-40 bg-black/50 flex items-center justify-center px-5
+  - Dialog: w-full max-w-md bg-white border border-zinc-200 rounded-md shadow-xl animate-fade-in
+  - Input dentro de modal: bg-white border border-zinc-300 rounded-md px-4 py-4 text-xl font-mono text-zinc-900
+  - Botón primario modal: h-16 bg-blue-600 text-white font-bold
+  - Botón cancelar modal: h-12 border border-zinc-300 bg-white text-zinc-500
+
+PrimeVue (solo en LaboratoireQC):
+  - Drawer: position="right", !w-full !max-w-[38rem], bg-white text-zinc-900
+  - SelectButton: clase "decision-switch w-full" (override en style.css)
+  - InputText/InputNumber en drawer: !h-14 mínimo, !border-zinc-300 !bg-white !text-zinc-900
+  - Toast activado globalmente via ToastService
 
 Idioma UI: Francés (SIEMPRE). Todos los textos visibles al operario DEBEN estar en francés.
