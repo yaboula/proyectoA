@@ -5,7 +5,7 @@
  * Refactored: KioskLayout, EmptyState, plain HTML for simple wrappers,
  * kept PrimeVue Drawer + form inputs (SelectButton, InputNumber, InputText, Textarea).
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import Drawer from 'primevue/drawer'
@@ -58,11 +58,14 @@ const decisionOptions = [
 
 const parameterRows = ref([])
 
+let _rowSeq = 0
+function nextRowId() { return String(++_rowSeq) }
+
 function buildDefaultRows() {
   return [
-    { id: crypto.randomUUID(), name: 'pH', value: 8.2, numeric: true },
-    { id: crypto.randomUUID(), name: 'viscosite KU', value: 95, numeric: true },
-    { id: crypto.randomUUID(), name: 'aspect', value: 'Conforme', numeric: false },
+    { id: nextRowId(), name: 'pH', value: 8.2, numeric: true },
+    { id: nextRowId(), name: 'viscosite KU', value: 95, numeric: true },
+    { id: nextRowId(), name: 'aspect', value: 'Conforme', numeric: false },
   ]
 }
 
@@ -121,7 +124,7 @@ const metrics = computed(() => {
 })
 
 function addParameterRow() {
-  parameterRows.value.push({ id: crypto.randomUUID(), name: '', value: '', numeric: false })
+  parameterRows.value.push({ id: nextRowId(), name: '', value: '', numeric: false })
 }
 
 function removeParameterRow(id) {
@@ -211,6 +214,14 @@ async function submitInspection() {
   } finally {
     submitting.value = false
   }
+}
+
+const contentScrollRef = ref(null)
+
+function onDrawerShow() {
+  nextTick(() => {
+    if (contentScrollRef.value) contentScrollRef.value.scrollTop = 0
+  })
 }
 
 function openLot(lot) { resetForm(lot) }
@@ -406,7 +417,8 @@ onMounted(loadLots)
 
     <!-- Drawer (PrimeVue -- #container slot = full layout control, scroll guaranteed) -->
     <Drawer v-model:visible="drawerVisible" position="right"
-            class="!w-full !max-w-[38rem]" :pt="{ root: { class: '!p-0 !bg-transparent' } }">
+            class="!w-full !max-w-[38rem]" :pt="{ root: { class: '!p-0 !bg-transparent' } }"
+            @show="onDrawerShow">
       <template #container="{ closeCallback }">
         <div class="flex h-full flex-col bg-white border-l border-zinc-200">
 
@@ -428,7 +440,7 @@ onMounted(loadLots)
           </div>
 
           <!-- Scrollable content -->
-          <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+          <div ref="contentScrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
             <div v-if="selectedLot" class="space-y-5 pb-2">
 
               <!-- Product summary -->
