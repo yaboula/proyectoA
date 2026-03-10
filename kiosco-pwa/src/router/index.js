@@ -27,12 +27,19 @@ const router = createRouter({
   routes,
 })
 
-// Navigation guard — redirect to login if not authenticated
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const store = useOperarioStore()
-  if (!to.meta.guest && !store.isLoggedIn) {
+
+  if (to.meta.guest) {
+    return true
+  }
+
+  const ok = await store.ensureSession()
+  if (!ok) {
     return { name: 'login' }
   }
+
+  return true
 })
 
 export default router

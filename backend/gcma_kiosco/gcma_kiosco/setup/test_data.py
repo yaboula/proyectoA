@@ -69,6 +69,24 @@ def _cancel_and_delete(doctype: str, name: str):
     frappe.delete_doc(doctype, name, ignore_permissions=True, force=1)
 
 
+def _stock_entry_reset_priority(stock_entry_name: str) -> tuple[int, str]:
+    purpose, remarks = frappe.db.get_value(
+        "Stock Entry",
+        stock_entry_name,
+        ["purpose", "remarks"],
+    ) or (None, None)
+
+    if purpose == "Manufacture":
+        return (0, stock_entry_name)
+    if purpose == "Material Transfer for Manufacture":
+        return (1, stock_entry_name)
+    if remarks == CHAOS_STOCK_REMARK:
+        return (2, stock_entry_name)
+    if remarks == TEST_STOCK_REMARK:
+        return (3, stock_entry_name)
+    return (4, stock_entry_name)
+
+
 def reset_demo_state():
     """Limpia la demo previa para volver a un estado repetible."""
     print("\n──── 1/4  Reset de Demo Anterior ────")
@@ -105,7 +123,7 @@ def reset_demo_state():
             )
         )
 
-    for stock_entry in stock_entries:
+    for stock_entry in sorted(stock_entries, key=_stock_entry_reset_priority):
         _cancel_and_delete("Stock Entry", stock_entry)
         print(f"  - Stock Entry '{stock_entry}' eliminada.")
 
@@ -256,12 +274,12 @@ def print_test_matrix(work_order: str):
     print("      • Lote caducado: MP-RES-ALK-G70|LOTE-CHAOS-RES-EXP-001")
     print("      • Batch inexistente: MP-RES-ALK-G70|LOTE-INEXISTENTE-999")
     print("      • Batch cruzado: MP-RES-ALK-G70|LOTE-TEST-PIG-001")
-    print("\n  Nota contable importante:")
-    print("    • EP4 registra consumo y alertas, pero NO crea el Stock Entry Manufacture.")
-    print("    • Para la demo del gerente, tras el kiosco debes crear manualmente el")
-    print("      Stock Entry de Manufacture desde la Work Order y luego verificar:")
+    print("\n  Verificación contable esperada:")
+    print("    • EP4 debe crear automáticamente un Stock Entry de transferencia a WIP")
+    print("      y un Stock Entry de Manufacture ligados a la Work Order.")
+    print("    • Tras finalizar desde el kiosco, verificar:")
     print("      1. Work Order = Completed")
-    print("      2. SLE descuenta MP del almacén correcto")
+    print("      2. MP transferida/consumida en los almacenes correctos")
     print("      3. FG entra en Cuarentena PT - PDM, no en ventas")
     print("=" * 68)
 

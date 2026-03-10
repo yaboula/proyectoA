@@ -182,7 +182,7 @@ function finalizeMix() {
 }
 
 function confirmStandard() {
-  callEP4([])
+  callEP4({})
 }
 
 function showExtras() {
@@ -195,15 +195,32 @@ function showExtras() {
 }
 
 function submitExtras() {
-  const withExtra = extras.value.filter(e => e.qty_extra > 0)
+  const withExtra = Object.fromEntries(
+    extras.value
+      .filter(e => e.qty_extra > 0)
+      .map(e => [e.item_name, e.qty_extra])
+  )
   callEP4(withExtra)
 }
 
-async function callEP4(extrasList) {
+function buildLotesUsados() {
+  return Object.fromEntries(
+    materials.value.map(material => [
+      material.item_name,
+      material.scanResult?.batch_no ?? 'SIN-LOTE',
+    ])
+  )
+}
+
+async function callEP4(extrasMap) {
   finalizePhase.value = 'submitting'
   finalizeError.value = ''
   try {
-    const data = await reportarConsumo(props.workOrder, extrasList)
+    const data = await reportarConsumo(
+      props.workOrder,
+      buildLotesUsados(),
+      extrasMap,
+    )
     if (data.success) {
       finalizeResult.value = data
       finalizePhase.value = 'success'

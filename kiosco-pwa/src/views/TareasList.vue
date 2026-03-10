@@ -29,6 +29,12 @@ const loading = ref(true)
 const error = ref(null)
 
 async function fetchTareas() {
+  const hasSession = await store.ensureSession()
+  if (!hasSession || !store.operario?.company) {
+    router.push({ name: 'login' })
+    return
+  }
+
   loading.value = true
   error.value = null
   try {
@@ -56,8 +62,9 @@ function startProduction(workOrder) {
 }
 
 function logout() {
-  store.logout()
-  router.push({ name: 'login' })
+  store.logout().finally(() => {
+    router.push({ name: 'login' })
+  })
 }
 </script>
 

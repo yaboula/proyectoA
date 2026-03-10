@@ -103,7 +103,14 @@ function submitManual() {
   handleLogin(token)
 }
 
-onMounted(() => document.addEventListener('keydown', onKeyDown))
+onMounted(async () => {
+  document.addEventListener('keydown', onKeyDown)
+
+  const hasSession = await store.ensureSession()
+  if (hasSession) {
+    router.replace({ name: 'tareas' })
+  }
+})
 onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </script>
 

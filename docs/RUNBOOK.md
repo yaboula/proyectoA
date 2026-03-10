@@ -111,21 +111,27 @@ docker exec frappe_docker-backend-1 \
 - Item no loteado válido: `ENV-BID-20L-BLC|SIN-LOTE` → válido
 - Consumo brutal en EP4: extra mayor que la cantidad teórica → `EXTRA_QTY_ABSURD`
 
-### Demo contable manual (gerencia)
+### Demo contable automática (gerencia)
 
-La preparación del entorno deja la Work Order y el stock listos, pero el cierre contable final sigue siendo manual porque EP4 no genera el `Stock Entry Manufacture`.
+La preparación del entorno deja una WO limpia y EP4 ya ejecuta el cierre contable completo desde el kiosco.
 
-Pasos manuales en ERPNext:
+Pasos recomendados:
 
-1. Abrir la Work Order creada por `test_data.run`.
-2. Crear el `Stock Entry` tipo `Manufacture` desde esa Work Order.
-3. Verificar que el `Source Warehouse` consuma desde `Materia Prima Aprobada - PDM` o el almacén configurado en la WO.
-4. Verificar que el `Target Warehouse` sea `Cuarentena PT - PDM`.
-5. Submit del `Stock Entry`.
-6. Verificar:
-   - Work Order en `Completed`
-   - Descuento correcto en `Stock Ledger Entry`
-   - Alta de 50 cubetas en `Cuarentena PT - PDM`
+1. Ejecutar `test_data.run` para regenerar `MFG-WO-2026-00001`.
+2. Hacer el flujo kiosco completo: EP1 login, EP2 selección, EP3 validar los 7 materiales, EP4 finalizar.
+3. Verificar en ERPNext:
+  - Se creó un `Stock Entry` `Material Transfer for Manufacture` ligado a la WO.
+  - Se creó un `Stock Entry` `Manufacture` ligado a la WO.
+  - Ambos documentos quedaron en `docstatus = 1`.
+  - La Work Order quedó en `Completed`.
+  - `produced_qty = 50` y `consumed_qty/transferred_qty` se actualizaron en `required_items`.
+  - El producto terminado entró en `Cuarentena PT - PDM`.
+
+Verificación real ya reproducida en local:
+
+- WO: `MFG-WO-2026-00001` → `Completed`
+- Transfer: `MAT-STE-2026-00009`
+- Manufacture: `MAT-STE-2026-00010`
 
 ---
 
@@ -173,6 +179,22 @@ docker restart frappe_docker-backend-1 frappe_docker-frontend-1
 
 **Solución**: Detener el dev server (`Ctrl+C`) y reiniciar manualmente con `npm run dev`.
 
+### 5. Un navegador entra y otro no mantiene la sesión
+
+**Síntoma**: En un navegador el operario entra correctamente y en otro reaparece login o errores de carga al volver a la lista.
+
+**Causa**: El store frontend era volátil y dependía solo del estado en memoria. Al recargar o volver desde otra pestaña, la PWA podía perder contexto aunque la cookie `sid` siguiera viva, o intentar reutilizar una sesión expirada.
+
+**Solución aplicada**:
+```text
+- EP1b get_operario_session restaura el contexto del operario desde la cookie sid
+- EP1c logout_operario cierra la sesión Frappe del navegador actual
+- El store guarda operario en sessionStorage y rehidrata antes de entrar a rutas protegidas
+- El cliente Axios envía cabeceras no-cache
+```
+
+**Recomendación operativa**: usar siempre `Quitter` para cerrar la sesión del kiosco antes de cambiar de navegador o de operario.
+
 ### 5. Stock no aparece por lote (Batch)
 
 **Síntoma**: `Stock Ledger Entry` tiene `batch_no = NULL` aunque el Stock Entry especifica batch.
@@ -209,6 +231,16 @@ curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.validar_mat
   -b "sid=<session_id>" \
   -d "work_order=MFG-WO-2026-00001" \
   -d "qr_data=MP-RES-ALK-G70|LOTE-TEST-RES-001"
+```
+
+### Finalizar Producción
+
+```bash
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_consumo \
+  -b "sid=<session_id>" \
+  -d "work_order=MFG-WO-2026-00001" \
+  -d 'lotes_usados={"Résine Alkyde G-70":"LOTE-TEST-RES-001","Dioxyde de Titane R-902":"LOTE-TEST-PIG-001","White Spirit Standard":"LOTE-TEST-SOL-001","Eau Déminéralisée":"LOTE-TEST-H2O-001","Seau Plastique 20L Blanc":"SIN-LOTE","Couvercle Seau 20L":"SIN-LOTE","Étiquette Peinture Blanche Mate 20L":"SIN-LOTE"}' \
+  -d "consumos_extra={}"
 ```
 
 ### Desde dentro del contenedor (sin proxy)

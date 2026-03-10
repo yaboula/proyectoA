@@ -43,13 +43,15 @@ kiosco-pwa/src/
 ### Navigation Guard
 
 ```js
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const store = useOperarioStore()
-  if (!to.meta.guest && !store.isLoggedIn) return '/'
+  if (to.meta.guest) return true
+  const ok = await store.ensureSession()
+  if (!ok) return '/'
 })
 ```
 
-Redirige a login si no hay sesión, excepto rutas con `meta.guest`.
+Redirige a login si no hay sesión y antes intenta restaurarla desde la cookie `sid`, excepto rutas con `meta.guest`.
 
 ## Estado (Pinia)
 
@@ -59,25 +61,31 @@ Redirige a login si no hay sesión, excepto rutas con `meta.guest`.
 |-----------|------|-------------|
 | `operario` | object \| null | Datos del empleado (de EP1) |
 | `sid` | string \| null | Session ID de Frappe |
+| `initialized` | boolean | Indica si el store ya intentó restaurar sesión |
+| `restoring` | boolean | Evita llamadas duplicadas a restauración |
 
 | Getter | Retorna |
 |--------|---------|
-| `isLoggedIn` | `!!sid` |
+| `isLoggedIn` | `!!operario` |
 | `fullName` | `operario.full_name` |
 
 | Action | Descripción |
 |--------|-------------|
 | `login(qrToken)` | Llama EP1, guarda operario + sid |
-| `logout()` | Limpia estado, redirige a `/` |
+| `restoreSession()` | Llama EP1b y reconstruye el contexto desde la cookie `sid` |
+| `ensureSession()` | Devuelve la sesión actual o intenta restaurarla |
+| `logout()` | Llama EP1c y limpia estado local |
 
 ## API Wrappers (`kiosco.js`)
 
 | Función | Endpoint | Parámetros |
 |---------|----------|------------|
 | `loginOperario(qrToken)` | EP1 `login_operario` | `qr_token` |
+| `getOperarioSession()` | EP1b `get_operario_session` | — |
+| `logoutOperario()` | EP1c `logout_operario` | — |
 | `getTareas(company, warehouse)` | EP2 `get_tareas` | `company`, `warehouse` |
 | `validarMaterial(workOrder, qrData)` | EP3 `validar_material` | `work_order`, `qr_data` |
-| `reportarConsumo(workOrder, extras)` | EP4 `reportar_consumo` | `work_order`, `extras` (JSON string) |
+| `reportarConsumo(workOrder, lotesUsados, consumosExtra)` | EP4 `reportar_consumo` | `work_order`, `lotes_usados` (JSON string), `consumos_extra` (JSON string) |
 
 ## Axios Client (`client.js`)
 
@@ -85,6 +93,7 @@ Redirige a login si no hay sesión, excepto rutas con `meta.guest`.
 - **Credentials**: `withCredentials: true` (cookies `sid`)
 - **Request interceptor**: Convierte `object` a `URLSearchParams` (Frappe requiere form-urlencoded)
 - **Response interceptor**: Desenvuelve `response.data.message` (sobre Frappe)
+- **Headers anti-cache**: `Cache-Control: no-store` y `Pragma: no-cache` para reducir estados inconsistentes entre navegadores
 - **CSRF**: Deshabilitado server-side via `exempt_csrf()` → no se envía token
 
 ## Patrón Scanner USB HID
@@ -114,6 +123,7 @@ Los escáneres de código de barras USB se comportan como un teclado: envían ca
 - Pantalla completa con animación de escaneo
 - El escáner envía el token via `keydown` + `Enter`
 - 5 estados visuales: idle → scanning → loading → success / error
+- Si el navegador ya tiene un `sid` válido, la vista restaura la sesión y redirige automáticamente a `/tareas`
 
 ### Modo 2: Entrada Manual (Plan B)
 - Botón "Saisie Manuelle" abre modal via `<Teleport to="body">`
@@ -151,8 +161,16 @@ Pantalla crítica de validación Poka-Yoke. Carga materiales de la WO via EP2, l
    - **Fase `asking`**: Diálogo "Consommation standard ou extra ?" con 2 botones h-16 (emerald "NON, standard" / amber "OUI, extra")
    - **Fase `extras`**: Lista scrollable de ingredientes con inputs numéricos `qty_extra` por material, botón "Valider et Enregistrer"
    - **Fase `submitting`**: Overlay con spinner
-   - **Fase `success`**: Overlay fullscreen emerald-700 "LOT TERMINÉ — Placer en zone de Quarantaine" con redirect automático a `/tareas` tras 3s. Si hay alerta de desviación >10%, se muestra un banner amber.
+  - **Fase `success`**: Overlay fullscreen emerald-700 "LOT TERMINÉ — Placer en zone de Quarantaine" con redirect automático a `/tareas` tras 3s. Si hay alerta de desviación >10%, se muestra un banner amber.
    - **Fase `error`**: Overlay fullscreen rose-700 con "Réessayer" y "Annuler"
+
+### Contrato EP4 desde la vista
+
+- `buildLotesUsados()` construye un mapa `item_name -> batch_no` a partir de `scanResult.batch_no`.
+- Para materiales no loteados envía `SIN-LOTE`.
+- `submitExtras()` construye un mapa `item_name -> qty_extra` solo con materiales cuyo extra sea `> 0`.
+- `confirmStandard()` llama EP4 con `consumosExtra = {}`.
+- EP4 ya no es un cierre “soft”: al responder `success`, la WO queda sincronizada con ERPNext y el producto terminado entra en `Cuarentena PT`.
 
 ### UX Semafórica
 - **Verde**: Material validado → card pasa a fondo `green-50`, icono ✓ verde, flash `scale-[1.02]` durante 1.5s

@@ -10,6 +10,14 @@ export function loginOperario(qrToken) {
   return client.post(`${BASE}.login_operario`, { qr_token: qrToken })
 }
 
+export function getOperarioSession() {
+  return client.get(`${BASE}.get_operario_session`)
+}
+
+export function logoutOperario() {
+  return client.post(`${BASE}.logout_operario`)
+}
+
 /** EP2 — Tareas (Work Orders pendientes) */
 export function getTareas(company, warehouse) {
   const params = { company }
@@ -25,10 +33,11 @@ export function validarMaterial(workOrder, qrData) {
   })
 }
 
-/** EP4 — Reportar consumo real (cierre producción) */
-export function reportarConsumo(workOrder, extras = []) {
+/** EP4 — Reportar consumo real y cerrar producción */
+export function reportarConsumo(workOrder, lotesUsados = {}, consumosExtra = {}) {
   return client.post(`${BASE}.reportar_consumo`, {
     work_order: workOrder,
-    extras: JSON.stringify(extras),
+    lotes_usados: JSON.stringify(lotesUsados),
+    consumos_extra: JSON.stringify(consumosExtra),
   })
 }

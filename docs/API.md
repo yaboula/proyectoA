@@ -10,6 +10,8 @@ La respuesta se envuelve en el sobre estándar Frappe: `{ "message": { ... } }`.
 ## Autenticación
 
 - **EP1** es `allow_guest=True` (público).
+- **EP1b** `get_operario_session` es `allow_guest=True` pero devuelve `401` si no existe una sesión válida.
+- **EP1c** `logout_operario` cierra la sesión Frappe del navegador actual.
 - **EP2–EP5** requieren sesión activa (cookie `sid` obtenida tras EP1).
 - CSRF deshabilitado para rutas `gcma_kiosco.*` vía hook `before_request` (la PWA se sirve desde un origen distinto).
 
@@ -63,6 +65,73 @@ Autentica al operario escaneando su badge QR personal.
 ```bash
 curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.login_operario \
   -d "qr_token=OP-2026-BADGE-00042"
+```
+
+---
+
+## EP1b — Restaurar Sesión de Operario
+
+Permite a la PWA reconstruir el contexto del operario a partir de la cookie `sid` ya presente en el navegador.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/gcma_kiosco.api.kiosco.get_operario_session` |
+| **Auth** | Público con validación interna de `sid` |
+
+### Response — Sesión válida (200 OK)
+
+```json
+{
+  "success": true,
+  "operario": {
+    "full_name": "Ahmed Benali",
+    "employee_id": "HR-EMP-00001",
+    "company": "Peintures du Maroc SARL",
+    "company_abbr": "PDM",
+    "default_warehouse": "Planta Mezclas WIP - PDM"
+  },
+  "sid": "abc123..."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` | Causa |
+|------|-------------|-------------|-------|
+| 401 | `NO_ACTIVE_SESSION` | Session expirée... | No hay cookie `sid` válida o el usuario ya no es un operario activo |
+
+### curl
+
+```bash
+curl http://localhost:8080/api/method/gcma_kiosco.api.kiosco.get_operario_session \
+  -b "sid=<session_id>"
+```
+
+---
+
+## EP1c — Logout Operario
+
+Cierra la sesión Frappe del navegador actual y elimina la cookie `sid` del kiosco.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/gcma_kiosco.api.kiosco.logout_operario` |
+| **Auth** | Sesión requerida |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message_fr": "Session fermée."
+}
+```
+
+### curl
+
+```bash
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.logout_operario \
+  -b "sid=<session_id>"
 ```
 
 ---
@@ -202,7 +271,12 @@ curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.validar_mat
 
 ## EP4 — Reportar Consumo
 
-Registra el consumo real de materiales al finalizar la mezcla. Calcula desviaciones vs BOM teórica y registra el resultado como Comment en la Work Order. Si alguna desviación supera el 10%, activa alerta WARNING.
+Registra el consumo real de materiales al finalizar la mezcla y cierra el ciclo productivo nativo en ERPNext. El endpoint crea dos `Stock Entry` submitidos ligados a la Work Order:
+
+- `Material Transfer for Manufacture` hacia `Planta Mezclas WIP - <ABBR>`
+- `Manufacture` desde WIP hacia `Cuarentena PT - <ABBR>`
+
+Además calcula desviaciones vs BOM teórica, registra un `Comment` de auditoría en la Work Order y, si alguna desviación supera el 10%, activa alerta `WARNING`.
 
 | Campo | Valor |
 |-------|-------|
@@ -214,9 +288,11 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
 | `work_order` | string | Sí | Nombre de la Work Order (ej. `MFG-WO-2026-00001`) |
-| `extras` | string (JSON) | No | Array JSON de `{"item_name": str, "qty_extra": float}` — materiales con cantidades adicionales a la BOM teórica. Default: `[]` |
+| `lotes_usados` | string (JSON) | No | Mapa JSON `item_name/item_code -> batch_no`. Obligatorio para materiales loteados. Para materiales no loteados el frontend envía `SIN-LOTE`. |
+| `consumos_extra` | string (JSON) | No | Mapa JSON `item_name/item_code -> qty_extra` con ajustes finos sobre la BOM teórica. |
+| `extras` | string (JSON) | No | Contrato legacy: array JSON de `{"item_name": str, "qty_extra": float}`. Se mantiene por compatibilidad hacia atrás. |
 
-> **Nota**: `extras` se envía como JSON string porque el interceptor Axios del frontend serializa a `URLSearchParams` (form-urlencoded), que no soporta arrays anidados.
+> **Nota**: el frontend actual envía `lotes_usados` y `consumos_extra` como JSON string porque Axios serializa a `URLSearchParams` (`application/x-www-form-urlencoded`).
 
 ### Response — Sin desviaciones (200 OK)
 
@@ -224,13 +300,15 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
 {
   "success": true,
   "work_order": "MFG-WO-2026-00001",
+  "stock_entry_transfer": "MAT-STE-2026-00009",
+  "stock_entry_manufacture": "MAT-STE-2026-00010",
   "resumen": {
     "qty_producida": 50.0,
     "desviaciones": [],
     "merma_total_pct": 0,
-    "estado": "Enregistré"
+    "estado": "Manufacturé"
   },
-  "message_fr": "Consommation enregistrée. Lot terminé."
+  "message_fr": "Consommation enregistrée et lot fabriqué avec succès."
 }
 ```
 
@@ -240,6 +318,8 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
 {
   "success": true,
   "work_order": "MFG-WO-2026-00001",
+  "stock_entry_transfer": "MAT-STE-2026-00011",
+  "stock_entry_manufacture": "MAT-STE-2026-00012",
   "resumen": {
     "qty_producida": 50.0,
     "desviaciones": [
@@ -252,11 +332,11 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
       }
     ],
     "merma_total_pct": 3.4,
-    "estado": "Enregistré"
+    "estado": "Manufacturé"
   },
   "alerta": true,
   "alerta_nivel": "WARNING",
-  "message_fr": "⚠ Écart supérieur à 10% détecté sur Dioxyde de Titane R-902. Le superviseur sera notifié."
+  "message_fr": "Consommation enregistrée et lot fabriqué. ⚠ Écart supérieur à 10% sur Dioxyde de Titane R-902."
 }
 ```
 
@@ -265,22 +345,25 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
 | HTTP | `error_code` | `message_fr` | Causa |
 |------|-------------|-------------|-------|
 | 400 | `MISSING_PARAMS` | Paramètre 'work_order' obligatoire. | Sin `work_order` |
+| 400 | `MISSING_BATCH` | Lot manquant pour ... | Falta lote usado para un material con `has_batch_no = 1` |
 | 422 | `EXTRA_QTY_ABSURD` | Saisie incohérente... | El extra supera la cantidad teórica del ingrediente; probable error de tipeo |
 | 404 | `WO_NOT_FOUND` | Ordre de fabrication introuvable ou non validé. | WO no existe o `docstatus ≠ 1` |
 | — | `WO_NOT_IN_PROCESS` | Cet ordre n'est pas en cours... | WO status no es Not Started / In Process |
-| — | `NO_BOM` | Aucune nomenclature (BOM) associée... | WO sin BOM válida |
+| 422 | `INVALID_TARGET_WAREHOUSE` | L'entrepôt de produit fini doit être la quarantaine PT. | La WO apunta a un FG warehouse incorrecto |
+| 422 | `ERP_VALIDATION_ERROR` | Transaction refusée par ERPNext... | ERPNext rechazó los `Stock Entry` o los bundles nativos |
 | 500 | `INTERNAL_ERROR` | Erreur interne... | Excepción no controlada |
 
 ### Lógica interna
 
 1. Valida que la WO existe, está submitted y en estado activo
-2. Obtiene la BOM y calcula cantidades teóricas × cantidad pendiente
-3. Mapea extras por `item_name` (G3 — sin `item_code` del Kiosco)
+2. Verifica que el `fg_warehouse` de la WO sea `Cuarentena PT - <ABBR>`
+3. Construye el plan de consumo a partir de `required_items`, `lotes_usados` y `consumos_extra`
 4. Bloquea extras absurdos (`qty_extra > qty_teorica`) con `EXTRA_QTY_ABSURD`
-5. Calcula desviación: `qty_real = qty_teorica + qty_extra`
-6. Si `|diferencia_pct| > 10%` → activa alerta WARNING
-7. Registra consumo como Comment `Info` en la Work Order (PoC — sin custom DocType)
-8. Retorna resumen con desviaciones
+5. Crea y submit el `Stock Entry` `Material Transfer for Manufacture`
+6. Crea y submit el `Stock Entry` `Manufacture`
+7. Genera los `Serial and Batch Bundle` de salida con la vía nativa de ERPNext para materiales loteados
+8. Registra un `Comment` `Info` en la Work Order con trazabilidad de consumos y documentos generados
+9. Retorna resumen con desviaciones y nombres de `Stock Entry`
 
 ### curl
 
@@ -289,13 +372,15 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
 curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_consumo \
   -b "sid=<session_id>" \
   -d "work_order=MFG-WO-2026-00001" \
-  -d "extras=[]"
+  -d 'lotes_usados={"Résine Alkyde G-70":"LOTE-TEST-RES-001","Dioxyde de Titane R-902":"LOTE-TEST-PIG-001","White Spirit Standard":"LOTE-TEST-SOL-001","Eau Déminéralisée":"LOTE-TEST-H2O-001","Seau Plastique 20L Blanc":"SIN-LOTE","Couvercle Seau 20L":"SIN-LOTE","Étiquette Peinture Blanche Mate 20L":"SIN-LOTE"}' \
+  -d "consumos_extra={}"
 
 # Con extras (+50 Kg de Titane)
 curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_consumo \
   -b "sid=<session_id>" \
   -d "work_order=MFG-WO-2026-00001" \
-  -d 'extras=[{"item_name":"Dioxyde de Titane R-902","qty_extra":50}]'
+  -d 'lotes_usados={"Résine Alkyde G-70":"LOTE-TEST-RES-001","Dioxyde de Titane R-902":"LOTE-TEST-PIG-001","White Spirit Standard":"LOTE-TEST-SOL-001","Eau Déminéralisée":"LOTE-TEST-H2O-001","Seau Plastique 20L Blanc":"SIN-LOTE","Couvercle Seau 20L":"SIN-LOTE","Étiquette Peinture Blanche Mate 20L":"SIN-LOTE"}' \
+  -d 'consumos_extra={"Dioxyde de Titane R-902":50}'
 ```
 
 ---

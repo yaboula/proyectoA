@@ -11,7 +11,11 @@ import axios from 'axios'
 
 const client = axios.create({
   baseURL: '/',
-  headers: { Accept: 'application/json' },
+  headers: {
+    Accept: 'application/json',
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    Pragma: 'no-cache',
+  },
   withCredentials: true,
   timeout: 15_000,
 })

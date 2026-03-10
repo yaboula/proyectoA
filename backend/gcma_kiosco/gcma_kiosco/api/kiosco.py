@@ -13,10 +13,14 @@ Endpoints implementados:
   [ ] EP5 — info_lote           (GET,  consulta informativa lote)
 """
 
+from contextlib import contextmanager
+
 import frappe
 from frappe import _
-from frappe.utils import today, date_diff, getdate, flt, cint
+from frappe.utils import today, date_diff, getdate, get_datetime, flt, cint
 from gcma_kiosco.api.qr_utils import parse_qr_material
+from erpnext.manufacturing.doctype.work_order.work_order import make_stock_entry as erpnext_make_stock_entry
+from erpnext.stock.serial_batch_bundle import SerialBatchCreation
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -30,6 +34,32 @@ def exempt_csrf():
         "/api/method/gcma_kiosco."
     ):
         frappe.flags.ignore_csrf = True
+
+
+def _build_operario_payload(employee: dict):
+    company = employee.get("company")
+    abbr = frappe.db.get_value("Company", company, "abbr") if company else None
+    default_wip = f"Planta Mezclas WIP - {abbr}" if abbr else None
+
+    return {
+        "full_name": employee.get("employee_name"),
+        "employee_id": employee.get("name"),
+        "company": company,
+        "company_abbr": abbr,
+        "default_warehouse": default_wip,
+    }
+
+
+def _get_operario_for_user(user_id: str):
+    if not user_id or user_id == "Guest":
+        return None
+
+    return frappe.db.get_value(
+        "Employee",
+        {"user_id": user_id, "status": "Active"},
+        ["name", "employee_name", "user_id", "company", "status"],
+        as_dict=True,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -112,19 +142,9 @@ def login_operario(qr_token: str = None):
         frappe.local.login_manager.login_as(employee.user_id)
 
         # ── Obtener datos complementarios ──
-        company = employee.company
-        abbr = frappe.db.get_value("Company", company, "abbr")
-        default_wip = f"Planta Mezclas WIP - {abbr}" if abbr else None
-
         return {
             "success": True,
-            "operario": {
-                "full_name": employee.employee_name,
-                "employee_id": employee.name,
-                "company": company,
-                "company_abbr": abbr,
-                "default_warehouse": default_wip,
-            },
+            "operario": _build_operario_payload(employee),
             "sid": frappe.session.sid,
             "message_fr": f"Bienvenue, {employee.employee_name}.",
         }
@@ -148,6 +168,46 @@ def login_operario(qr_token: str = None):
             "error_code": "INTERNAL_ERROR",
             "message_fr": "Erreur interne. Veuillez contacter l'administrateur.",
         }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_operario_session():
+    """Restaura la sesión del kiosco a partir del sid actual de Frappe."""
+    user_id = frappe.session.user
+    employee = _get_operario_for_user(user_id)
+
+    if not employee:
+        frappe.local.response["http_status_code"] = 401
+        return {
+            "success": False,
+            "error_code": "NO_ACTIVE_SESSION",
+            "message_fr": "Session expirée. Veuillez scanner votre badge à nouveau.",
+        }
+
+    return {
+        "success": True,
+        "operario": _build_operario_payload(employee),
+        "sid": frappe.session.sid,
+    }
+
+
+@frappe.whitelist()
+def logout_operario():
+    """Cierra la sesión Frappe del operario en el navegador actual."""
+    try:
+        if getattr(frappe.local, "login_manager", None):
+            frappe.local.login_manager.logout()
+        frappe.local.cookie_manager.delete_cookie("sid")
+    except Exception:
+        frappe.log_error(
+            title="Erreur logout kiosque",
+            message=frappe.get_traceback(),
+        )
+
+    return {
+        "success": True,
+        "message_fr": "Session fermée.",
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -490,22 +550,329 @@ def validar_material(work_order: str = None, qr_data: str = None):
 #         -d 'extras=[]'
 # ═══════════════════════════════════════════════════════════════════════════
 
-@frappe.whitelist()
-def reportar_consumo(work_order: str = None, extras: str = None):
-    """Registra el consumo real de materiales al finalizar la mezcla.
-
-    Args:
-        work_order: Nombre del Work Order
-        extras: JSON string — lista de {"item_name": str, "qty_extra": float}
-                Materiales con cantidades adicionales a la BOM teórica.
-
-    Guardrails:
-        G1 — Mensajes en francés
-        G3 — Recibe item_name (no item_code) desde el Kiosco
-    """
+def _parse_json_param(raw_value, default):
     import json as _json
 
-    # ── Validación de entrada ──
+    if raw_value in (None, ""):
+        return default
+
+    if isinstance(raw_value, (dict, list)):
+        return raw_value
+
+    try:
+        return _json.loads(raw_value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_consumos_extra(consumos_extra=None, extras=None):
+    extras_map = {}
+
+    payload = consumos_extra
+    if not payload:
+        payload = _parse_json_param(extras, [])
+
+    if isinstance(payload, list):
+        for row in payload:
+            key = (row.get("item_code") or row.get("item_name") or "").strip()
+            qty = flt(row.get("qty_extra", row.get("qty", 0)))
+            if key and qty > 0:
+                extras_map[key] = qty
+    elif isinstance(payload, dict):
+        for key, qty in payload.items():
+            if key and flt(qty) > 0:
+                extras_map[key] = flt(qty)
+
+    return extras_map
+
+
+def _normalize_lotes_usados(lotes_usados=None):
+    payload = _parse_json_param(lotes_usados, {})
+    if not isinstance(payload, dict):
+        return {}
+
+    result = {}
+    for key, batch_no in payload.items():
+        key = (key or "").strip()
+        batch_no = (batch_no or "").strip()
+        if key and batch_no:
+            result[key] = batch_no
+    return result
+
+
+def _resolve_item_key_maps(wo_doc):
+    item_names = {}
+    for row in wo_doc.required_items:
+        item_name = frappe.db.get_value("Item", row.item_code, "item_name") or row.item_code
+        item_names[row.item_code] = item_name
+    name_to_code = {name: code for code, name in item_names.items()}
+    return item_names, name_to_code
+
+
+def _resolve_source_warehouse(item_code: str, company_abbr: str, preferred: str | None = None):
+    candidates = []
+    if preferred:
+        candidates.append(preferred)
+    candidates.append(f"Materia Prima Aprobada - {company_abbr}")
+    candidates.append(f"Cuarentena MP - {company_abbr}")
+
+    seen = set()
+    for warehouse in candidates:
+        if warehouse and warehouse not in seen:
+            seen.add(warehouse)
+            qty = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"))
+            if qty > 0:
+                return warehouse
+
+    bins = frappe.get_all(
+        "Bin",
+        filters={"item_code": item_code, "actual_qty": [">", 0]},
+        fields=["warehouse", "actual_qty"],
+        order_by="actual_qty desc",
+        limit=1,
+    )
+    return bins[0].warehouse if bins else preferred
+
+
+def _build_consumption_plan(wo_doc, lotes_usados_map, extras_map):
+    item_names, name_to_code = _resolve_item_key_maps(wo_doc)
+    plan = []
+    desviaciones = []
+    alerta = False
+
+    for row in wo_doc.required_items:
+        item_code = row.item_code
+        item_name = item_names[item_code]
+        extra_qty = flt(extras_map.get(item_code, extras_map.get(item_name, 0)))
+        qty_teorica = flt(row.required_qty) - flt(row.consumed_qty)
+
+        if qty_teorica > 0 and extra_qty > qty_teorica:
+            frappe.local.response["http_status_code"] = 422
+            return None, {
+                "success": False,
+                "error_code": "EXTRA_QTY_ABSURD",
+                "item_name": item_name,
+                "qty_teorica": round(qty_teorica, 2),
+                "qty_extra": round(extra_qty, 2),
+                "message_fr": (
+                    f"Saisie incohérente pour '{item_name}' : extra {round(extra_qty, 2)} "
+                    f"> quantité théorique {round(qty_teorica, 2)}. Vérifiez la valeur saisie."
+                ),
+            }
+
+        has_batch_no = cint(frappe.db.get_value("Item", item_code, "has_batch_no"))
+        batch_no = lotes_usados_map.get(item_code) or lotes_usados_map.get(item_name)
+
+        if has_batch_no and not batch_no:
+            frappe.local.response["http_status_code"] = 400
+            return None, {
+                "success": False,
+                "error_code": "MISSING_BATCH",
+                "item_name": item_name,
+                "message_fr": f"Lot manquant pour '{item_name}'. Refaire le scan avant de clôturer.",
+            }
+
+        if not has_batch_no:
+            batch_no = None
+
+        qty_real = round(qty_teorica + extra_qty, 2)
+        diferencia_kg = round(extra_qty, 2)
+        diferencia_pct = round((extra_qty / qty_teorica) * 100, 1) if qty_teorica else 0
+
+        if abs(diferencia_kg) > 0.01:
+            desviaciones.append({
+                "item_name": item_name,
+                "qty_teorica": round(qty_teorica, 2),
+                "qty_real": qty_real,
+                "diferencia_kg": diferencia_kg,
+                "diferencia_pct": diferencia_pct,
+            })
+            if abs(diferencia_pct) > 10:
+                alerta = True
+
+        plan.append({
+            "item_code": item_code,
+            "item_name": item_name,
+            "qty_teorica": round(qty_teorica, 2),
+            "qty_real": qty_real,
+            "uom": row.stock_uom,
+            "has_batch_no": has_batch_no,
+            "batch_no": batch_no,
+            "preferred_source_warehouse": row.source_warehouse,
+        })
+
+    return {
+        "items": plan,
+        "desviaciones": desviaciones,
+        "alerta": alerta,
+    }, None
+
+
+def _build_transfer_entry(wo_doc, consumption_plan):
+    company_abbr = frappe.db.get_value("Company", wo_doc.company, "abbr")
+    stock_entry = frappe.get_doc(
+        erpnext_make_stock_entry(wo_doc.name, "Material Transfer for Manufacture", qty=flt(wo_doc.qty) - flt(wo_doc.produced_qty))
+    )
+
+    plan_map = {row["item_code"]: row for row in consumption_plan["items"]}
+    filtered_items = []
+    for row in stock_entry.items:
+        if row.item_code not in plan_map or row.is_finished_item:
+            continue
+
+        plan_row = plan_map[row.item_code]
+        row.qty = plan_row["qty_real"]
+        row.transfer_qty = plan_row["qty_real"]
+        row.t_warehouse = wo_doc.wip_warehouse
+        row.s_warehouse = _resolve_source_warehouse(
+            row.item_code,
+            company_abbr,
+            plan_row["preferred_source_warehouse"],
+        )
+        row.batch_no = None
+        row.serial_no = None
+        filtered_items.append(row)
+
+    stock_entry.set("items", filtered_items)
+    stock_entry.from_warehouse = None
+    stock_entry.to_warehouse = wo_doc.wip_warehouse
+    stock_entry.fg_completed_qty = 0
+    stock_entry.purpose = "Material Transfer for Manufacture"
+    stock_entry.stock_entry_type = "Material Transfer for Manufacture"
+    _attach_manual_batch_bundles(stock_entry, consumption_plan)
+    return stock_entry
+
+
+def _build_manufacture_entry(wo_doc, consumption_plan):
+    stock_entry = frappe.get_doc(
+        erpnext_make_stock_entry(wo_doc.name, "Manufacture", qty=flt(wo_doc.qty) - flt(wo_doc.produced_qty), target_warehouse=wo_doc.fg_warehouse)
+    )
+    plan_map = {row["item_code"]: row for row in consumption_plan["items"]}
+
+    for row in stock_entry.items:
+        if row.is_finished_item:
+            row.t_warehouse = wo_doc.fg_warehouse
+            continue
+
+        if row.item_code not in plan_map:
+            continue
+
+        plan_row = plan_map[row.item_code]
+        row.qty = plan_row["qty_real"]
+        row.transfer_qty = plan_row["qty_real"]
+        row.s_warehouse = wo_doc.wip_warehouse
+        row.batch_no = None
+        row.serial_no = None
+
+    stock_entry.from_warehouse = wo_doc.wip_warehouse
+    stock_entry.to_warehouse = wo_doc.fg_warehouse
+    stock_entry.purpose = "Manufacture"
+    stock_entry.stock_entry_type = "Manufacture"
+    _attach_manual_batch_bundles(stock_entry, consumption_plan)
+    return stock_entry
+
+
+def _attach_manual_batch_bundles(stock_entry, consumption_plan):
+    plan_map = {row["item_code"]: row for row in consumption_plan["items"]}
+    posting_datetime = get_datetime(f"{stock_entry.posting_date} {stock_entry.posting_time}")
+
+    for row in stock_entry.items:
+        plan_row = plan_map.get(row.item_code)
+        if not plan_row or not plan_row["has_batch_no"]:
+            continue
+
+        bundle_doc = SerialBatchCreation(
+            {
+                "item_code": row.item_code,
+                "warehouse": row.s_warehouse,
+                "posting_datetime": posting_datetime,
+                "voucher_type": stock_entry.doctype,
+                "voucher_detail_no": row.name,
+                "qty": flt(row.transfer_qty) * -1,
+                "type_of_transaction": "Outward",
+                "company": stock_entry.company,
+                "do_not_submit": True,
+            }
+        ).make_serial_and_batch_bundle(
+            batch_nos={plan_row["batch_no"]: abs(flt(row.transfer_qty))}
+        )
+
+        row.serial_and_batch_bundle = bundle_doc.name
+        row.use_serial_batch_fields = 0
+
+
+def _insert_kiosco_comment(work_order, consumption_plan, transfer_name, manufacture_name):
+    resumen_texto = (
+        f"Consommation enregistrée via Kiosco — {len(consumption_plan['items'])} matériaux\n"
+        f"Transfert WIP: {transfer_name}\n"
+        f"Manufacture: {manufacture_name}\n"
+    )
+    for c in consumption_plan["items"]:
+        resumen_texto += f"  • {c['item_name']}: {c['qty_real']} {c['uom']}"
+        if c["batch_no"]:
+            resumen_texto += f" (lot: {c['batch_no']})"
+        if c['qty_real'] != c['qty_teorica']:
+            diff = round(c['qty_real'] - c['qty_teorica'], 2)
+            resumen_texto += f" (théorique: {c['qty_teorica']}, écart: +{diff})"
+        resumen_texto += "\n"
+
+    frappe.get_doc({
+        "doctype": "Comment",
+        "comment_type": "Info",
+        "reference_doctype": "Work Order",
+        "reference_name": work_order,
+        "content": resumen_texto,
+    }).insert(ignore_permissions=True)
+
+
+def _insert_and_submit_stock_entry(stock_entry):
+    stock_entry.insert(ignore_permissions=True)
+    stock_entry.reload()
+
+    needs_cleanup = False
+    for row in stock_entry.items:
+        if row.serial_and_batch_bundle and (row.batch_no or row.serial_no):
+            row.batch_no = None
+            row.serial_no = None
+            needs_cleanup = True
+
+    if needs_cleanup:
+        stock_entry.save(ignore_permissions=True)
+
+    stock_entry.submit()
+    return stock_entry
+
+
+@contextmanager
+def _run_as_system_user():
+    original_user = frappe.session.user if getattr(frappe, "session", None) else None
+
+    if original_user and original_user != "Administrator":
+        frappe.set_user("Administrator")
+
+    try:
+        yield
+    finally:
+        if original_user and frappe.session.user != original_user:
+            frappe.set_user(original_user)
+
+
+@frappe.whitelist()
+def reportar_consumo(
+    work_order: str = None,
+    lotes_usados=None,
+    consumos_extra=None,
+    extras=None,
+):
+    """Cierra contablemente la producción creando los Stock Entry nativos.
+
+    Soporta el contrato nuevo:
+      - lotes_usados: dict item_code/item_name -> batch_no
+      - consumos_extra: dict item_code/item_name -> qty extra
+
+    y mantiene compatibilidad con el frontend anterior:
+      - extras: JSON string de [{item_name, qty_extra}]
+    """
     if not work_order:
         frappe.local.response["http_status_code"] = 400
         return {
@@ -515,160 +882,86 @@ def reportar_consumo(work_order: str = None, extras: str = None):
         }
 
     try:
-        extras_list = _json.loads(extras) if extras else []
-    except (ValueError, TypeError):
-        extras_list = []
+        wo_doc = frappe.get_doc("Work Order", work_order)
+    except frappe.DoesNotExistError:
+        frappe.local.response["http_status_code"] = 404
+        return {
+            "success": False,
+            "error_code": "WO_NOT_FOUND",
+            "message_fr": "Ordre de fabrication introuvable ou non validé.",
+        }
+
+    if wo_doc.docstatus != 1 or wo_doc.status not in ("Not Started", "In Process"):
+        return {
+            "success": False,
+            "error_code": "WO_NOT_IN_PROCESS",
+            "message_fr": "Cet ordre n'est pas en cours. Vérifiez avec le superviseur.",
+        }
+
+    if not wo_doc.fg_warehouse or "Cuarentena PT" not in wo_doc.fg_warehouse:
+        frappe.local.response["http_status_code"] = 422
+        return {
+            "success": False,
+            "error_code": "INVALID_TARGET_WAREHOUSE",
+            "message_fr": "L'entrepôt de produit fini doit être la quarantaine PT.",
+        }
+
+    lotes_usados_map = _normalize_lotes_usados(lotes_usados)
+    extras_map = _normalize_consumos_extra(consumos_extra, extras)
+
+    consumption_plan, error_response = _build_consumption_plan(wo_doc, lotes_usados_map, extras_map)
+    if error_response:
+        return error_response
 
     try:
-        # ── Verificar que la Work Order existe y está activa ──
-        wo = frappe.db.get_value(
-            "Work Order",
-            {"name": work_order, "docstatus": 1},
-            ["name", "status", "bom_no", "qty", "produced_qty", "company"],
-            as_dict=True,
-        )
-        if not wo:
-            frappe.local.response["http_status_code"] = 404
-            return {
-                "success": False,
-                "error_code": "WO_NOT_FOUND",
-                "message_fr": "Ordre de fabrication introuvable ou non validé.",
-            }
+        with _run_as_system_user():
+            transfer_entry = _build_transfer_entry(wo_doc, consumption_plan)
+            transfer_entry = _insert_and_submit_stock_entry(transfer_entry)
 
-        if wo.status not in ("Not Started", "In Process"):
-            return {
-                "success": False,
-                "error_code": "WO_NOT_IN_PROCESS",
-                "message_fr": "Cet ordre n'est pas en cours. Vérifiez avec le superviseur.",
-            }
+            manufacture_entry = _build_manufacture_entry(wo_doc, consumption_plan)
+            manufacture_entry = _insert_and_submit_stock_entry(manufacture_entry)
 
-        # ── Explotar BOM para cantidades teóricas ──
-        if not wo.bom_no or not frappe.db.exists("BOM", wo.bom_no):
-            return {
-                "success": False,
-                "error_code": "NO_BOM",
-                "message_fr": "Aucune nomenclature (BOM) associée à cet ordre.",
-            }
-
-        bom_doc = frappe.get_doc("BOM", wo.bom_no)
-        qty_pendiente = flt(wo.qty) - flt(wo.produced_qty)
-
-        # ── Construir mapa de extras por item_name ──
-        extras_map = {}
-        for ex in extras_list:
-            name = ex.get("item_name", "").strip()
-            qty = flt(ex.get("qty_extra", 0))
-            if name and qty > 0:
-                extras_map[name] = qty
-
-        # ── Calcular desviaciones ──
-        desviaciones = []
-        consumos_log = []
-        alerta = False
-
-        for bom_item in bom_doc.items:
-            item_name = (
-                frappe.db.get_value("Item", bom_item.item_code, "item_name")
-                or bom_item.item_code
-            )
-            qty_teorica = round(flt(bom_item.qty) * qty_pendiente, 2)
-            qty_extra = extras_map.get(item_name, 0)
-
-            # Guardrail anti-typo: los extras del kiosco son solo ajustes finos,
-            # no deben superar la cantidad teórica completa del ingrediente.
-            if qty_teorica > 0 and qty_extra > qty_teorica:
-                frappe.local.response["http_status_code"] = 422
-                return {
-                    "success": False,
-                    "error_code": "EXTRA_QTY_ABSURD",
-                    "item_name": item_name,
-                    "qty_teorica": qty_teorica,
-                    "qty_extra": round(qty_extra, 2),
-                    "message_fr": (
-                        f"Saisie incohérente pour '{item_name}' : extra {round(qty_extra, 2)} "
-                        f"> quantité théorique {qty_teorica}. Vérifiez la valeur saisie."
-                    ),
-                }
-
-            qty_real = round(qty_teorica + qty_extra, 2)
-
-            diferencia_kg = round(qty_extra, 2)
-            diferencia_pct = (
-                round((qty_extra / qty_teorica) * 100, 1) if qty_teorica else 0
-            )
-
-            consumos_log.append({
-                "item_name": item_name,
-                "qty_teorica": qty_teorica,
-                "qty_real": qty_real,
-                "uom": bom_item.uom,
-            })
-
-            if abs(diferencia_kg) > 0.01:
-                desviacion = {
-                    "item_name": item_name,
-                    "qty_teorica": qty_teorica,
-                    "qty_real": qty_real,
-                    "diferencia_kg": diferencia_kg,
-                    "diferencia_pct": diferencia_pct,
-                }
-                desviaciones.append(desviacion)
-                if abs(diferencia_pct) > 10:
-                    alerta = True
-
-        # ── Registrar consumo como comentario en la Work Order ──
-        resumen_texto = f"Consommation enregistrée via Kiosco — {len(consumos_log)} matériaux\n"
-        for c in consumos_log:
-            resumen_texto += f"  • {c['item_name']}: {c['qty_real']} {c['uom']}"
-            if c['qty_real'] != c['qty_teorica']:
-                diff = round(c['qty_real'] - c['qty_teorica'], 2)
-                resumen_texto += f" (théorique: {c['qty_teorica']}, écart: +{diff})"
-            resumen_texto += "\n"
-
-        if desviaciones:
-            resumen_texto += "\n⚠ Écarts détectés — validation superviseur requise."
-
-        frappe.get_doc({
-            "doctype": "Comment",
-            "comment_type": "Info",
-            "reference_doctype": "Work Order",
-            "reference_name": work_order,
-            "content": resumen_texto,
-        }).insert(ignore_permissions=True)
-
+            _insert_kiosco_comment(work_order, consumption_plan, transfer_entry.name, manufacture_entry.name)
         frappe.db.commit()
 
-        # ── Respuesta ──
-        merma_total = 0
-        if desviaciones:
-            total_teo = sum(c["qty_teorica"] for c in consumos_log)
-            total_extra = sum(d["diferencia_kg"] for d in desviaciones)
-            merma_total = round((total_extra / total_teo) * 100, 1) if total_teo else 0
+        total_teo = sum(row["qty_teorica"] for row in consumption_plan["items"])
+        total_extra = sum(row["diferencia_kg"] for row in consumption_plan["desviaciones"])
+        merma_total = round((total_extra / total_teo) * 100, 1) if total_teo else 0
 
         result = {
             "success": True,
             "work_order": work_order,
+            "stock_entry_transfer": transfer_entry.name,
+            "stock_entry_manufacture": manufacture_entry.name,
             "resumen": {
-                "qty_producida": qty_pendiente,
-                "desviaciones": desviaciones,
+                "qty_producida": flt(wo_doc.qty) - flt(wo_doc.produced_qty),
+                "desviaciones": consumption_plan["desviaciones"],
                 "merma_total_pct": merma_total,
-                "estado": "Enregistré",
+                "estado": "Manufacturé",
             },
-            "message_fr": "Consommation enregistrée. Lot terminé.",
+            "message_fr": "Consommation enregistrée et lot fabriqué avec succès.",
         }
 
-        if alerta:
+        if consumption_plan["alerta"]:
             result["alerta"] = True
             result["alerta_nivel"] = "WARNING"
-            items_alerta = [d["item_name"] for d in desviaciones if abs(d["diferencia_pct"]) > 10]
+            items_alerta = [d["item_name"] for d in consumption_plan["desviaciones"] if abs(d["diferencia_pct"]) > 10]
             result["message_fr"] = (
-                f"⚠ Écart supérieur à 10% détecté sur {', '.join(items_alerta)}. "
-                "Le superviseur sera notifié."
+                f"Consommation enregistrée et lot fabriqué. ⚠ Écart supérieur à 10% sur {', '.join(items_alerta)}."
             )
 
         return result
 
+    except frappe.ValidationError as err:
+        frappe.db.rollback()
+        frappe.local.response["http_status_code"] = 422
+        return {
+            "success": False,
+            "error_code": "ERP_VALIDATION_ERROR",
+            "message_fr": f"Transaction refusée par ERPNext : {frappe.safe_decode(str(err))}",
+        }
     except Exception:
+        frappe.db.rollback()
         frappe.log_error(
             title=f"Erreur reportar_consumo — WO {work_order}",
             message=frappe.get_traceback(),
@@ -677,7 +970,7 @@ def reportar_consumo(work_order: str = None, extras: str = None):
         return {
             "success": False,
             "error_code": "INTERNAL_ERROR",
-            "message_fr": "Erreur interne. Veuillez contacter l'administrateur.",
+            "message_fr": "Erreur interne lors de la clôture de production. Contactez l'administrateur.",
         }
 
 

@@ -11,8 +11,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 - Endpoint POST para registrar consumo real de materiales al finalizar la mezcla
 - Calcula desviaciones vs BOM teórica (cantidad, porcentaje)
 - Alerta WARNING si algún material supera 10% de desviación
-- Registra consumo como Comment en la Work Order (PoC, sin custom DocType)
-- Recibe extras por `item_name` (guardrail G3 — nunca `item_code` desde el Kiosco)
+- Registra consumo como Comment en la Work Order con trazabilidad de documentos generados
+- Recibe lotes usados y extras por `item_name` (guardrail G3 — nunca `item_code` visible en el Kiosco)
+- Crea `Stock Entry` nativos `Material Transfer for Manufacture` y `Manufacture`
+- Usa `SerialBatchCreation` nativo de ERPNext para materiales con lote y cierra la WO en `Completed`
 
 **Frontend — Modal de Consumo (EP4) en PokaYokeScanner.vue**
 - Diálogo "Standard ou Extra ?" con 2 botones fat-finger (emerald / amber)
@@ -23,13 +25,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 - Iconos lucide: Scale, PackageCheck
 
 **Frontend — API Wrapper EP4**
-- `reportarConsumo(workOrder, extras)` en `kiosco.js` con `JSON.stringify` para serializar extras como form-urlencoded
+- `reportarConsumo(workOrder, lotesUsados, consumosExtra)` en `kiosco.js` con `JSON.stringify` para serializar mapas como form-urlencoded
 
 ### Changed
 - `docs/API.md`: Documentación completa de EP4 (request, response, errores, curl)
 - `docs/FRONTEND.md`: Flujo EP4, tabla de API wrappers
+- `docs/RUNBOOK.md`: la demo contable ya no es manual; se verifica cierre automático con EP4
 - `gcma_kiosco.setup.test_data.run`: ahora resetea la demo y recrea un entorno repetible con fixtures de caos
 - `reportar_consumo`: añade guardrail `EXTRA_QTY_ABSURD` para bloquear errores groseros de tipeo en extras
+- Sesión del kiosco: restauración desde cookie `sid`, logout explícito y headers anti-cache para evitar fallos entre navegadores
 
 ## [0.3.0] — 2025-07-25
 
