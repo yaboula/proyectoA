@@ -418,7 +418,7 @@ onMounted(loadLots)
         </div>
       </template>
 
-      <div v-if="selectedLot" class="space-y-5 pb-8">
+      <div v-if="selectedLot" class="space-y-5 pb-4">
         <!-- Product summary -->
         <div class="gcma-data-row p-5">
           <div class="text-sm text-zinc-500">Produit</div>
@@ -483,13 +483,13 @@ onMounted(loadLots)
                 <InputNumber v-if="row.numeric" v-model="row.value" :min-fraction-digits="0" :max-fraction-digits="2" fluid />
                 <InputText v-else v-model="row.value" class="!h-14 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
               </div>
-              <div class="flex flex-col justify-end gap-2 md:items-end">
+              <div class="flex flex-row items-center gap-2 md:flex-col md:items-end md:justify-end">
                 <button @click="row.numeric = !row.numeric"
-                        class="h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 active:bg-zinc-50 transition">
+                        class="flex-1 h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 active:bg-zinc-50 transition md:flex-none">
                   {{ row.numeric ? 'Num.' : 'Texte' }}
                 </button>
                 <button @click="removeParameterRow(row.id)"
-                        class="h-12 w-12 rounded-md text-red-500 flex items-center justify-center active:text-red-600 transition">
+                        class="h-12 w-12 shrink-0 rounded-md text-red-500 flex items-center justify-center active:text-red-600 transition">
                   <Trash2 :size="16" />
                 </button>
               </div>
@@ -504,19 +504,21 @@ onMounted(loadLots)
                     class="!w-full !rounded-md !border-zinc-300 !bg-zinc-50 !text-zinc-900" />
         </div>
 
-        <!-- Actions -->
-        <div class="grid gap-3 md:grid-cols-2">
+      </div>
+
+      <template #footer>
+        <div class="grid gap-3 sm:grid-cols-2">
           <button @click="drawerVisible = false"
                   class="h-16 rounded-md border border-zinc-300 bg-white text-sm font-bold text-zinc-700 active:bg-zinc-50 transition">
             Annuler
           </button>
-          <button @click="submitInspection" :disabled="submitting"
+          <button @click="submitInspection" :disabled="submitting || !selectedLot"
                   class="h-16 rounded-md bg-blue-600 text-sm font-black uppercase tracking-[0.14em] text-white flex items-center justify-center gap-2 active:bg-blue-700 transition disabled:opacity-50">
             <RefreshCw v-if="submitting" :size="16" class="animate-spin" />
             {{ selectedDecision === 'Approved' ? 'Valider et liberer' : 'Enregistrer le rejet' }}
           </button>
         </div>
-      </div>
+      </template>
     </Drawer>
   </KioskLayout>
 </template>
