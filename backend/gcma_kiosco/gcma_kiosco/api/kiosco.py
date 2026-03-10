@@ -15,7 +15,7 @@ Endpoints implementados:
 
 import frappe
 from frappe import _
-from frappe.utils import today, date_diff, getdate, flt
+from frappe.utils import today, date_diff, getdate, flt, cint
 from gcma_kiosco.api.qr_utils import parse_qr_material
 
 
@@ -372,43 +372,53 @@ def validar_material(work_order: str = None, qr_data: str = None):
                 "alerta_nivel": "CRITICO",
             }
 
-        # ── Verificar que el Batch existe ──
-        if not frappe.db.exists("Batch", batch_no):
-            return {
-                "valido": False,
-                "error_code": "BATCH_NOT_FOUND",
-                "message_fr": f"✗ Lot '{batch_no}' introuvable dans le système.",
-            }
-
-        # ── Verificar caducidad ──
-        batch_data = frappe.db.get_value(
-            "Batch", batch_no, ["expiry_date", "item"], as_dict=True
-        )
-
-        # Verificar que el batch corresponde al item escaneado
-        if batch_data.item != item_code:
-            item_name_scanned = frappe.db.get_value("Item", item_code, "item_name") or item_code
-            return {
-                "valido": False,
-                "error_code": "BATCH_ITEM_MISMATCH",
-                "message_fr": f"✗ Le lot '{batch_no}' ne correspond pas à ce matériau.",
-            }
+        item_meta = frappe.db.get_value(
+            "Item", item_code, ["item_name", "has_batch_no"], as_dict=True
+        ) or {}
 
         dias_restantes = None
         fecha_caducidad = None
-        if batch_data.expiry_date:
-            fecha_caducidad = str(batch_data.expiry_date)
-            dias_restantes = date_diff(batch_data.expiry_date, today())
-            if dias_restantes < 0:
-                item_name = frappe.db.get_value("Item", item_code, "item_name") or item_code
+
+        # ── Items con lote obligatorio ──
+        if cint(item_meta.get("has_batch_no")):
+            if not frappe.db.exists("Batch", batch_no):
                 return {
                     "valido": False,
-                    "error_code": "BATCH_EXPIRED",
-                    "item_name": item_name,
-                    "batch_no": batch_no,
-                    "fecha_caducidad": fecha_caducidad,
-                    "message_fr": f"✗ STOP — Lot périmé depuis le {batch_data.expiry_date}. Ne pas utiliser.",
-                    "alerta_nivel": "CRITICO",
+                    "error_code": "BATCH_NOT_FOUND",
+                    "message_fr": f"✗ Lot '{batch_no}' introuvable dans le système.",
+                }
+
+            batch_data = frappe.db.get_value(
+                "Batch", batch_no, ["expiry_date", "item"], as_dict=True
+            )
+
+            if batch_data.item != item_code:
+                return {
+                    "valido": False,
+                    "error_code": "BATCH_ITEM_MISMATCH",
+                    "message_fr": f"✗ Le lot '{batch_no}' ne correspond pas à ce matériau.",
+                }
+
+            if batch_data.expiry_date:
+                fecha_caducidad = str(batch_data.expiry_date)
+                dias_restantes = date_diff(batch_data.expiry_date, today())
+                if dias_restantes < 0:
+                    item_name = item_meta.get("item_name") or item_code
+                    return {
+                        "valido": False,
+                        "error_code": "BATCH_EXPIRED",
+                        "item_name": item_name,
+                        "batch_no": batch_no,
+                        "fecha_caducidad": fecha_caducidad,
+                        "message_fr": f"✗ STOP — Lot périmé depuis le {batch_data.expiry_date}. Ne pas utiliser.",
+                        "alerta_nivel": "CRITICO",
+                    }
+        else:
+            if batch_no.upper() not in ("SIN-LOTE", "NO-LOT", "N/A"):
+                return {
+                    "valido": False,
+                    "error_code": "LOT_NOT_ALLOWED",
+                    "message_fr": "✗ Ce matériau ne fonctionne pas avec un lot réel. Scannez l'étiquette 'SIN-LOTE'.",
                 }
 
         # ── Verificar stock disponible del item en MP Aprobada ──
@@ -440,7 +450,7 @@ def validar_material(work_order: str = None, qr_data: str = None):
             }
 
         # ── Todo OK → Validación Poka-Yoke superada ──
-        item_name = frappe.db.get_value("Item", item_code, "item_name") or item_code
+        item_name = item_meta.get("item_name") or item_code
 
         return {
             "valido": True,

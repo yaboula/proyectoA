@@ -143,7 +143,7 @@ Valida que el material escaneado es correcto, el lote no está caducado y hay st
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
 | `work_order` | string | Sí | Nombre de la Work Order |
-| `qr_data` | string | Sí | Contenido del QR del bidón (formato: `ITEM_CODE\|BATCH_NO`) |
+| `qr_data` | string | Sí | Contenido del QR del material (formato: `ITEM_CODE\|BATCH_NO`). Para items no loteados usar `ITEM_CODE\|SIN-LOTE` |
 
 ### Response — Válido (200 OK)
 
@@ -317,5 +317,14 @@ ITEM_CODE|BATCH_NO
 ```
 
 Ejemplo: `MP-RES-ALK-G70|LOTE-TEST-RES-001`
+
+Para materiales sin trazabilidad por lote, el contrato del kiosco usa el marcador:
+
+`ITEM_CODE|SIN-LOTE`
+
+Ejemplos válidos:
+- `ENV-BID-20L-BLC|SIN-LOTE`
+- `ENV-TAP-BID-20L|SIN-LOTE`
+- `ENV-ETQ-PIN-BLC|SIN-LOTE`
 
 Parseado por `qr_utils.parse_qr_material()`.

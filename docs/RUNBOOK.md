@@ -108,6 +108,7 @@ docker exec frappe_docker-backend-1 \
 - Lote caducado: `MP-RES-ALK-G70|LOTE-CHAOS-RES-EXP-001` → `BATCH_EXPIRED`
 - Batch inexistente: `MP-RES-ALK-G70|LOTE-INEXISTENTE-999` → `BATCH_NOT_FOUND`
 - Batch cruzado: `MP-RES-ALK-G70|LOTE-TEST-PIG-001` → `BATCH_ITEM_MISMATCH`
+- Item no loteado válido: `ENV-BID-20L-BLC|SIN-LOTE` → válido
 - Consumo brutal en EP4: extra mayor que la cantidad teórica → `EXTRA_QTY_ABSURD`
 
 ### Demo contable manual (gerencia)
