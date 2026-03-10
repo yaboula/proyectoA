@@ -25,6 +25,16 @@ body {
 
 :root {
   color-scheme: dark;
+  --gcma-bg: #050b10;
+  --gcma-panel: rgba(10, 18, 28, 0.88);
+  --gcma-panel-soft: rgba(15, 23, 42, 0.78);
+  --gcma-panel-muted: rgba(15, 23, 42, 0.58);
+  --gcma-border: rgba(51, 65, 85, 0.86);
+  --gcma-border-soft: rgba(71, 85, 105, 0.34);
+  --gcma-text: #e2e8f0;
+  --gcma-text-strong: #f8fafc;
+  --gcma-text-muted: #94a3b8;
+  --gcma-text-dim: #64748b;
 }
 
 .glass-panel {
@@ -42,16 +52,56 @@ body {
   backdrop-filter: blur(18px);
 }
 
+.kiosk-panel {
+  background: var(--gcma-panel);
+  border: 1px solid var(--gcma-border);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+}
+
+.kiosk-panel-soft {
+  background: var(--gcma-panel-soft);
+  border: 1px solid var(--gcma-border-soft);
+}
+
+.kiosk-tile {
+  background: var(--gcma-panel-soft);
+  border: 1px solid var(--gcma-border-soft);
+}
+
+.kiosk-tile-muted {
+  background: rgba(8, 15, 24, 0.78);
+  border: 1px solid rgba(51, 65, 85, 0.72);
+}
+
+.kiosk-chip {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(71, 85, 105, 0.46);
+  color: #cbd5e1;
+}
+
+.kiosk-icon-shell {
+  background: rgba(8, 15, 24, 0.74);
+  border: 1px solid rgba(71, 85, 105, 0.34);
+  color: var(--gcma-text-strong);
+}
+
 .gcma-theme-dark .p-card {
-  color: #e2e8f0;
+  color: var(--gcma-text);
+  background: var(--gcma-panel);
+  border: 1px solid var(--gcma-border);
 }
 
 .gcma-theme-dark .p-card .p-card-body {
   padding: 1rem;
+  background: transparent;
 }
 
 .gcma-theme-dark .p-button {
   box-shadow: none;
+}
+
+.gcma-theme-dark .p-tag {
+  border: 1px solid rgba(71, 85, 105, 0.46);
 }
 
 .gcma-theme-dark .p-inputtext,
@@ -59,9 +109,9 @@ body {
 .gcma-theme-dark .p-textarea {
   width: 100%;
   border-radius: 1rem;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: #f8fafc;
+  border: 1px solid var(--gcma-border-soft);
+  background: rgba(8, 15, 24, 0.82);
+  color: var(--gcma-text-strong);
 }
 
 .gcma-theme-dark .p-inputtext::placeholder,
@@ -84,11 +134,27 @@ body {
 .gcma-theme-dark .p-drawer-header,
 .gcma-theme-dark .p-drawer-content {
   background: #091119;
-  color: #f8fafc;
+  color: var(--gcma-text-strong);
+}
+
+.gcma-theme-dark .p-drawer-header {
+  border-bottom: 1px solid var(--gcma-border-soft);
+}
+
+.gcma-theme-dark .p-drawer .p-drawer-header .p-drawer-close-button {
+  color: var(--gcma-text-muted);
+  background: rgba(8, 15, 24, 0.82);
+  border: 1px solid var(--gcma-border-soft);
 }
 
 .gcma-theme-dark .p-message {
   backdrop-filter: blur(12px);
+}
+
+.gcma-theme-dark .p-message.p-message-error {
+  background: rgba(127, 29, 29, 0.28);
+  border-color: rgba(251, 113, 133, 0.3);
+  color: #fecdd3;
 }
 
 .gcma-theme-dark .p-selectbutton {
@@ -101,8 +167,8 @@ body {
   justify-content: center;
   min-height: 3.25rem;
   border-radius: 1rem;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--gcma-border-soft);
+  background: rgba(8, 15, 24, 0.82);
   color: #cbd5e1;
 }
 
@@ -115,6 +181,18 @@ body {
 .gcma-theme-dark .p-toast .p-toast-message {
   border-radius: 1.25rem;
   backdrop-filter: blur(20px);
+}
+
+.gcma-theme-dark .p-skeleton {
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.gcma-theme-dark .p-skeleton::after {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0) 0%, rgba(51, 65, 85, 0.4) 50%, rgba(15, 23, 42, 0) 100%);
+}
+
+.gcma-theme-dark .p-divider.p-divider-horizontal::before {
+  border-top-color: var(--gcma-border-soft);
 }
 
 /* ── Design System: Shake animation for Poka-Yoke STOP ── */

@@ -42,9 +42,9 @@ kiosco-pwa/src/
 |------|-----------|------|------|
 | `/` | `LoginQR` | `{ guest: true }` | No |
 | `/hub` | `ModuleHub` | — | Sí |
-| `/tareas` | `TareasList` | — | Sí |
-| `/laboratoire` | `LaboratoireQC` | — | Sí |
-| `/poka-yoke/:workOrder` | `PokaYokeScanner` | `props: true` | Sí |
+| `/tareas` | `TareasList` | `{ module: 'production' }` | Sí |
+| `/laboratoire` | `LaboratoireQC` | `{ module: 'quality' }` | Sí |
+| `/poka-yoke/:workOrder` | `PokaYokeScanner` | `{ module: 'production' }`, `props: true` | Sí |
 
 ### Navigation Guard
 
@@ -54,10 +54,11 @@ router.beforeEach(async (to) => {
   if (to.meta.guest) return true
   const ok = await store.ensureSession()
   if (!ok) return '/'
+  if (to.meta.module && !store.hasModule(to.meta.module)) return '/hub'
 })
 ```
 
-Redirige a login si no hay sesión y antes intenta restaurarla desde la cookie `sid`, excepto rutas con `meta.guest`.
+Redirige a login si no hay sesión y antes intenta restaurarla desde la cookie `sid`, excepto rutas con `meta.guest`. Además bloquea navegación directa a módulos no autorizados por el perfil del `Employee`.
 
 ## Estado (Pinia)
 
@@ -74,12 +75,16 @@ Redirige a login si no hay sesión y antes intenta restaurarla desde la cookie `
 |--------|---------|
 | `isLoggedIn` | `!!operario` |
 | `fullName` | `operario.full_name` |
+| `profileCode` | `operario.profile_code` |
+| `profileLabel` | `operario.profile_label` |
+| `allowedModules` | `operario.allowed_modules[]` |
 
 | Action | Descripción |
 |--------|-------------|
 | `login(qrToken)` | Llama EP1, guarda operario + sid |
 | `restoreSession()` | Llama EP1b y reconstruye el contexto desde la cookie `sid` |
 | `ensureSession()` | Devuelve la sesión actual o intenta restaurarla |
+| `hasModule(code)` | Indica si el perfil actual puede abrir un módulo |
 | `logout()` | Llama EP1c y limpia estado local |
 
 ## API Wrappers (`kiosco.js`)
@@ -103,7 +108,7 @@ Redirige a login si no hay sesión y antes intenta restaurarla desde la cookie `
 
 ## ModuleHub — Selección de Zona
 
-Vista de entrada post-login con dos módulos claros:
+Vista de entrada post-login con módulos filtrados según `operario.allowed_modules`:
 
 - **Production pilotée** → navega a `/tareas`
 - **Laboratoire qualité** → navega a `/laboratoire`
@@ -111,9 +116,11 @@ Vista de entrada post-login con dos módulos claros:
 Características:
 
 - Hero visual tipo control room con resumen de sesión activa
+- Perfil kiosco visible en el panel de sesión
 - Cards de módulo con CTA grandes, énfasis visual distinto por dominio
 - Botón explícito de cierre de sesión
 - Navegación pensada para tablet, no para escritorio administrativo
+- Si el badge solo tiene un módulo permitido, Login redirige directamente a su ruta por defecto sin pasar por el hub
 
 ## LaboratoireQC — Console Qualité
 

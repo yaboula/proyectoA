@@ -18,17 +18,20 @@ const routes = [
     path: '/tareas',
     name: 'tareas',
     component: () => import('../views/TareasList.vue'),
+    meta: { module: 'production' },
   },
   {
     path: '/laboratoire',
     name: 'laboratoire',
     component: () => import('../views/LaboratoireQC.vue'),
+    meta: { module: 'quality' },
   },
   {
     path: '/poka-yoke/:workOrder',
     name: 'poka-yoke',
     component: () => import('../views/PokaYokeScanner.vue'),
     props: true,
+    meta: { module: 'production' },
   },
 ]
 
@@ -47,6 +50,10 @@ router.beforeEach(async (to) => {
   const ok = await store.ensureSession()
   if (!ok) {
     return { name: 'login' }
+  }
+
+  if (to.meta.module && !store.hasModule(to.meta.module)) {
+    return { name: 'hub' }
   }
 
   return true

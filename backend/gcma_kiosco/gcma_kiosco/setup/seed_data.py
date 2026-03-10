@@ -862,47 +862,51 @@ def create_custom_fields():
                 "in_list_view": 1,
                 "description": "Token único impreso en el badge QR del operario. Usado por la PWA del Kiosco para autenticación sin contraseña.",
             },
+            {
+                "fieldname": "custom_kiosk_profile",
+                "label": "Kiosk Profile",
+                "fieldtype": "Select",
+                "insert_after": "custom_qr_badge_token",
+                "options": "production\nquality",
+                "default": "production",
+                "in_list_view": 1,
+                "description": "Perfil operativo del kiosco. Define los módulos visibles y autorizados para el empleado.",
+            },
         ],
     })
     print("  + Custom Field 'custom_qr_badge_token' en Employee creado/verificado.")
+    print("  + Custom Field 'custom_kiosk_profile' en Employee creado/verificado.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 14. EMPLEADO DE PRUEBA  (para testear login_operario con Postman)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def create_test_employee():
-    """Crea un usuario Frappe + empleado con badge QR para probar el Kiosco."""
-    print("\n──── 14/15  Empleado de prueba ────")
+def _ensure_kiosk_employee(*, user_email: str, first_name: str, last_name: str, company: str, badge_token: str, kiosk_profile: str, roles: list[str]):
+    full_name = f"{first_name} {last_name}"
 
-    company = "Peintures du Maroc SARL"
-    user_email = "operario.poc@gcma.local"
-    badge_token = "OP-2026-BADGE-00042"
-
-    # -- User --
     if not _exists("User", user_email):
         user = frappe.new_doc("User")
         user.email = user_email
-        user.first_name = "Ahmed"
-        user.last_name = "Benali"
+        user.first_name = first_name
+        user.last_name = last_name
         user.language = "fr"
         user.new_password = "poc-test-2026"
         user.send_welcome_email = 0
         user.user_type = "System User"
-        user.append("roles", {"role": "Manufacturing User"})
-        user.append("roles", {"role": "Stock User"})
+        for role in roles:
+            user.append("roles", {"role": role})
         user.insert(ignore_permissions=True)
         print(f"  + User '{user_email}' creado (pwd: poc-test-2026).")
     else:
         print(f"  ✓ User '{user_email}' ya existe.")
 
-    # -- Employee --
     existing_emp = frappe.db.exists("Employee", {"user_id": user_email})
     if not existing_emp:
         emp = frappe.new_doc("Employee")
-        emp.employee_name = "Ahmed Benali"
-        emp.first_name = "Ahmed"
-        emp.last_name = "Benali"
+        emp.employee_name = full_name
+        emp.first_name = first_name
+        emp.last_name = last_name
         emp.company = company
         emp.status = "Active"
         emp.gender = "Male"
@@ -910,12 +914,46 @@ def create_test_employee():
         emp.date_of_joining = "2024-01-10"
         emp.user_id = user_email
         emp.custom_qr_badge_token = badge_token
+        emp.custom_kiosk_profile = kiosk_profile
         emp.insert(ignore_permissions=True)
-        print(f"  + Employee '{emp.name}' creado con badge '{badge_token}'.")
+        print(f"  + Employee '{emp.name}' creado con badge '{badge_token}' y perfil '{kiosk_profile}'.")
     else:
-        # Asegurar que el badge esté asignado
-        frappe.db.set_value("Employee", existing_emp, "custom_qr_badge_token", badge_token)
-        print(f"  ✓ Employee ya existe. Badge actualizado a '{badge_token}'.")
+        frappe.db.set_value(
+            "Employee",
+            existing_emp,
+            {
+                "custom_qr_badge_token": badge_token,
+                "custom_kiosk_profile": kiosk_profile,
+            },
+        )
+        print(f"  ✓ Employee ya existe. Badge actualizado a '{badge_token}' y perfil '{kiosk_profile}'.")
+
+
+def create_test_employee():
+    """Crea usuarios Frappe + empleados con badge QR para probar el Kiosco."""
+    print("\n──── 14/15  Empleado de prueba ────")
+
+    company = "Peintures du Maroc SARL"
+
+    _ensure_kiosk_employee(
+        user_email="operario.poc@gcma.local",
+        first_name="Ahmed",
+        last_name="Benali",
+        company=company,
+        badge_token="OP-2026-BADGE-00042",
+        kiosk_profile="production",
+        roles=["Manufacturing User", "Stock User"],
+    )
+
+    _ensure_kiosk_employee(
+        user_email="qualite.poc@gcma.local",
+        first_name="Karim",
+        last_name="El Idrissi",
+        company=company,
+        badge_token="QC-2026-BADGE-00077",
+        kiosk_profile="quality",
+        roles=["Quality Manager", "Stock User"],
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1093,7 +1131,8 @@ def run():
     print("    ✓ BOM en Draft (submittear con submit_bom)")
     print("    ✓ Precios de compra y venta cargados")
     print("    ✓ Stock inicial artificial en MP Aprobada")
-    print("    ✓ Empleado de prueba: Ahmed Benali (badge OP-2026-BADGE-00042)")
+    print("    ✓ Empleado de prueba producción: Ahmed Benali (badge OP-2026-BADGE-00042)")
+    print("    ✓ Empleado de prueba laboratorio: Karim El Idrissi (badge QC-2026-BADGE-00077)")
     print("  Próximos pasos:")
     print("    1. bench execute gcma_kiosco.setup.seed_data.submit_bom")
     print("    2. Probar API Kiosco → POST login_operario con badge QR")

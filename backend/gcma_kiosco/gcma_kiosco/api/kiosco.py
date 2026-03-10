@@ -23,6 +23,20 @@ from erpnext.manufacturing.doctype.work_order.work_order import make_stock_entry
 from erpnext.stock.serial_batch_bundle import SerialBatchCreation
 
 
+KIOSK_PROFILE_CONFIG = {
+    "production": {
+        "label": "Production",
+        "allowed_modules": ["production"],
+        "default_route": "/tareas",
+    },
+    "quality": {
+        "label": "Laboratoire",
+        "allowed_modules": ["quality"],
+        "default_route": "/laboratoire",
+    },
+}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CSRF — Eximir las rutas del Kiosco (PWA servida desde origen distinto)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -40,6 +54,7 @@ def _build_operario_payload(employee: dict):
     company = employee.get("company")
     abbr = frappe.db.get_value("Company", company, "abbr") if company else None
     default_wip = f"Planta Mezclas WIP - {abbr}" if abbr else None
+    profile_code, profile_config = _resolve_kiosk_profile(employee)
 
     return {
         "full_name": employee.get("employee_name"),
@@ -47,7 +62,43 @@ def _build_operario_payload(employee: dict):
         "company": company,
         "company_abbr": abbr,
         "default_warehouse": default_wip,
+        "profile_code": profile_code,
+        "profile_label": profile_config["label"],
+        "allowed_modules": profile_config["allowed_modules"],
+        "default_route": profile_config["default_route"],
     }
+
+
+def _resolve_kiosk_profile(employee: dict):
+    profile_code = (employee.get("custom_kiosk_profile") or "production").strip().lower()
+    return profile_code, KIOSK_PROFILE_CONFIG.get(profile_code, KIOSK_PROFILE_CONFIG["production"])
+
+
+def _build_profile_error_response(*allowed_profiles: str):
+    labels = [KIOSK_PROFILE_CONFIG.get(profile, {}).get("label", profile) for profile in allowed_profiles]
+    frappe.local.response["http_status_code"] = 403
+    return {
+        "success": False,
+        "error_code": "PROFILE_NOT_ALLOWED",
+        "message_fr": f"Accès refusé. Ce badge n'est pas autorisé pour le module {', '.join(labels)}.",
+    }
+
+
+def _require_kiosk_profile(*allowed_profiles: str):
+    employee = _get_operario_for_user(frappe.session.user)
+    if not employee:
+        frappe.local.response["http_status_code"] = 401
+        return {
+            "success": False,
+            "error_code": "NO_ACTIVE_SESSION",
+            "message_fr": "Session expirée. Veuillez scanner votre badge à nouveau.",
+        }
+
+    profile_code, _profile_config = _resolve_kiosk_profile(employee)
+    if allowed_profiles and profile_code not in allowed_profiles:
+        return _build_profile_error_response(*allowed_profiles)
+
+    return None
 
 
 def _get_operario_for_user(user_id: str):
@@ -57,7 +108,7 @@ def _get_operario_for_user(user_id: str):
     return frappe.db.get_value(
         "Employee",
         {"user_id": user_id, "status": "Active"},
-        ["name", "employee_name", "user_id", "company", "status"],
+        ["name", "employee_name", "user_id", "company", "status", "custom_kiosk_profile"],
         as_dict=True,
     )
 
@@ -107,7 +158,7 @@ def login_operario(qr_token: str = None):
         employee = frappe.db.get_value(
             "Employee",
             {"custom_qr_badge_token": qr_token},
-            ["name", "employee_name", "user_id", "company", "status"],
+            ["name", "employee_name", "user_id", "company", "status", "custom_kiosk_profile"],
             as_dict=True,
         )
 
@@ -177,7 +228,6 @@ def get_operario_session():
     employee = _get_operario_for_user(user_id)
 
     if not employee:
-        frappe.local.response["http_status_code"] = 401
         return {
             "success": False,
             "error_code": "NO_ACTIVE_SESSION",
@@ -232,6 +282,10 @@ def get_tareas(company: str = None, warehouse: str = None):
     Para cada WO, explota la BOM y verifica stock disponible.
     Guardrail G3: nunca expone item_code, solo item_name.
     """
+    profile_error = _require_kiosk_profile("production")
+    if profile_error:
+        return profile_error
+
     # ── Validación de entrada ──
     if not company:
         frappe.local.response["http_status_code"] = 400
@@ -366,6 +420,10 @@ def validar_material(work_order: str = None, qr_data: str = None):
         G1 — Mensajes en francés, sin tracebacks
         G3 — Responde con item_name, nunca con item_code
     """
+    profile_error = _require_kiosk_profile("production")
+    if profile_error:
+        return profile_error
+
     # ── Validación de entrada ──
     if not work_order or not qr_data:
         frappe.local.response["http_status_code"] = 400
@@ -873,6 +931,10 @@ def reportar_consumo(
     y mantiene compatibilidad con el frontend anterior:
       - extras: JSON string de [{item_name, qty_extra}]
     """
+    profile_error = _require_kiosk_profile("production")
+    if profile_error:
+        return profile_error
+
     if not work_order:
         frappe.local.response["http_status_code"] = 400
         return {

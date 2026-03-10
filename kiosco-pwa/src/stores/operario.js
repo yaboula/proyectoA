@@ -20,6 +20,9 @@ export const useOperarioStore = defineStore('operario', () => {
 
   const isLoggedIn = computed(() => !!operario.value)
   const fullName = computed(() => operario.value?.full_name ?? '')
+  const profileCode = computed(() => operario.value?.profile_code ?? null)
+  const profileLabel = computed(() => operario.value?.profile_label ?? '')
+  const allowedModules = computed(() => operario.value?.allowed_modules ?? [])
 
   function persist() {
     if (typeof window === 'undefined') return
@@ -47,7 +50,16 @@ export const useOperarioStore = defineStore('operario', () => {
   }
 
   async function login(qrToken) {
-    const data = await apiLogin(qrToken)
+    const normalizedToken = String(qrToken ?? '').trim()
+    if (normalizedToken.length < 5) {
+      throw {
+        success: false,
+        error_code: 'MISSING_TOKEN',
+        message_fr: 'Code QR manquant. Veuillez scanner votre badge.',
+      }
+    }
+
+    const data = await apiLogin(normalizedToken)
     if (!data.success) throw data
     applySession(data)
     initialized.value = true
@@ -97,6 +109,10 @@ export const useOperarioStore = defineStore('operario', () => {
     initialized.value = true
   }
 
+  function hasModule(moduleCode) {
+    return allowedModules.value.includes(moduleCode)
+  }
+
   return {
     operario,
     sid,
@@ -104,6 +120,10 @@ export const useOperarioStore = defineStore('operario', () => {
     restoring,
     isLoggedIn,
     fullName,
+    profileCode,
+    profileLabel,
+    allowedModules,
+    hasModule,
     login,
     restoreSession,
     ensureSession,

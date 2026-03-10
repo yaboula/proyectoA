@@ -7,6 +7,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ### Added
 
+**Backend — Perfiles reales de kiosco**
+- Nuevo custom field `Employee.custom_kiosk_profile` con perfiles `production` y `quality`
+- Nuevo badge semilla de laboratorio `QC-2026-BADGE-00077` para Karim El Idrissi
+- EP1 y EP1b devuelven `profile_code`, `profile_label`, `allowed_modules` y `default_route`
+- Los endpoints de producción y laboratorio rechazan badges del perfil incorrecto con `PROFILE_NOT_ALLOWED`
+
+**Frontend — Separación por perfil**
+- El store Pinia ahora expone `profileCode`, `profileLabel`, `allowedModules` y `hasModule()`
+- Router protegido por `meta.module` para bloquear acceso directo a módulos no autorizados
+- Login redirige directamente al módulo único permitido cuando el badge solo tiene un perfil
+- `ModuleHub.vue` filtra tarjetas por perfil y muestra el perfil kiosco activo
+
 **Backend — Bloque 4 Control de Calidad**
 - Nuevo módulo `gcma_kiosco.api.calidad` con endpoints nativos de laboratorio
 - `get_lotes_cuarentena` lista lotes de PT con saldo positivo en `Cuarentena PT - PDM`

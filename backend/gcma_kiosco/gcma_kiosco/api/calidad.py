@@ -13,6 +13,7 @@ from contextlib import contextmanager
 
 import frappe
 from frappe.utils import flt, get_datetime, nowtime, today
+from gcma_kiosco.api.kiosco import _require_kiosk_profile
 
 
 COMPANY = "Peintures du Maroc SARL"
@@ -422,6 +423,10 @@ def _build_quality_inspection(item_code: str, batch_no: str, qty: float, paramet
 @frappe.whitelist()
 def get_lotes_cuarentena(warehouse: str = None):
     """Devuelve los lotes de PT actualmente presentes en cuarentena."""
+    profile_error = _require_kiosk_profile("quality")
+    if profile_error:
+        return profile_error
+
     target_warehouse = warehouse or WH_QA_PT
 
     try:
@@ -450,6 +455,10 @@ def get_lotes_cuarentena(warehouse: str = None):
 @frappe.whitelist()
 def aprobar_calidad(item_code: str = None, batch_no: str = None, qty: str | float = None, parametros=None, aprobada=None, resultado: str = None, remarks: str = None):
     """Registra una inspección de laboratorio y libera el lote si está aprobado."""
+    profile_error = _require_kiosk_profile("quality")
+    if profile_error:
+        return profile_error
+
     if not item_code or not batch_no or qty is None:
         frappe.local.response["http_status_code"] = 400
         return {

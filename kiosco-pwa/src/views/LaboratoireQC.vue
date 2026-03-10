@@ -166,6 +166,12 @@ function validateForm() {
 }
 
 async function loadLots() {
+  const hasSession = await store.ensureSession()
+  if (!hasSession || !store.hasModule('quality')) {
+    router.push({ name: 'hub' })
+    return
+  }
+
   loading.value = true
   error.value = ''
   try {
@@ -246,10 +252,10 @@ onMounted(loadLots)
 <template>
   <div class="min-h-dvh px-5 py-5 text-slate-100">
     <section class="mx-auto flex max-w-7xl flex-col gap-5">
-      <div class="glass-panel overflow-hidden rounded-[28px] border border-white/10 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.34)] md:p-7">
+      <div class="glass-panel kiosk-panel overflow-hidden rounded-[28px] p-6 md:p-7">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div class="space-y-4">
-            <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-300">
+            <div class="kiosk-chip inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-300">
               <FlaskConical :size="14" />
               Laboratory Release Desk
             </div>
@@ -265,7 +271,7 @@ onMounted(loadLots)
             <Button
               label="Retour aux modules"
               severity="secondary"
-              class="!h-12 !rounded-2xl !border !border-white/10 !bg-white/6 !px-4 !text-slate-100 hover:!bg-white/10"
+              class="!h-12 !rounded-2xl !border !border-slate-700 !bg-slate-900/80 !px-4 !text-slate-200 hover:!bg-slate-800"
               @click="router.push({ name: 'hub' })"
             >
               <template #icon>
@@ -289,17 +295,17 @@ onMounted(loadLots)
         <Card
           v-for="metric in metrics"
           :key="metric.label"
-          class="metric-card overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/50"
+          class="metric-card kiosk-panel overflow-hidden rounded-[24px]"
         >
           <template #content>
-            <div class="relative overflow-hidden rounded-[20px] border border-white/8 p-5">
+            <div class="relative overflow-hidden rounded-[20px] border border-slate-800 p-5">
               <div class="absolute inset-0 bg-gradient-to-br" :class="metric.tone" />
               <div class="relative z-10 flex items-start justify-between gap-4">
                 <div>
                   <div class="text-xs uppercase tracking-[0.22em] text-slate-500">{{ metric.label }}</div>
                   <div class="mt-2 text-3xl font-black text-white">{{ metric.value }}</div>
                 </div>
-                <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-slate-100">
+                <div class="kiosk-icon-shell flex h-12 w-12 items-center justify-center rounded-2xl text-slate-100">
                   <component :is="metric.icon" :size="22" />
                 </div>
               </div>
@@ -310,7 +316,7 @@ onMounted(loadLots)
 
       <div class="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <div class="space-y-5">
-          <Card class="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/50">
+          <Card class="kiosk-panel overflow-hidden rounded-[28px]">
             <template #content>
               <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -322,7 +328,7 @@ onMounted(loadLots)
                   <InputText
                     v-model="query"
                     placeholder="Item, lot, date..."
-                    class="!h-12 !w-full !rounded-2xl !border-white/10 !bg-white/6 !pl-11 !text-slate-100 placeholder:!text-slate-500"
+                    class="!h-12 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !pl-11 !text-slate-100 placeholder:!text-slate-500"
                   />
                 </div>
               </div>
@@ -330,7 +336,7 @@ onMounted(loadLots)
           </Card>
 
           <div v-if="loading" class="grid gap-4 md:grid-cols-2">
-            <Card v-for="n in 4" :key="n" class="rounded-[24px] border border-white/8 bg-slate-950/45">
+            <Card v-for="n in 4" :key="n" class="kiosk-panel-soft rounded-[24px]">
               <template #content>
                 <div class="space-y-3 p-1">
                   <Skeleton width="8rem" height="1rem" class="!rounded-full" />
@@ -346,8 +352,8 @@ onMounted(loadLots)
             {{ error }}
           </Message>
 
-          <div v-else-if="filteredLots.length === 0" class="empty-state rounded-[28px] border border-dashed border-white/10 bg-slate-950/35 p-10 text-center">
-            <div class="mx-auto flex h-18 w-18 items-center justify-center rounded-3xl bg-white/6 text-slate-400">
+          <div v-else-if="filteredLots.length === 0" class="empty-state kiosk-panel-soft rounded-[28px] border-dashed p-10 text-center">
+            <div class="kiosk-icon-shell mx-auto flex h-18 w-18 items-center justify-center rounded-3xl text-slate-400">
               <ScanSearch :size="36" />
             </div>
             <h2 class="mt-5 text-2xl font-black text-white">Aucun lot visible</h2>
@@ -360,7 +366,7 @@ onMounted(loadLots)
             <Card
               v-for="lot in filteredLots"
               :key="`${lot.item_code}-${lot.batch_no}`"
-              class="lot-card overflow-hidden rounded-[26px] border border-white/10 bg-slate-950/48 shadow-[0_16px_40px_rgba(0,0,0,0.22)]"
+              class="lot-card kiosk-panel overflow-hidden rounded-[26px]"
             >
               <template #content>
                 <div class="space-y-5">
@@ -372,17 +378,17 @@ onMounted(loadLots)
                         <p class="mt-1 text-sm text-slate-400">{{ lot.item_code }}</p>
                       </div>
                     </div>
-                    <div class="flex h-14 w-14 items-center justify-center rounded-3xl border border-white/10 bg-white/6 text-orange-200">
+                    <div class="kiosk-icon-shell flex h-14 w-14 items-center justify-center rounded-3xl text-orange-200">
                       <Beaker :size="24" />
                     </div>
                   </div>
 
                   <div class="grid grid-cols-2 gap-3 text-sm text-slate-300">
-                    <div class="rounded-2xl border border-white/8 bg-white/5 p-3">
+                    <div class="kiosk-tile rounded-2xl p-3">
                       <div class="text-slate-500">Stock disponible</div>
                       <div class="mt-1 text-xl font-black text-white">{{ lot.qty }} {{ lot.uom }}</div>
                     </div>
-                    <div class="rounded-2xl border border-white/8 bg-white/5 p-3">
+                    <div class="kiosk-tile rounded-2xl p-3">
                       <div class="text-slate-500">Fabrication</div>
                       <div class="mt-1 font-semibold text-white">{{ lot.fecha_fabricacion || 'N/A' }}</div>
                     </div>
@@ -404,7 +410,7 @@ onMounted(loadLots)
         </div>
 
         <div class="space-y-5">
-          <Card class="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/50">
+          <Card class="kiosk-panel overflow-hidden rounded-[28px]">
             <template #content>
               <div class="space-y-4">
                 <div class="flex items-center gap-3">
@@ -417,7 +423,7 @@ onMounted(loadLots)
                   </div>
                 </div>
 
-                <div v-if="auditTrail" class="rounded-[24px] border border-white/10 bg-white/5 p-5">
+                <div v-if="auditTrail" class="kiosk-tile rounded-[24px] p-5">
                   <div class="flex items-center justify-between gap-3">
                     <Tag
                       :value="auditTrail.status === 'Accepted' ? 'Lot approuvé' : 'Lot rejeté'"
@@ -436,19 +442,19 @@ onMounted(loadLots)
                     <div class="pt-2 text-slate-200">{{ auditTrail.message }}</div>
                   </div>
                 </div>
-                <div v-else class="rounded-[24px] border border-dashed border-white/10 bg-white/4 p-6 text-sm leading-7 text-slate-400">
+                <div v-else class="kiosk-panel-soft rounded-[24px] border-dashed p-6 text-sm leading-7 text-slate-400">
                   Les décisions qualité validées apparaîtront ici avec leurs documents ERPNext pour laisser un repère visuel immédiat à l’équipe.
                 </div>
               </div>
             </template>
           </Card>
 
-          <Card class="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/50">
+          <Card class="kiosk-panel overflow-hidden rounded-[28px]">
             <template #content>
               <div class="space-y-4">
                 <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Cadre métier</div>
                 <div class="text-2xl font-black text-white">Décision assistée</div>
-                <Divider class="!my-0 !border-white/8" />
+                <Divider class="!my-0 !border-slate-800" />
                 <div class="space-y-3 text-sm leading-7 text-slate-300">
                   <div class="rounded-2xl border border-emerald-400/16 bg-emerald-400/8 p-4">
                     <div class="flex items-center gap-2 text-emerald-100"><BadgeCheck :size="16" /> Approuvé</div>
@@ -466,7 +472,7 @@ onMounted(loadLots)
       </div>
     </section>
 
-    <Drawer v-model:visible="drawerVisible" position="right" class="!w-full !max-w-[38rem] !border-l !border-white/10 !bg-[#091119] !text-slate-100">
+    <Drawer v-model:visible="drawerVisible" position="right" class="!w-full !max-w-[38rem] !border-l !border-slate-800 !bg-[#091119] !text-slate-100">
       <template #header>
         <div class="flex items-center gap-3">
           <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-400/12 text-orange-200">
@@ -480,16 +486,16 @@ onMounted(loadLots)
       </template>
 
       <div v-if="selectedLot" class="space-y-5 pb-8">
-        <div class="rounded-[24px] border border-white/10 bg-white/5 p-5">
+        <div class="kiosk-tile rounded-[24px] p-5">
           <div class="text-sm text-slate-400">Produit</div>
           <div class="mt-1 text-2xl font-black text-white">{{ selectedLot.item_name }}</div>
           <div class="mt-1 text-sm text-slate-500">{{ selectedLot.item_code }}</div>
           <div class="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-300">
-            <div class="rounded-2xl border border-white/8 bg-black/16 p-3">
+            <div class="kiosk-tile-muted rounded-2xl p-3">
               <div class="text-slate-500">Disponible</div>
               <div class="mt-1 font-bold text-white">{{ selectedLot.qty }} {{ selectedLot.uom }}</div>
             </div>
-            <div class="rounded-2xl border border-white/8 bg-black/16 p-3">
+            <div class="kiosk-tile-muted rounded-2xl p-3">
               <div class="text-slate-500">Date</div>
               <div class="mt-1 font-bold text-white">{{ selectedLot.fecha_fabricacion }}</div>
             </div>
@@ -523,11 +529,11 @@ onMounted(loadLots)
           </div>
           <div class="space-y-2">
             <label class="text-xs uppercase tracking-[0.22em] text-slate-500">Référence lot</label>
-            <InputText :model-value="selectedLot.batch_no" disabled class="!h-12 !w-full !rounded-2xl !border-white/10 !bg-white/6 !text-slate-300" />
+            <InputText :model-value="selectedLot.batch_no" disabled class="!h-12 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !text-slate-300" />
           </div>
         </div>
 
-        <div class="space-y-4 rounded-[24px] border border-white/10 bg-white/5 p-5">
+        <div class="kiosk-tile rounded-[24px] space-y-4 p-5">
           <div class="flex items-center justify-between gap-4">
             <div>
               <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Mesures laboratoire</div>
@@ -536,7 +542,7 @@ onMounted(loadLots)
             <Button
               label="Ajouter"
               severity="secondary"
-              class="!h-11 !rounded-2xl !border !border-white/10 !bg-white/6 !px-4 !text-slate-100"
+              class="!h-11 !rounded-2xl !border !border-slate-700 !bg-slate-900/85 !px-4 !text-slate-100"
               @click="addParameterRow"
             >
               <template #icon>
@@ -546,10 +552,10 @@ onMounted(loadLots)
           </div>
 
           <div class="space-y-3">
-            <div v-for="row in parameterRows" :key="row.id" class="grid gap-3 rounded-[22px] border border-white/8 bg-black/16 p-4 md:grid-cols-[1.1fr_0.9fr_auto]">
+            <div v-for="row in parameterRows" :key="row.id" class="grid gap-3 rounded-[22px] border border-slate-800 bg-slate-950/72 p-4 md:grid-cols-[1.1fr_0.9fr_auto]">
               <div class="space-y-2">
                 <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Paramètre</label>
-                <InputText v-model="row.name" class="!h-11 !w-full !rounded-2xl !border-white/10 !bg-white/6 !text-slate-100" />
+                <InputText v-model="row.name" class="!h-11 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !text-slate-100" />
               </div>
               <div class="space-y-2">
                 <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Valeur</label>
@@ -560,13 +566,13 @@ onMounted(loadLots)
                   :max-fraction-digits="2"
                   fluid
                 />
-                <InputText v-else v-model="row.value" class="!h-11 !w-full !rounded-2xl !border-white/10 !bg-white/6 !text-slate-100" />
+                <InputText v-else v-model="row.value" class="!h-11 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !text-slate-100" />
               </div>
               <div class="flex flex-col justify-end gap-2 md:items-end">
                 <Button
                   :label="row.numeric ? 'Num.' : 'Texte'"
                   severity="secondary"
-                  class="!h-11 !rounded-2xl !border !border-white/10 !bg-white/6 !px-4 !text-slate-100"
+                  class="!h-11 !rounded-2xl !border !border-slate-700 !bg-slate-900/85 !px-4 !text-slate-100"
                   @click="row.numeric = !row.numeric"
                 />
                 <Button
@@ -588,14 +594,14 @@ onMounted(loadLots)
 
         <div class="space-y-2">
           <label class="text-xs uppercase tracking-[0.22em] text-slate-500">Remarques</label>
-          <Textarea v-model="remarks" rows="4" auto-resize class="!w-full !rounded-[22px] !border-white/10 !bg-white/6 !text-slate-100" />
+          <Textarea v-model="remarks" rows="4" auto-resize class="!w-full !rounded-[22px] !border-slate-700 !bg-slate-900/85 !text-slate-100" />
         </div>
 
         <div class="grid gap-3 md:grid-cols-2">
           <Button
             label="Annuler"
             severity="secondary"
-            class="!h-14 !rounded-2xl !border !border-white/10 !bg-white/6 !font-bold !text-slate-100"
+            class="!h-14 !rounded-2xl !border !border-slate-700 !bg-slate-900/85 !font-bold !text-slate-100"
             @click="drawerVisible = false"
           />
           <Button

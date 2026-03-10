@@ -44,7 +44,11 @@ Autentica al operario escaneando su badge QR personal.
     "employee_id": "HR-EMP-00001",
     "company": "Peintures du Maroc SARL",
     "company_abbr": "PDM",
-    "default_warehouse": "Planta Mezclas WIP - PDM"
+    "default_warehouse": "Planta Mezclas WIP - PDM",
+    "profile_code": "production",
+    "profile_label": "Production",
+    "allowed_modules": ["production"],
+    "default_route": "/tareas"
   },
   "sid": "abc123...",
   "message_fr": "Bienvenue, Ahmed Benali."
@@ -90,11 +94,22 @@ Permite a la PWA reconstruir el contexto del operario a partir de la cookie `sid
     "employee_id": "HR-EMP-00001",
     "company": "Peintures du Maroc SARL",
     "company_abbr": "PDM",
-    "default_warehouse": "Planta Mezclas WIP - PDM"
+    "default_warehouse": "Planta Mezclas WIP - PDM",
+    "profile_code": "production",
+    "profile_label": "Production",
+    "allowed_modules": ["production"],
+    "default_route": "/tareas"
   },
   "sid": "abc123..."
 }
 ```
+
+### Notas de perfil
+
+- El `Employee` ahora define `custom_kiosk_profile` con valores `production` o `quality`.
+- EP1 y EP1b devuelven el perfil efectivo del badge y la lista de módulos permitidos.
+- Los endpoints de producción (`get_tareas`, `validar_material`, `reportar_consumo`) rechazan badges de laboratorio con `403 PROFILE_NOT_ALLOWED`.
+- Los endpoints de calidad (`get_lotes_cuarentena`, `aprobar_calidad`) rechazan badges de producción con `403 PROFILE_NOT_ALLOWED`.
 
 ### Errores
 

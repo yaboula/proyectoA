@@ -67,15 +67,31 @@ function onKeyDown(e) {
 }
 
 async function handleLogin(qrToken) {
+  const normalizedToken = String(qrToken ?? '').trim()
+  if (normalizedToken.length < 5) {
+    status.value = 'error'
+    messageFr.value = 'Code QR manquant. Veuillez scanner votre badge.'
+    setTimeout(() => {
+      if (status.value === 'error') {
+        status.value = 'idle'
+        messageFr.value = 'Scannez votre badge pour commencer'
+      }
+    }, 2500)
+    return
+  }
+
   status.value = 'loading'
   messageFr.value = 'Vérification…'
 
   try {
-    const data = await store.login(qrToken)
+    const data = await store.login(normalizedToken)
     status.value = 'success'
     operarioName.value = data.operario.full_name
     messageFr.value = data.message_fr
-    setTimeout(() => router.push({ name: 'hub' }), 1200)
+    const nextRoute = data.operario.allowed_modules?.length === 1
+      ? data.operario.default_route
+      : '/hub'
+    setTimeout(() => router.push(nextRoute), 1200)
   } catch (err) {
     status.value = 'error'
     messageFr.value = err?.message_fr ?? 'Erreur inconnue. Réessayez.'
@@ -108,7 +124,10 @@ onMounted(async () => {
 
   const hasSession = await store.ensureSession()
   if (hasSession) {
-    router.replace({ name: 'hub' })
+    const nextRoute = store.allowedModules.length === 1
+      ? (store.operario?.default_route ?? '/hub')
+      : '/hub'
+    router.replace(nextRoute)
   }
 })
 onUnmounted(() => document.removeEventListener('keydown', onKeyDown))

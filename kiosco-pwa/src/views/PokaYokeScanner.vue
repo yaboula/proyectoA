@@ -451,8 +451,8 @@ onUnmounted(() => {
         {{ finalizeError }}
       </p>
       <button @click="retryFinalize"
-              class="mt-8 h-16 px-10 rounded-md bg-white text-rose-700 text-lg font-black
-                     active:bg-rose-100 transition">
+          class="mt-8 h-16 px-10 rounded-md bg-slate-900 border border-rose-300/30 text-rose-100 text-lg font-black
+            active:bg-slate-800 transition">
         Réessayer
       </button>
       <button @click="finalizePhase = 'idle'"
