@@ -96,19 +96,19 @@ onMounted(async () => {
       <div class="text-sm font-mono text-zinc-400">v0.5.0</div>
     </header>
 
-    <main class="grid flex-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+    <main class="grid flex-1 gap-4 sm:gap-5 lg:grid-cols-[0.9fr_1.1fr]">
       <section class="kiosk-panel flex flex-col justify-between rounded-md p-6">
         <div class="space-y-6">
           <div>
             <div class="gcma-section-label">Poste d'identification</div>
-            <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 md:text-5xl">Connexion badge</h1>
+            <h1 class="mt-2 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">Connexion badge</h1>
             <p class="mt-4 max-w-xl text-base leading-7 text-zinc-500">
               Authentification directe par douchette QR pour l'acces aux modules autorises du kiosque.
               Le poste reste utilisable avec gants et sans clavier permanent.
             </p>
           </div>
 
-          <div class="grid gap-3 md:grid-cols-3">
+          <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
             <div class="gcma-stat">
               <div class="gcma-section-label">Etape 01</div>
               <div class="mt-2 text-base font-bold text-zinc-900">Scanner le badge</div>
@@ -165,7 +165,7 @@ onMounted(async () => {
             Secours operateur en cas de lecture impossible ou badge endommage.
           </div>
           <button @click="openManual"
-                  class="h-16 min-w-[15rem] rounded-md border border-zinc-300 bg-white px-6 text-base font-semibold text-zinc-700 active:bg-zinc-50 transition">
+                  class="h-16 w-full rounded-md border border-zinc-300 bg-white px-6 text-base font-semibold text-zinc-700 active:bg-zinc-50 transition md:w-auto md:min-w-[15rem]">
             <span class="inline-flex items-center gap-3">
               <Keyboard :size="22" />
               Saisie manuelle

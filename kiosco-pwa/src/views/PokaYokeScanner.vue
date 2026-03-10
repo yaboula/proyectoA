@@ -318,7 +318,7 @@ onMounted(loadTarea)
         <div class="p-6 pb-3 flex items-center justify-between">
           <h2 class="text-xl font-bold text-zinc-900">Quantites Extra</h2>
           <button @click="finalizePhase = 'asking'"
-                  class="h-10 w-10 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-600 active:bg-zinc-100 transition">
+                  class="h-12 w-12 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-600 active:bg-zinc-100 transition">
             <X :size="20" />
           </button>
         </div>
@@ -333,7 +333,7 @@ onMounted(loadTarea)
               <span class="text-sm text-zinc-500">Extra :</span>
               <input v-model.number="ex.qty_extra"
                      type="number" min="0" step="0.1"
-                     class="flex-1 bg-white border border-zinc-300 rounded-md px-3 py-3 text-lg font-mono text-zinc-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                     class="flex-1 bg-white border border-zinc-300 rounded-md px-4 py-4 text-xl font-mono text-zinc-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
                      placeholder="0" />
               <span class="text-sm text-zinc-500 font-medium">{{ ex.uom }}</span>
             </div>
@@ -365,7 +365,7 @@ onMounted(loadTarea)
           </button>
           <div class="min-w-0">
             <div class="gcma-section-label">Poka-yoke matiere</div>
-            <h1 class="mt-2 text-3xl font-black tracking-tight text-zinc-900 truncate">{{ tarea?.producto ?? workOrder }}</h1>
+            <h1 class="mt-2 text-2xl font-black tracking-tight text-zinc-900 truncate sm:text-3xl">{{ tarea?.producto ?? workOrder }}</h1>
             <p class="mt-2 flex items-center gap-2 text-sm font-mono text-zinc-500">
               <Beaker :size="12" />
               {{ workOrder }}
@@ -373,16 +373,16 @@ onMounted(loadTarea)
           </div>
         </div>
 
-        <div class="grid gap-3 md:grid-cols-3 text-sm text-zinc-500">
-          <div class="gcma-stat min-w-[8rem]">
+        <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-3 text-sm text-zinc-500">
+          <div class="gcma-stat md:min-w-[8rem]">
             <div class="gcma-section-label">Valides</div>
             <div class="mt-1 text-2xl font-black text-zinc-900">{{ validatedCount }}/{{ materials.length }}</div>
           </div>
-          <div class="gcma-stat min-w-[8rem]">
+          <div class="gcma-stat md:min-w-[8rem]">
             <div class="gcma-section-label">Restants</div>
             <div class="mt-1 text-2xl font-black text-zinc-900">{{ Math.max(materials.length - validatedCount, 0) }}</div>
           </div>
-          <div class="gcma-stat min-w-[10rem]">
+          <div class="gcma-stat md:min-w-[10rem]">
             <div class="gcma-section-label">Etat</div>
             <div class="mt-1 text-sm font-bold" :class="allValidated ? 'text-green-700' : 'text-zinc-600'">
               {{ allValidated ? 'Pret a cloturer' : 'Controle en cours' }}
@@ -400,14 +400,14 @@ onMounted(loadTarea)
       <CircleAlert :size="56" :stroke-width="1.5" class="text-red-500" />
       <p class="text-red-600 text-lg font-bold text-center">{{ loadError }}</p>
       <button @click="goBack"
-              class="h-14 px-8 rounded-md bg-blue-600 text-white text-base font-semibold flex items-center gap-2 active:bg-blue-700 transition">
+              class="h-16 px-8 rounded-md bg-blue-600 text-white text-base font-semibold flex items-center gap-2 active:bg-blue-700 transition">
         <ArrowLeft :size="18" />
         Retour aux ordres
       </button>
     </div>
 
     <template v-else>
-      <div class="grid flex-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+      <div class="grid flex-1 gap-4 sm:gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <!-- Material checklist -->
         <section class="kiosk-panel flex min-h-0 flex-col rounded-md">
           <div class="gcma-toolbar border-b border-zinc-200 px-5 py-4">
@@ -427,7 +427,7 @@ onMounted(loadTarea)
                    'border-green-200 bg-green-50': i === recentlyValidated,
                    'border-zinc-200 bg-zinc-50': mat.status === 'validated' && i !== recentlyValidated,
                  }">
-              <div class="grid gap-4 xl:grid-cols-[auto_1fr_auto] xl:items-center">
+              <div class="grid gap-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
                 <div v-if="mat.status === 'validated'"
                      class="flex h-12 w-12 items-center justify-center rounded-md bg-green-600 text-white">
                   <CircleCheckBig :size="24" :stroke-width="2.5" />
@@ -444,7 +444,7 @@ onMounted(loadTarea)
                   </p>
                 </div>
 
-                <div class="flex flex-wrap gap-2 xl:justify-end">
+                <div class="flex flex-wrap gap-2 sm:justify-end">
                   <span class="rounded-md px-2.5 py-1 text-xs font-bold border"
                         :class="mat.suficiente
                           ? 'bg-green-50 text-green-700 border-green-200'
@@ -490,7 +490,7 @@ onMounted(loadTarea)
             <div class="mt-5 space-y-3">
               <button v-if="!allValidated"
                       @click="openManual"
-                      class="w-full h-14 rounded-md border border-zinc-300 bg-white text-zinc-600 text-base font-semibold active:bg-zinc-50 transition">
+                      class="w-full h-16 rounded-md border border-zinc-300 bg-white text-zinc-600 text-base font-semibold active:bg-zinc-50 transition">
                 <span class="inline-flex items-center gap-2">
                   <Keyboard :size="18" />
                   Saisie manuelle

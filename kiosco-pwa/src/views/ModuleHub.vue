@@ -58,7 +58,7 @@ function logout() {
           </div>
           <div>
             <div class="gcma-section-label">Orientation poste</div>
-            <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 md:text-5xl">Hub operateur GCMA</h1>
+            <h1 class="mt-2 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">Hub operateur GCMA</h1>
             <p class="mt-3 max-w-3xl text-base leading-7 text-zinc-500">
               Selection des modules autorises par profil avec acces direct aux flux atelier et laboratoire.
             </p>
@@ -100,8 +100,8 @@ function logout() {
       </div>
     </div>
 
-    <div class="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-      <div class="grid gap-4 lg:grid-cols-2">
+    <div class="grid gap-4 sm:gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+      <div class="grid gap-4 md:grid-cols-2">
         <article v-for="mod in modules" :key="mod.code"
                  class="kiosk-panel overflow-hidden rounded-md">
           <div class="h-full p-5 md:p-6">
@@ -112,7 +112,7 @@ function logout() {
                     {{ mod.badge }}
                   </span>
                   <div>
-                    <h2 class="text-3xl font-black tracking-tight text-zinc-900">{{ mod.title }}</h2>
+                    <h2 class="text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl">{{ mod.title }}</h2>
                     <p class="mt-2 max-w-sm text-sm leading-6 text-zinc-500">{{ mod.subtitle }}</p>
                   </div>
                 </div>
@@ -144,7 +144,7 @@ function logout() {
               </div>
 
               <button @click="openModule(mod.route)"
-                      class="mt-auto h-14 rounded-md bg-blue-600 text-white px-5 text-sm font-black uppercase tracking-[0.18em] flex items-center justify-center gap-2 active:bg-blue-700 transition">
+                      class="mt-auto h-16 rounded-md bg-blue-600 text-white px-5 text-sm font-black uppercase tracking-[0.18em] flex items-center justify-center gap-2 active:bg-blue-700 transition">
                 {{ mod.cta }}
                 <ArrowRight :size="18" />
               </button>

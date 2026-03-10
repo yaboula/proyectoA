@@ -72,7 +72,7 @@ function logout() {
       <div class="gcma-toolbar">
         <div class="min-w-0">
           <div class="gcma-section-label">Pilotage atelier</div>
-          <h1 class="mt-2 text-3xl font-black tracking-tight text-zinc-900 md:text-4xl">Ordres de fabrication</h1>
+          <h1 class="mt-2 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">Ordres de fabrication</h1>
           <p class="mt-2 text-sm text-zinc-500 truncate">
             {{ store.fullName }} &middot; {{ store.operario?.company_abbr }}
           </p>
@@ -101,7 +101,7 @@ function logout() {
         </div>
       </div>
 
-      <div class="mt-5 grid gap-3 md:grid-cols-3 text-sm text-zinc-500">
+      <div class="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3 text-sm text-zinc-500">
         <div class="gcma-stat">
           <div class="gcma-section-label">Site</div>
           <div class="mt-1 font-semibold text-zinc-900">{{ store.operario?.company }}</div>
@@ -129,7 +129,7 @@ function logout() {
         <CircleAlert :size="56" :stroke-width="1.5" class="text-red-500" />
         <p class="text-red-600 text-lg font-bold text-center">{{ error }}</p>
         <button @click="fetchTareas"
-                class="h-14 px-8 rounded-md bg-blue-600 text-white text-base font-semibold active:bg-blue-700 transition">
+                class="h-16 px-8 rounded-md bg-blue-600 text-white text-base font-semibold active:bg-blue-700 transition">
           Reessayer
         </button>
       </div>
@@ -144,7 +144,7 @@ function logout() {
       <!-- Cards -->
       <div v-else class="grid gap-4">
         <article v-for="t in tareas" :key="t.work_order" class="kiosk-panel overflow-hidden rounded-md">
-          <div class="grid gap-4 p-5 xl:grid-cols-[1.2fr_0.9fr_auto] xl:items-center">
+          <div class="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.2fr_0.9fr_auto] lg:items-center">
             <div class="space-y-4">
               <div class="flex items-center justify-between gap-3">
                 <span class="flex items-center gap-1.5 text-xs font-mono uppercase tracking-[0.18em] text-zinc-500">
@@ -163,7 +163,7 @@ function logout() {
               <div>
                 <h2 class="text-2xl font-black leading-tight text-zinc-900">{{ t.producto }}</h2>
                 <div class="mt-3 flex items-baseline gap-2">
-                  <span class="text-4xl font-black text-zinc-900">{{ t.cantidad_pendiente }}</span>
+                  <span class="text-3xl font-black text-zinc-900 sm:text-4xl">{{ t.cantidad_pendiente }}</span>
                   <span class="text-lg text-zinc-500">{{ t.uom }}</span>
                   <span class="text-sm text-zinc-400 ml-1">a produire</span>
                 </div>
@@ -189,9 +189,9 @@ function logout() {
               </div>
             </div>
 
-            <div class="flex xl:justify-end">
+            <div class="flex lg:justify-end">
               <button @click="startProduction(t.work_order)"
-                      class="w-full h-16 min-w-[16rem] rounded-md bg-blue-600 px-6 text-base font-black tracking-[0.12em] text-white active:bg-blue-700 transition-colors xl:w-auto">
+                      class="w-full h-16 rounded-md bg-blue-600 px-6 text-base font-black tracking-[0.12em] text-white active:bg-blue-700 transition-colors lg:w-auto lg:min-w-[16rem]">
                 <span class="inline-flex items-center justify-center gap-3">
                   <Play :size="22" :stroke-width="2.5" />
                   DEMARRER LA PRODUCTION

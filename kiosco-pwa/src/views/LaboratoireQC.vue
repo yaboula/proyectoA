@@ -229,7 +229,7 @@ onMounted(loadLots)
           </div>
           <div>
             <div class="gcma-section-label">Controle qualite</div>
-            <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 md:text-5xl">Laboratoire qualite</h1>
+            <h1 class="mt-2 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">Laboratoire qualite</h1>
             <p class="mt-3 max-w-3xl text-base leading-7 text-zinc-500">
               Vue complete des lots en quarantaine, decision qualite, liberation immediate et tracabilite native ERPNext dans une seule console d'analyse.
             </p>
@@ -251,7 +251,7 @@ onMounted(loadLots)
     </div>
 
     <!-- Metrics -->
-    <div class="grid gap-4 lg:grid-cols-3 text-zinc-500">
+    <div class="grid gap-4 md:grid-cols-3 text-zinc-500">
       <div v-for="metric in metrics" :key="metric.label"
            class="kiosk-panel overflow-hidden rounded-md">
         <div class="gcma-data-row flex items-start justify-between gap-4 p-5" :class="metric.cardClass">
@@ -267,7 +267,7 @@ onMounted(loadLots)
     </div>
 
     <!-- Main grid -->
-    <div class="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+    <div class="grid gap-4 sm:gap-5 lg:grid-cols-[1.15fr_0.85fr]">
       <!-- Left: lots list -->
       <div class="space-y-5">
         <!-- Search bar -->
@@ -326,7 +326,7 @@ onMounted(loadLots)
                   <Beaker :size="24" />
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-3 text-sm text-zinc-500">
+              <div class="grid grid-cols-1 gap-3 text-sm text-zinc-500 sm:grid-cols-2">
                 <div class="gcma-stat">
                   <div class="text-zinc-400">Stock disponible</div>
                   <div class="mt-1 text-xl font-black text-zinc-900">{{ lot.qty }} {{ lot.uom }}</div>
@@ -337,7 +337,7 @@ onMounted(loadLots)
                 </div>
               </div>
               <button @click="openLot(lot)"
-                      class="h-13 w-full rounded-md bg-blue-600 px-5 text-sm font-black uppercase tracking-[0.16em] text-white flex items-center justify-center gap-2 active:bg-blue-700 transition">
+                      class="h-16 w-full rounded-md bg-blue-600 px-5 text-sm font-black uppercase tracking-[0.16em] text-white flex items-center justify-center gap-2 active:bg-blue-700 transition">
                 <ArrowRightLeft :size="18" />
                 Lancer l'inspection
               </button>
@@ -466,7 +466,7 @@ onMounted(loadLots)
               <div class="mt-1 text-xl font-black text-zinc-900">Parametres</div>
             </div>
             <button @click="addParameterRow"
-                    class="h-11 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 flex items-center gap-2 active:bg-zinc-50 transition">
+                    class="h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 flex items-center gap-2 active:bg-zinc-50 transition">
               <Plus :size="16" />
               Ajouter
             </button>
@@ -476,20 +476,20 @@ onMounted(loadLots)
                  class="grid gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-[1.1fr_0.9fr_auto]">
               <div class="space-y-2">
                 <label class="gcma-section-label">Parametre</label>
-                <InputText v-model="row.name" class="!h-11 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
+                <InputText v-model="row.name" class="!h-14 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
               </div>
               <div class="space-y-2">
                 <label class="gcma-section-label">Valeur</label>
                 <InputNumber v-if="row.numeric" v-model="row.value" :min-fraction-digits="0" :max-fraction-digits="2" fluid />
-                <InputText v-else v-model="row.value" class="!h-11 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
+                <InputText v-else v-model="row.value" class="!h-14 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
               </div>
               <div class="flex flex-col justify-end gap-2 md:items-end">
                 <button @click="row.numeric = !row.numeric"
-                        class="h-11 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 active:bg-zinc-50 transition">
+                        class="h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 active:bg-zinc-50 transition">
                   {{ row.numeric ? 'Num.' : 'Texte' }}
                 </button>
                 <button @click="removeParameterRow(row.id)"
-                        class="h-10 w-10 rounded-md text-red-500 flex items-center justify-center active:text-red-600 transition">
+                        class="h-12 w-12 rounded-md text-red-500 flex items-center justify-center active:text-red-600 transition">
                   <Trash2 :size="16" />
                 </button>
               </div>
@@ -507,11 +507,11 @@ onMounted(loadLots)
         <!-- Actions -->
         <div class="grid gap-3 md:grid-cols-2">
           <button @click="drawerVisible = false"
-                  class="h-14 rounded-md border border-zinc-300 bg-white text-sm font-bold text-zinc-700 active:bg-zinc-50 transition">
+                  class="h-16 rounded-md border border-zinc-300 bg-white text-sm font-bold text-zinc-700 active:bg-zinc-50 transition">
             Annuler
           </button>
           <button @click="submitInspection" :disabled="submitting"
-                  class="h-14 rounded-md bg-blue-600 text-sm font-black uppercase tracking-[0.14em] text-white flex items-center justify-center gap-2 active:bg-blue-700 transition disabled:opacity-50">
+                  class="h-16 rounded-md bg-blue-600 text-sm font-black uppercase tracking-[0.14em] text-white flex items-center justify-center gap-2 active:bg-blue-700 transition disabled:opacity-50">
             <RefreshCw v-if="submitting" :size="16" class="animate-spin" />
             {{ selectedDecision === 'Approved' ? 'Valider et liberer' : 'Enregistrer le rejet' }}
           </button>
