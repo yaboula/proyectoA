@@ -265,6 +265,7 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
 | HTTP | `error_code` | `message_fr` | Causa |
 |------|-------------|-------------|-------|
 | 400 | `MISSING_PARAMS` | Paramètre 'work_order' obligatoire. | Sin `work_order` |
+| 422 | `EXTRA_QTY_ABSURD` | Saisie incohérente... | El extra supera la cantidad teórica del ingrediente; probable error de tipeo |
 | 404 | `WO_NOT_FOUND` | Ordre de fabrication introuvable ou non validé. | WO no existe o `docstatus ≠ 1` |
 | — | `WO_NOT_IN_PROCESS` | Cet ordre n'est pas en cours... | WO status no es Not Started / In Process |
 | — | `NO_BOM` | Aucune nomenclature (BOM) associée... | WO sin BOM válida |
@@ -275,10 +276,11 @@ Registra el consumo real de materiales al finalizar la mezcla. Calcula desviacio
 1. Valida que la WO existe, está submitted y en estado activo
 2. Obtiene la BOM y calcula cantidades teóricas × cantidad pendiente
 3. Mapea extras por `item_name` (G3 — sin `item_code` del Kiosco)
-4. Calcula desviación: `qty_real = qty_teorica + qty_extra`
-5. Si `|diferencia_pct| > 10%` → activa alerta WARNING
-6. Registra consumo como Comment `Info` en la Work Order (PoC — sin custom DocType)
-7. Retorna resumen con desviaciones
+4. Bloquea extras absurdos (`qty_extra > qty_teorica`) con `EXTRA_QTY_ABSURD`
+5. Calcula desviación: `qty_real = qty_teorica + qty_extra`
+6. Si `|diferencia_pct| > 10%` → activa alerta WARNING
+7. Registra consumo como Comment `Info` en la Work Order (PoC — sin custom DocType)
+8. Retorna resumen con desviaciones
 
 ### curl
 

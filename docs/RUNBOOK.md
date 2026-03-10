@@ -92,6 +92,40 @@ docker exec frappe_docker-backend-1 \
    frappe.db.commit()"
 ```
 
+### Qué hace `test_data.run`
+
+- Resetea la demo previa: Work Orders de prueba, Stock Entries de test, Comments del kiosco y Job Cards ligadas.
+- Reinyecta stock válido para happy path.
+- Crea fixtures de caos:
+  - `MP-RES-ALK-G70|LOTE-CHAOS-RES-EXP-001` → lote caducado
+  - `PT-PIN-BLC-MAT-20L|LOTE-CHAOS-PT-001` → material equivocado con QR válido
+- Crea una Work Order nueva de 50 cubetas en `In Process`.
+
+### Matriz de caos recomendada
+
+- Basura / badge de empleado: `OP-2026-BADGE-00042` → `INVALID_QR`
+- Material equivocado: `PT-PIN-BLC-MAT-20L|LOTE-CHAOS-PT-001` → `WRONG_MATERIAL`
+- Lote caducado: `MP-RES-ALK-G70|LOTE-CHAOS-RES-EXP-001` → `BATCH_EXPIRED`
+- Batch inexistente: `MP-RES-ALK-G70|LOTE-INEXISTENTE-999` → `BATCH_NOT_FOUND`
+- Batch cruzado: `MP-RES-ALK-G70|LOTE-TEST-PIG-001` → `BATCH_ITEM_MISMATCH`
+- Consumo brutal en EP4: extra mayor que la cantidad teórica → `EXTRA_QTY_ABSURD`
+
+### Demo contable manual (gerencia)
+
+La preparación del entorno deja la Work Order y el stock listos, pero el cierre contable final sigue siendo manual porque EP4 no genera el `Stock Entry Manufacture`.
+
+Pasos manuales en ERPNext:
+
+1. Abrir la Work Order creada por `test_data.run`.
+2. Crear el `Stock Entry` tipo `Manufacture` desde esa Work Order.
+3. Verificar que el `Source Warehouse` consuma desde `Materia Prima Aprobada - PDM` o el almacén configurado en la WO.
+4. Verificar que el `Target Warehouse` sea `Cuarentena PT - PDM`.
+5. Submit del `Stock Entry`.
+6. Verificar:
+   - Work Order en `Completed`
+   - Descuento correcto en `Stock Ledger Entry`
+   - Alta de 50 cubetas en `Cuarentena PT - PDM`
+
 ---
 
 ## Troubleshooting — Problemas Conocidos

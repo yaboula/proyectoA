@@ -28,6 +28,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 ### Changed
 - `docs/API.md`: Documentación completa de EP4 (request, response, errores, curl)
 - `docs/FRONTEND.md`: Flujo EP4, tabla de API wrappers
+- `gcma_kiosco.setup.test_data.run`: ahora resetea la demo y recrea un entorno repetible con fixtures de caos
+- `reportar_consumo`: añade guardrail `EXTRA_QTY_ABSURD` para bloquear errores groseros de tipeo en extras
 
 ## [0.3.0] — 2025-07-25
 

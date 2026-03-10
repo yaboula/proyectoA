@@ -9,7 +9,7 @@ Endpoints implementados:
   [✓] EP1 — login_operario     (POST, auth por QR badge)
   [✓] EP2 — get_tareas          (GET,  Work Orders pendientes)
   [✓] EP3 — validar_material    (POST, Poka-Yoke escaneo MP)
-  [ ] EP4 — reportar_consumo    (POST, consumo real post-mezcla)
+    [✓] EP4 — reportar_consumo    (POST, consumo real post-mezcla)
   [ ] EP5 — info_lote           (GET,  consulta informativa lote)
 """
 
@@ -563,6 +563,23 @@ def reportar_consumo(work_order: str = None, extras: str = None):
             )
             qty_teorica = round(flt(bom_item.qty) * qty_pendiente, 2)
             qty_extra = extras_map.get(item_name, 0)
+
+            # Guardrail anti-typo: los extras del kiosco son solo ajustes finos,
+            # no deben superar la cantidad teórica completa del ingrediente.
+            if qty_teorica > 0 and qty_extra > qty_teorica:
+                frappe.local.response["http_status_code"] = 422
+                return {
+                    "success": False,
+                    "error_code": "EXTRA_QTY_ABSURD",
+                    "item_name": item_name,
+                    "qty_teorica": qty_teorica,
+                    "qty_extra": round(qty_extra, 2),
+                    "message_fr": (
+                        f"Saisie incohérente pour '{item_name}' : extra {round(qty_extra, 2)} "
+                        f"> quantité théorique {qty_teorica}. Vérifiez la valeur saisie."
+                    ),
+                }
+
             qty_real = round(qty_teorica + qty_extra, 2)
 
             diferencia_kg = round(qty_extra, 2)
