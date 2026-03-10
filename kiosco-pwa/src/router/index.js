@@ -10,9 +10,19 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/hub',
+    name: 'hub',
+    component: () => import('../views/ModuleHub.vue'),
+  },
+  {
     path: '/tareas',
     name: 'tareas',
     component: () => import('../views/TareasList.vue'),
+  },
+  {
+    path: '/laboratoire',
+    name: 'laboratoire',
+    component: () => import('../views/LaboratoireQC.vue'),
   },
   {
     path: '/poka-yoke/:workOrder',

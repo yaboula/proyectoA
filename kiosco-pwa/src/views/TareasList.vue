@@ -20,6 +20,8 @@ import {
   Beaker,
   Clock,
   CircleAlert,
+  FlaskConical,
+  LayoutDashboard,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -83,6 +85,22 @@ function logout() {
         </p>
       </div>
       <div class="flex gap-2 shrink-0">
+        <button @click="router.push({ name: 'hub' })"
+                class="h-12 px-4 flex items-center gap-2 rounded-md
+                       border border-slate-700 bg-slate-800
+                       text-slate-300 text-sm font-semibold
+                       active:bg-slate-700 transition">
+          <LayoutDashboard :size="18" />
+          Modules
+        </button>
+        <button @click="router.push({ name: 'laboratoire' })"
+                class="h-12 px-4 flex items-center gap-2 rounded-md
+                       border border-orange-500/30 bg-orange-500/10
+                       text-orange-200 text-sm font-semibold
+                       active:bg-orange-500/20 transition">
+          <FlaskConical :size="18" />
+          Laboratoire
+        </button>
         <button @click="fetchTareas"
                 :disabled="loading"
                 class="h-12 w-12 flex items-center justify-center rounded-md

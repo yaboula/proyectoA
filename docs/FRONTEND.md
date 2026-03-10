@@ -10,6 +10,8 @@
 | Pinia | 3.0 | Estado global |
 | Vue Router | 4.6 | Navegación SPA |
 | Axios | 1.13 | HTTP client |
+| PrimeVue | 4.5 | Librería de componentes moderna (Cards, Drawer, Buttons, Toast, formularios) |
+| @primeuix/themes | 2.0 | Tema base Aura en modo oscuro |
 | vite-plugin-pwa | 1.2 | Service Worker + manifest |
 
 ## Estructura
@@ -18,18 +20,20 @@
 kiosco-pwa/src/
 ├── api/
 │   ├── client.js        # Axios instance (baseURL, interceptors)
-│   └── kiosco.js        # Wrappers tipados EP1/EP2/EP3/EP4
+│   └── kiosco.js        # Wrappers tipados EP1–EP4 + EP6/EP7 calidad
 ├── stores/
 │   └── operario.js      # Pinia store — sesión del operario
 ├── router/
-│   └── index.js         # 3 rutas + navigation guard
+│   └── index.js         # rutas protegidas + hub de módulos
 ├── views/
 │   ├── LoginQR.vue      # Pantalla de login (escáner + modal manual)
+│   ├── ModuleHub.vue    # Hub visual para Production / Laboratoire
+│   ├── LaboratoireQC.vue # Console qualité (Bloque 4)
 │   ├── TareasList.vue   # Lista de Work Orders
 │   └── PokaYokeScanner.vue  # Validación de materiales
-├── App.vue              # Shell: solo <RouterView />
-├── main.js              # Punto de entrada (app + pinia + router)
-└── style.css            # Tailwind import + overrides industriales
+├── App.vue              # Shell global + Toast + fondo temático
+├── main.js              # Punto de entrada (Pinia + Router + PrimeVue)
+└── style.css            # Tailwind + overrides PrimeVue + visual system
 ```
 
 ## Rutas
@@ -37,7 +41,9 @@ kiosco-pwa/src/
 | Path | Componente | Meta | Lazy |
 |------|-----------|------|------|
 | `/` | `LoginQR` | `{ guest: true }` | No |
+| `/hub` | `ModuleHub` | — | Sí |
 | `/tareas` | `TareasList` | — | Sí |
+| `/laboratoire` | `LaboratoireQC` | — | Sí |
 | `/poka-yoke/:workOrder` | `PokaYokeScanner` | `props: true` | Sí |
 
 ### Navigation Guard
@@ -86,6 +92,52 @@ Redirige a login si no hay sesión y antes intenta restaurarla desde la cookie `
 | `getTareas(company, warehouse)` | EP2 `get_tareas` | `company`, `warehouse` |
 | `validarMaterial(workOrder, qrData)` | EP3 `validar_material` | `work_order`, `qr_data` |
 | `reportarConsumo(workOrder, lotesUsados, consumosExtra)` | EP4 `reportar_consumo` | `work_order`, `lotes_usados` (JSON string), `consumos_extra` (JSON string) |
+| `getLotesCuarentena(warehouse)` | EP6 `get_lotes_cuarentena` | `warehouse?` |
+| `aprobarCalidad(payload)` | EP7 `aprobar_calidad` | `itemCode`, `batchNo`, `qty`, `parametros`, `aprobada`, `resultado`, `remarks` |
+
+## Shell de Aplicación
+
+- `main.js` inicializa PrimeVue con preset `Aura` y `ToastService`.
+- `App.vue` deja de ser un `RouterView` plano y monta una shell oscura con fondo atmosférico y `Toast` global.
+- El flujo post-login ya no entra directo en producción: redirige a `/hub`, donde el operario elige entre fabricación y laboratorio.
+
+## ModuleHub — Selección de Zona
+
+Vista de entrada post-login con dos módulos claros:
+
+- **Production pilotée** → navega a `/tareas`
+- **Laboratoire qualité** → navega a `/laboratoire`
+
+Características:
+
+- Hero visual tipo control room con resumen de sesión activa
+- Cards de módulo con CTA grandes, énfasis visual distinto por dominio
+- Botón explícito de cierre de sesión
+- Navegación pensada para tablet, no para escritorio administrativo
+
+## LaboratoireQC — Console Qualité
+
+Pantalla completa de Bloque 4 construida con PrimeVue (`Card`, `Drawer`, `SelectButton`, `InputNumber`, `Textarea`, `Message`, `Toast`).
+
+### Capacidades
+
+- Consulta EP6 `get_lotes_cuarentena` al montar
+- KPIs superiores: número de lotes, volumen en cuarentena y lote más antiguo
+- Búsqueda libre por `item_code`, `item_name`, `batch_no` y fecha
+- Grid de lotes con CTA `Lancer l’inspection`
+- Drawer lateral de inspección con:
+  - cantidad inspeccionada
+  - selector de decisión `Approuver / Rejeter`
+  - parámetros dinámicos con filas editables
+  - textarea de observaciones
+- Submit contra EP7 `aprobar_calidad`
+- Journal lateral de la última acción con `Quality Inspection` y `Stock Entry` resultantes
+
+### Comportamiento del drawer
+
+- Si el veredicto es **Approved**, el botón principal ejecuta liberación y muestra toast success.
+- Si el veredicto es **Rejected**, registra la inspección y deja el stock en cuarentena.
+- Los parámetros se serializan como mapa JSON `nombre -> valor`, alineado con el backend actual.
 
 ## Axios Client (`client.js`)
 
@@ -123,7 +175,7 @@ Los escáneres de código de barras USB se comportan como un teclado: envían ca
 - Pantalla completa con animación de escaneo
 - El escáner envía el token via `keydown` + `Enter`
 - 5 estados visuales: idle → scanning → loading → success / error
-- Si el navegador ya tiene un `sid` válido, la vista restaura la sesión y redirige automáticamente a `/tareas`
+- Si el navegador ya tiene un `sid` válido, la vista restaura la sesión y redirige automáticamente a `/hub`
 
 ### Modo 2: Entrada Manual (Plan B)
 - Botón "Saisie Manuelle" abre modal via `<Teleport to="body">`
@@ -141,7 +193,7 @@ Pantalla principal post-login. Consume EP2 con `company` y `warehouse` del store
 - Botón "DÉMARRER LA PRODUCTION ▶" por tarjeta → navega a `/poka-yoke/:workOrder`
 - Estados: loading (spinner), error (con "Réessayer"), empty (mensaje)
 - Botón refresh (↻) en header + botón Déconnexion
-- Layout: fondo `slate-100`, cards `white` con esquinas `3xl`, sombras `lg`
+- Atajos extra: botón `Modules` para volver al hub y botón `Laboratoire` para saltar a QC
 
 ### Indicador de Stock
 - **✓ Stock complet** (verde): todos los materiales tienen `suficiente: true`
@@ -219,6 +271,13 @@ body {
   min-height: 100dvh;              /* Viewport dinámico */
 }
 ```
+
+Además ahora incluye:
+
+- fondo multicapa con gradientes sutiles
+- clase `glass-panel` para bloques premium
+- overrides dark para `p-card`, `p-button`, `p-inputtext`, `p-inputnumber`, `p-textarea`, `p-drawer`, `p-selectbutton` y `p-toast`
+- visual language consistente entre producción y laboratorio sin depender de estilos inline improvisados
 
 ## Proxy Vite (Desarrollo)
 

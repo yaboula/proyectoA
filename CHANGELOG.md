@@ -33,6 +33,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 **Frontend — API Wrapper EP4**
 - `reportarConsumo(workOrder, lotesUsados, consumosExtra)` en `kiosco.js` con `JSON.stringify` para serializar mapas como form-urlencoded
 
+**Frontend — Hub + Laboratoire (Bloque 4)**
+- PrimeVue activado globalmente con preset Aura dark y `ToastService`
+- Nuevo `ModuleHub.vue` como entrada post-login para elegir Production / Laboratoire
+- Nueva pantalla `LaboratoireQC.vue` con KPIs, búsqueda, cards de lotes y drawer de inspección
+- El laboratorio consume EP6 `get_lotes_cuarentena` y EP7 `aprobar_calidad`
+- El flujo de login ahora redirige al hub, no directamente a producción
+
 ### Changed
 - `docs/API.md`: Documentación completa de EP4 (request, response, errores, curl)
 - `docs/FRONTEND.md`: Flujo EP4, tabla de API wrappers
@@ -43,6 +50,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 - `gcma_kiosco.setup.test_data.run`: también limpia `Quality Inspection` y `Stock Entry` de liberación QC antes de reinyectar la demo
 - `reportar_consumo`: añade guardrail `EXTRA_QTY_ABSURD` para bloquear errores groseros de tipeo en extras
 - Sesión del kiosco: restauración desde cookie `sid`, logout explícito y headers anti-cache para evitar fallos entre navegadores
+- `App.vue`, `main.js` y `style.css`: nueva shell visual con PrimeVue dark, fondo atmosférico y overrides profesionales de componentes
+- `TareasList.vue`: añade navegación directa al hub y al módulo de laboratorio
 
 ### Fixed
 - `aprobar_calidad`: el flujo rechazado ahora referencia el `Stock Entry` que originó el lote en cuarentena, evitando errores nativos de `Quality Inspection` sin referencia

@@ -4,6 +4,7 @@
 import client from './client'
 
 const BASE = '/api/method/gcma_kiosco.api.kiosco'
+const QUALITY_BASE = '/api/method/gcma_kiosco.api.calidad'
 
 /** EP1 — Login operario via QR badge token */
 export function loginOperario(qrToken) {
@@ -39,5 +40,31 @@ export function reportarConsumo(workOrder, lotesUsados = {}, consumosExtra = {})
     work_order: workOrder,
     lotes_usados: JSON.stringify(lotesUsados),
     consumos_extra: JSON.stringify(consumosExtra),
+  })
+}
+
+export function getLotesCuarentena(warehouse) {
+  const params = {}
+  if (warehouse) params.warehouse = warehouse
+  return client.get(`${QUALITY_BASE}.get_lotes_cuarentena`, { params })
+}
+
+export function aprobarCalidad({
+  itemCode,
+  batchNo,
+  qty,
+  parametros,
+  aprobada,
+  resultado,
+  remarks,
+}) {
+  return client.post(`${QUALITY_BASE}.aprobar_calidad`, {
+    item_code: itemCode,
+    batch_no: batchNo,
+    qty,
+    parametros: JSON.stringify(parametros ?? {}),
+    aprobada,
+    resultado,
+    remarks,
   })
 }

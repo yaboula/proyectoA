@@ -75,7 +75,7 @@ async function handleLogin(qrToken) {
     status.value = 'success'
     operarioName.value = data.operario.full_name
     messageFr.value = data.message_fr
-    setTimeout(() => router.push({ name: 'tareas' }), 1200)
+    setTimeout(() => router.push({ name: 'hub' }), 1200)
   } catch (err) {
     status.value = 'error'
     messageFr.value = err?.message_fr ?? 'Erreur inconnue. Réessayez.'
@@ -108,7 +108,7 @@ onMounted(async () => {
 
   const hasSession = await store.ensureSession()
   if (hasSession) {
-    router.replace({ name: 'tareas' })
+    router.replace({ name: 'hub' })
   }
 })
 onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
@@ -123,7 +123,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
         <ShieldCheck :size="28" class="text-emerald-400" />
         <span class="text-lg font-bold tracking-wide text-slate-200 uppercase">GCMA Kiosque</span>
       </div>
-      <span class="text-sm text-slate-500 font-mono">v0.2.0</span>
+      <span class="text-sm text-slate-500 font-mono">v0.5.0</span>
     </header>
 
     <!-- ═══ Center zone ═══ -->

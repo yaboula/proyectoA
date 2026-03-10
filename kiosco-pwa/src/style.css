@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+html,
+body,
+#app {
+  min-height: 100dvh;
+}
+
 /* ── Industrial kiosk overrides ── */
 html {
   font-size: 18px;
@@ -9,8 +15,106 @@ html {
 }
 
 body {
+  margin: 0;
   min-height: 100dvh;
   overscroll-behavior: none;
+  font-family: "Segoe UI Variable", "Inter", "Segoe UI", sans-serif;
+  background: #050b10;
+  color: #e2e8f0;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+.glass-panel {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.74) 0%, rgba(8, 15, 22, 0.82) 100%),
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.12), transparent 32%),
+    radial-gradient(circle at right, rgba(251, 146, 60, 0.12), transparent 30%);
+  backdrop-filter: blur(22px);
+}
+
+.module-card,
+.metric-card,
+.lot-card,
+.empty-state {
+  backdrop-filter: blur(18px);
+}
+
+.gcma-theme-dark .p-card {
+  color: #e2e8f0;
+}
+
+.gcma-theme-dark .p-card .p-card-body {
+  padding: 1rem;
+}
+
+.gcma-theme-dark .p-button {
+  box-shadow: none;
+}
+
+.gcma-theme-dark .p-inputtext,
+.gcma-theme-dark .p-inputnumber-input,
+.gcma-theme-dark .p-textarea {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f8fafc;
+}
+
+.gcma-theme-dark .p-inputtext::placeholder,
+.gcma-theme-dark .p-inputnumber-input::placeholder,
+.gcma-theme-dark .p-textarea::placeholder {
+  color: #64748b;
+}
+
+.gcma-theme-dark .p-inputtext:enabled:focus,
+.gcma-theme-dark .p-inputnumber-input:enabled:focus,
+.gcma-theme-dark .p-textarea:enabled:focus {
+  border-color: rgba(45, 212, 191, 0.55);
+  box-shadow: 0 0 0 0.18rem rgba(45, 212, 191, 0.14);
+}
+
+.gcma-theme-dark .p-drawer {
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.45);
+}
+
+.gcma-theme-dark .p-drawer-header,
+.gcma-theme-dark .p-drawer-content {
+  background: #091119;
+  color: #f8fafc;
+}
+
+.gcma-theme-dark .p-message {
+  backdrop-filter: blur(12px);
+}
+
+.gcma-theme-dark .p-selectbutton {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.gcma-theme-dark .p-selectbutton .p-togglebutton {
+  justify-content: center;
+  min-height: 3.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+}
+
+.gcma-theme-dark .p-selectbutton .p-togglebutton.p-togglebutton-checked {
+  border-color: rgba(45, 212, 191, 0.32);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.22), rgba(251, 146, 60, 0.18));
+  color: #fff;
+}
+
+.gcma-theme-dark .p-toast .p-toast-message {
+  border-radius: 1.25rem;
+  backdrop-filter: blur(20px);
 }
 
 /* ── Design System: Shake animation for Poka-Yoke STOP ── */
