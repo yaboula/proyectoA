@@ -1,70 +1,40 @@
 ﻿<script setup>
 /**
- * LoginQR — Écran de connexion par badge QR.
+ * LoginQR  Ecran de connexion par badge QR.
  *
- * Design System: thème industriel premium (MES avancé).
- * Icônes: lucide-vue-next. Pas de bordures rondes infantiles (rounded-md max).
- * Tout bouton ≥ h-16. Texte en français.
+ * Refactored: useScanner composable, ScanStation, ManualInputModal, KioskLayout.
  */
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOperarioStore } from '../stores/operario'
-import {
-  ScanBarcode,
-  Loader2,
-  CircleCheckBig,
-  CircleX,
-  Keyboard,
-  ChevronRight,
-  ShieldCheck,
-  X,
-} from 'lucide-vue-next'
+import { useScanner } from '../composables/useScanner'
+import KioskLayout from '../components/KioskLayout.vue'
+import ScanStation from '../components/ScanStation.vue'
+import ManualInputModal from '../components/ManualInputModal.vue'
+import { Keyboard, ShieldCheck } from 'lucide-vue-next'
 
 const router = useRouter()
 const store = useOperarioStore()
 
-// ── UI state ──
-const status = ref('idle') // idle | scanning | loading | success | error
+// -- UI state --
+const status = ref('idle')
 const messageFr = ref('Scannez votre badge pour commencer')
 const operarioName = ref('')
 
-// ── Manual modal ──
+// -- Manual modal --
 const manualOpen = ref(false)
 const manualToken = ref('')
-const manualInputRef = ref(null)
 
-watch(manualOpen, (open) => {
-  if (open) nextTick(() => manualInputRef.value?.focus())
+// -- Scanner composable --
+const scanDisabled = computed(() => manualOpen.value)
+const { isScanning } = useScanner(handleLogin, { minLength: 5, disabled: scanDisabled })
+
+watch(isScanning, (scanning) => {
+  if (scanning && (status.value === 'idle' || status.value === 'error')) {
+    status.value = 'scanning'
+    messageFr.value = 'Lecture du badge...'
+  }
 })
-
-// ── Scanner buffer ──
-const SCAN_GAP_MS = 80
-let buffer = ''
-let lastKeyTime = 0
-
-function onKeyDown(e) {
-  if (manualOpen.value) return
-
-  const now = Date.now()
-  if (now - lastKeyTime > SCAN_GAP_MS && buffer.length > 0) buffer = ''
-  lastKeyTime = now
-
-  if (e.key === 'Enter') {
-    e.preventDefault()
-    const token = buffer.trim()
-    buffer = ''
-    if (token.length >= 5) handleLogin(token)
-    return
-  }
-
-  if (e.key.length === 1) {
-    buffer += e.key
-    if (status.value === 'idle' || status.value === 'error') {
-      status.value = 'scanning'
-      messageFr.value = 'Lecture du badge…'
-    }
-  }
-}
 
 async function handleLogin(qrToken) {
   const normalizedToken = String(qrToken ?? '').trim()
@@ -81,7 +51,7 @@ async function handleLogin(qrToken) {
   }
 
   status.value = 'loading'
-  messageFr.value = 'Vérification…'
+  messageFr.value = 'Verification...'
 
   try {
     const data = await store.login(normalizedToken)
@@ -94,7 +64,7 @@ async function handleLogin(qrToken) {
     setTimeout(() => router.push(nextRoute), 1200)
   } catch (err) {
     status.value = 'error'
-    messageFr.value = err?.message_fr ?? 'Erreur inconnue. Réessayez.'
+    messageFr.value = err?.message_fr ?? 'Erreur inconnue. Reessayez.'
     setTimeout(() => {
       if (status.value === 'error') {
         status.value = 'idle'
@@ -112,16 +82,12 @@ function closeManual() {
   manualOpen.value = false
   manualToken.value = ''
 }
-function submitManual() {
-  const token = manualToken.value.trim()
-  if (token.length < 5) return
+function submitManual(token) {
   closeManual()
   handleLogin(token)
 }
 
 onMounted(async () => {
-  document.addEventListener('keydown', onKeyDown)
-
   const hasSession = await store.ensureSession()
   if (hasSession) {
     const nextRoute = store.allowedModules.length === 1
@@ -130,145 +96,111 @@ onMounted(async () => {
     router.replace(nextRoute)
   }
 })
-onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </script>
 
 <template>
-  <div class="min-h-dvh flex flex-col bg-slate-900 select-none">
-
-    <!-- ═══ Top bar ═══ -->
-    <header class="flex items-center justify-between px-6 py-4 bg-slate-800/60 border-b border-slate-700/50">
+  <KioskLayout max-width="6xl">
+    <header class="glass-panel kiosk-panel gcma-toolbar rounded-md px-6 py-5">
       <div class="flex items-center gap-3">
-        <ShieldCheck :size="28" class="text-emerald-400" />
-        <span class="text-lg font-bold tracking-wide text-slate-200 uppercase">GCMA Kiosque</span>
+        <div class="kiosk-icon-shell flex h-12 w-12 items-center justify-center rounded-md text-emerald-300">
+          <ShieldCheck :size="24" />
+        </div>
+        <div>
+          <div class="gcma-section-label">Acces atelier</div>
+          <div class="text-xl font-black tracking-[0.08em] text-white uppercase">GCMA Kiosque</div>
+        </div>
       </div>
-      <span class="text-sm text-slate-500 font-mono">v0.5.0</span>
+      <div class="text-sm font-mono text-zinc-500">v0.5.0</div>
     </header>
 
-    <!-- ═══ Center zone ═══ -->
-    <main class="flex-1 flex flex-col items-center justify-center px-6 gap-8">
+    <main class="grid flex-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <section class="glass-panel kiosk-panel flex flex-col justify-between rounded-md p-6">
+        <div class="space-y-6">
+          <div>
+            <div class="gcma-section-label">Poste d'identification</div>
+            <h1 class="mt-2 text-4xl font-black tracking-tight text-white md:text-5xl">Connexion badge</h1>
+            <p class="mt-4 max-w-xl text-base leading-7 text-zinc-400">
+              Authentification directe par douchette QR pour l'acces aux modules autorises du kiosque.
+              Le poste reste utilisable avec gants et sans clavier permanent.
+            </p>
+          </div>
 
-      <!-- Scan icon — giant barcode -->
-      <div class="relative">
-        <div class="w-32 h-32 rounded-md bg-slate-800 border-2 flex items-center justify-center transition-all duration-300"
-             :class="{
-               'border-slate-600':   status === 'idle',
-               'border-emerald-500 animate-pulse-ring': status === 'scanning',
-               'border-amber-500':   status === 'loading',
-               'border-emerald-400': status === 'success',
-               'border-rose-500':    status === 'error',
-             }">
-          <!-- idle -->
-          <ScanBarcode v-if="status === 'idle'"
-                       :size="64" :stroke-width="1.5"
-                       class="text-slate-400" />
-          <!-- scanning -->
-          <ScanBarcode v-else-if="status === 'scanning'"
-                       :size="64" :stroke-width="1.5"
-                       class="text-emerald-400 animate-pulse" />
-          <!-- loading -->
-          <Loader2 v-else-if="status === 'loading'"
-                   :size="64" :stroke-width="2"
-                   class="text-amber-400 animate-spin" />
-          <!-- success -->
-          <CircleCheckBig v-else-if="status === 'success'"
-                          :size="64" :stroke-width="1.5"
-                          class="text-emerald-400" />
-          <!-- error -->
-          <CircleX v-else
-                   :size="64" :stroke-width="1.5"
-                   class="text-rose-400" />
+          <div class="grid gap-3 md:grid-cols-3 text-zinc-400">
+            <div class="gcma-stat">
+              <div class="gcma-section-label">Etape 01</div>
+              <div class="mt-2 text-base font-bold text-zinc-50">Scanner le badge</div>
+              <div class="mt-1 text-sm leading-6 text-zinc-400">Lecture HID automatique au retour chariot.</div>
+            </div>
+            <div class="gcma-stat">
+              <div class="gcma-section-label">Etape 02</div>
+              <div class="mt-2 text-base font-bold text-zinc-50">Valider le profil</div>
+              <div class="mt-1 text-sm leading-6 text-zinc-400">Controle du profil ERPNext et des modules autorises.</div>
+            </div>
+            <div class="gcma-stat">
+              <div class="gcma-section-label">Etape 03</div>
+              <div class="mt-2 text-base font-bold text-zinc-50">Acceder au poste</div>
+              <div class="mt-1 text-sm leading-6 text-zinc-400">Redirection immediate vers le flux production ou qualite.</div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Operator name on success -->
-      <p v-if="status === 'success'" class="text-3xl font-black text-emerald-400 tracking-tight">
-        {{ operarioName }}
-      </p>
+        <div class="gcma-data-row mt-6 grid gap-3 p-4 md:grid-cols-2">
+          <div>
+            <div class="gcma-section-label">Mode</div>
+            <div class="mt-1 text-sm font-semibold text-zinc-50">Scanner QR prioritaire</div>
+          </div>
+          <div>
+            <div class="gcma-section-label">Secours</div>
+            <div class="mt-1 text-sm font-semibold text-zinc-50">Saisie manuelle controlee</div>
+          </div>
+        </div>
+      </section>
 
-      <!-- French message -->
-      <p class="text-xl font-semibold text-center leading-relaxed max-w-md transition-colors duration-200"
-         :class="{
-           'text-slate-400':   status === 'idle',
-           'text-emerald-300': status === 'scanning',
-           'text-amber-300':   status === 'loading',
-           'text-emerald-300': status === 'success',
-           'text-rose-400':    status === 'error',
-         }">
-        {{ messageFr }}
-      </p>
+      <section class="glass-panel kiosk-panel flex flex-col rounded-md p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <div class="gcma-section-label">Etat du lecteur</div>
+            <div class="mt-2 text-2xl font-black text-white">Station de scan</div>
+          </div>
+          <div class="kiosk-chip rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
+            Badge QR
+          </div>
+        </div>
 
-      <!-- Instruction -->
-      <p v-if="status === 'idle'" class="text-sm text-slate-600 text-center">
-        Présentez votre badge devant la douchette
-      </p>
+        <div class="mt-6 flex flex-1 flex-col items-center justify-center gap-6">
+          <ScanStation
+            :status="status"
+            :message="messageFr"
+            :success-label="operarioName"
+            :hint="status === 'idle' ? 'Presentez le badge devant la douchette pour lancer la session.' : ''"
+            size="lg"
+          />
+        </div>
+
+        <div class="mt-5 grid gap-3 md:grid-cols-[1fr_auto]">
+          <div class="gcma-data-row flex items-center px-4 py-3 text-sm text-zinc-400">
+            Secours operateur en cas de lecture impossible ou badge endommage.
+          </div>
+          <button @click="openManual"
+                  class="h-16 min-w-[15rem] rounded-md border border-zinc-800 bg-zinc-950 px-6 text-base font-semibold text-zinc-50 active:bg-zinc-900 transition">
+            <span class="inline-flex items-center gap-3">
+              <Keyboard :size="22" />
+              Saisie manuelle
+            </span>
+          </button>
+        </div>
+      </section>
     </main>
 
-    <!-- ═══ Bottom zone ═══ -->
-    <footer class="px-6 pb-8 pt-4">
-      <button @click="openManual"
-              class="w-full h-16 flex items-center justify-center gap-3
-                     rounded-md border border-slate-700 bg-slate-800
-                     text-slate-400 text-base font-semibold
-                     active:bg-slate-700 transition">
-        <Keyboard :size="22" />
-        Saisie manuelle
-      </button>
-    </footer>
-
-    <!-- ═══ MANUAL MODAL (shadcn Dialog style) ═══ -->
-    <Teleport to="body">
-      <div v-if="manualOpen"
-           class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in"
-           @click.self="closeManual">
-        <div class="w-full max-w-md mx-6 bg-slate-800 border border-slate-700 rounded-md shadow-2xl p-6">
-          <!-- Header -->
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-slate-100">Saisie manuelle</h2>
-            <button @click="closeManual"
-                    class="w-10 h-10 flex items-center justify-center rounded-md
-                           text-slate-400 hover:bg-slate-700 transition">
-              <X :size="20" />
-            </button>
-          </div>
-
-          <!-- Description -->
-          <p class="text-sm text-slate-400 mb-4">
-            Entrez le code de votre badge manuellement si la douchette ne fonctionne pas.
-          </p>
-
-          <!-- Input -->
-          <input ref="manualInputRef"
-                 v-model="manualToken"
-                 type="text"
-                 inputmode="text"
-                 autocomplete="off"
-                 class="w-full h-16 px-4 text-xl font-mono text-slate-100
-                        bg-slate-900 border border-slate-600 rounded-md
-                        focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50
-                        placeholder:text-slate-600"
-                 placeholder="OP-2026-BADGE-00042"
-                 @keydown.enter.prevent="submitManual" />
-
-          <!-- Actions -->
-          <div class="mt-6 flex gap-3">
-            <button @click="closeManual"
-                    class="flex-1 h-14 rounded-md border border-slate-600 bg-slate-800
-                           text-slate-300 text-base font-semibold
-                           active:bg-slate-700 transition">
-              Annuler
-            </button>
-            <button @click="submitManual"
-                    :disabled="manualToken.trim().length < 5"
-                    class="flex-1 h-14 rounded-md bg-emerald-600 text-white text-base font-bold
-                           flex items-center justify-center gap-2
-                           active:bg-emerald-700 disabled:opacity-40 transition">
-              Valider
-              <ChevronRight :size="20" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-  </div>
+    <ManualInputModal
+      :open="manualOpen"
+      v-model="manualToken"
+      title="Saisie manuelle"
+      description="Entrez le code de votre badge manuellement si la douchette ne fonctionne pas."
+      placeholder="OP-2026-BADGE-00042"
+      :min-length="5"
+      @close="closeManual"
+      @submit="submitManual"
+    />
+  </KioskLayout>
 </template>

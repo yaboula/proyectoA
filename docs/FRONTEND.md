@@ -19,22 +19,109 @@
 ```
 kiosco-pwa/src/
 ├── api/
-│   ├── client.js        # Axios instance (baseURL, interceptors)
-│   └── kiosco.js        # Wrappers tipados EP1–EP4 + EP6/EP7 calidad
+│   ├── client.js            # Axios instance (baseURL, interceptors)
+│   └── kiosco.js            # Wrappers tipados EP1–EP4 + EP6/EP7 calidad
+├── composables/
+│   └── useScanner.js        # USB HID barcode scanner logic (shared)
+├── components/
+│   ├── KioskLayout.vue      # Outer shell wrapper for all views
+│   ├── ScanStation.vue      # Scanner state visualizer (idle/scanning/loading/success/error)
+│   ├── ManualInputModal.vue # Teleported manual QR input dialog
+│   ├── FullScreenOverlay.vue# Teleported fullscreen overlay (error/success/loading/info)
+│   └── EmptyState.vue       # Reusable "no data" display
 ├── stores/
-│   └── operario.js      # Pinia store — sesión del operario
+│   └── operario.js          # Pinia store — sesión del operario
 ├── router/
-│   └── index.js         # rutas protegidas + hub de módulos
+│   └── index.js             # rutas protegidas + hub de módulos
 ├── views/
-│   ├── LoginQR.vue      # Pantalla de login (escáner + modal manual)
-│   ├── ModuleHub.vue    # Hub visual para Production / Laboratoire
-│   ├── LaboratoireQC.vue # Console qualité (Bloque 4)
-│   ├── TareasList.vue   # Lista de Work Orders
+│   ├── LoginQR.vue          # Pantalla de login (escáner + modal manual)
+│   ├── ModuleHub.vue        # Hub visual para Production / Laboratoire
+│   ├── LaboratoireQC.vue    # Console qualité (Bloque 4)
+│   ├── TareasList.vue       # Lista de Work Orders
 │   └── PokaYokeScanner.vue  # Validación de materiales
-├── App.vue              # Shell global + Toast + fondo temático
-├── main.js              # Punto de entrada (Pinia + Router + PrimeVue)
-└── style.css            # Tailwind + overrides PrimeVue + visual system
+├── App.vue                  # Shell global + Toast + fondo temático
+├── main.js                  # Punto de entrada (Pinia + Router + PrimeVue)
+└── style.css                # Tailwind + overrides PrimeVue + visual system
 ```
+
+## Composables
+
+### `useScanner(onScan, options?)`
+
+Shared USB HID barcode scanner logic extracted from LoginQR and PokaYokeScanner.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `gapMs` | number | 80 | Max ms between keystrokes before buffer resets |
+| `minLength` | number | 3 | Minimum characters to trigger scan |
+| `disabled` | Ref\<boolean\> | `ref(false)` | Reactive flag to pause the listener |
+
+Returns `{ isScanning }` — a ref that is `true` while characters are being buffered.
+
+## Shared Components
+
+### `KioskLayout`
+
+Outer shell applied to every view. Provides consistent padding, max-width, select-none, and text-zinc-50.
+
+| Prop | Type | Default |
+|------|------|---------|
+| `maxWidth` | string | `'7xl'` |
+
+Slot: default (view content).
+
+### `ScanStation`
+
+Visual scanner state indicator with status-dependent borders, icons, and animations.
+
+| Prop | Type | Values |
+|------|------|--------|
+| `status` | string | `idle` \| `scanning` \| `loading` \| `success` \| `error` |
+| `message` | string | Main text |
+| `hint` | string | Secondary text |
+| `successLabel` | string | Override for success icon label |
+| `size` | string | `md` \| `lg` |
+
+### `ManualInputModal`
+
+Teleported modal dialog for manual QR code entry. Auto-focuses input on open.
+
+| Prop | Type |
+|------|------|
+| `open` | boolean |
+| `modelValue` | string (v-model) |
+| `title` | string |
+| `description` | string |
+| `placeholder` | string |
+| `minLength` | number |
+
+Emits: `close`, `submit`, `update:modelValue`.
+
+### `FullScreenOverlay`
+
+Teleported fullscreen overlay for error/success/loading/info states.
+
+| Prop | Type | Values |
+|------|------|--------|
+| `visible` | boolean | — |
+| `variant` | string | `error` \| `success` \| `loading` \| `info` |
+| `title` | string | — |
+| `subtitle` | string | — |
+| `hint` | string | — |
+| `shake` | boolean | Enables pulse animation |
+| `clickable` | boolean | Enables dismiss on click |
+
+Emits: `dismiss`. Slots: `#alert`, `#action`.
+
+### `EmptyState`
+
+Generic "no data" display with icon, title, message and optional action slot.
+
+| Prop | Type |
+|------|------|
+| `icon` | Component |
+| `title` | string |
+| `message` | string |
 
 ## Rutas
 
@@ -169,12 +256,12 @@ Los escáneres de código de barras USB se comportan como un teclado: envían ca
 └──────────────┘                     └─────────────┘
 ```
 
-**Implementación** (en `LoginQR.vue` y `PokaYokeScanner.vue`):
+**Implementación**: `src/composables/useScanner.js` — composable compartido por `LoginQR.vue` y `PokaYokeScanner.vue`.
 
 1. `keydown` listener en `window` (montado con `onMounted`, limpiado con `onUnmounted`)
 2. Buffer acumula caracteres; timer de 80ms resetea si hay pausa larga
-3. `Enter` → llama handler con buffer completo → reset buffer
-4. Guard `manualOpen` pausa el listener cuando el modal manual está visible
+3. `Enter` → llama callback con buffer completo → reset buffer
+4. Prop reactiva `disabled` pausa el listener cuando el modal manual está visible
 
 ## LoginQR — Modos de Entrada
 

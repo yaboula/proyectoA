@@ -3,6 +3,24 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.5.0] — 2026-03-11
+
+### Changed
+
+**Frontend — Component extraction & design refactoring**
+- New `src/composables/useScanner.js`: shared USB HID barcode scanner logic (was duplicated in LoginQR + PokaYokeScanner)
+- New `src/components/KioskLayout.vue`: standardised outer shell wrapper applied to all 5 views
+- New `src/components/ScanStation.vue`: scanner state visualiser (idle/scanning/loading/success/error)
+- New `src/components/ManualInputModal.vue`: teleported manual QR input dialog (was duplicated in 2 views)
+- New `src/components/FullScreenOverlay.vue`: teleported fullscreen overlay for error/success/loading/info states
+- New `src/components/EmptyState.vue`: reusable "no data" display component
+- `LoginQR.vue` rewritten with useScanner + KioskLayout + ScanStation + ManualInputModal (~285→~190 lines)
+- `PokaYokeScanner.vue` rewritten with useScanner + KioskLayout + ScanStation + ManualInputModal + FullScreenOverlay (~605→~350 lines)
+- `TareasList.vue` rewritten with KioskLayout + EmptyState
+- `ModuleHub.vue` rewritten with KioskLayout, removed PrimeVue Card/Button/Tag dependency
+- `LaboratoireQC.vue` rewritten with KioskLayout + EmptyState, kept PrimeVue Drawer + form inputs
+- Updated `docs/FRONTEND.md` with new component architecture, composables, and shared component API reference
+
 ## [0.4.0] — 2026-03-10
 
 ### Added

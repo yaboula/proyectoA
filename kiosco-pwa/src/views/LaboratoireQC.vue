@@ -1,18 +1,20 @@
-<script setup>
+﻿<script setup>
+/**
+ * LaboratoireQC -- Quality lab inspection console.
+ *
+ * Refactored: KioskLayout, EmptyState, plain HTML for simple wrappers,
+ * kept PrimeVue Drawer + form inputs (SelectButton, InputNumber, InputText, Textarea).
+ */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
-import Card from 'primevue/card'
-import Button from 'primevue/button'
-import Tag from 'primevue/tag'
 import Drawer from 'primevue/drawer'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
 import SelectButton from 'primevue/selectbutton'
-import Message from 'primevue/message'
-import Divider from 'primevue/divider'
-import Skeleton from 'primevue/skeleton'
+import KioskLayout from '../components/KioskLayout.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { useOperarioStore } from '../stores/operario'
 import { aprobarCalidad, getLotesCuarentena } from '../api/kiosco'
 import {
@@ -58,7 +60,7 @@ const parameterRows = ref([])
 function buildDefaultRows() {
   return [
     { id: crypto.randomUUID(), name: 'pH', value: 8.2, numeric: true },
-    { id: crypto.randomUUID(), name: 'viscosité KU', value: 95, numeric: true },
+    { id: crypto.randomUUID(), name: 'viscosite KU', value: 95, numeric: true },
     { id: crypto.randomUUID(), name: 'aspect', value: 'Conforme', numeric: false },
   ]
 }
@@ -68,7 +70,7 @@ function resetForm(lot) {
   drawerVisible.value = !!lot
   selectedDecision.value = 'Approved'
   quantity.value = lot ? Math.min(1, Number(lot.qty) || 1) || 1 : 1
-  remarks.value = lot ? `Contrôle laboratoire du lot ${lot.batch_no}` : ''
+  remarks.value = lot ? `Controle laboratoire du lot ${lot.batch_no}` : ''
   parameterRows.value = buildDefaultRows()
 }
 
@@ -81,87 +83,70 @@ watch(selectedDecision, (decision) => {
 const filteredLots = computed(() => {
   const needle = query.value.trim().toLowerCase()
   if (!needle) return lotes.value
-
   return lotes.value.filter((lot) =>
     [lot.item_code, lot.item_name, lot.batch_no, lot.fecha_fabricacion]
       .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(needle))
+      .some((v) => String(v).toLowerCase().includes(needle))
   )
 })
 
 const metrics = computed(() => {
   const totalLots = lotes.value.length
-  const totalQty = lotes.value.reduce((sum, lot) => sum + Number(lot.qty || 0), 0)
-  const oldestDate = [...lotes.value]
-    .map((lot) => lot.fecha_fabricacion)
-    .filter(Boolean)
-    .sort()[0]
-
+  const totalQty = lotes.value.reduce((sum, l) => sum + Number(l.qty || 0), 0)
+  const oldestDate = [...lotes.value].map((l) => l.fecha_fabricacion).filter(Boolean).sort()[0]
   return [
     {
       label: 'Lots en attente',
       value: totalLots,
       icon: ScanSearch,
-      tone: 'from-teal-400/18 to-transparent',
+      cardClass: 'border-emerald-500/18 bg-emerald-500/6',
+      iconClass: 'text-emerald-300 bg-emerald-500/10',
     },
     {
       label: 'Volume sous quarantaine',
       value: `${totalQty.toFixed(1)} Nos`,
       icon: Package,
-      tone: 'from-cyan-400/18 to-transparent',
+      cardClass: 'border-cyan-500/18 bg-cyan-500/6',
+      iconClass: 'text-cyan-200 bg-cyan-500/10',
     },
     {
       label: 'Plus ancien lot',
-      value: oldestDate || 'Aujourd’hui',
+      value: oldestDate || "Aujourd'hui",
       icon: CalendarClock,
-      tone: 'from-orange-400/18 to-transparent',
+      cardClass: 'border-zinc-800 bg-zinc-950/40',
+      iconClass: 'text-zinc-50 bg-zinc-950',
     },
   ]
 })
 
 function addParameterRow() {
-  parameterRows.value.push({
-    id: crypto.randomUUID(),
-    name: '',
-    value: '',
-    numeric: false,
-  })
+  parameterRows.value.push({ id: crypto.randomUUID(), name: '', value: '', numeric: false })
 }
 
 function removeParameterRow(id) {
   if (parameterRows.value.length === 1) return
-  parameterRows.value = parameterRows.value.filter((row) => row.id !== id)
+  parameterRows.value = parameterRows.value.filter((r) => r.id !== id)
 }
 
 function serializeParameters() {
   const result = {}
   for (const row of parameterRows.value) {
-    const parameter = row.name.trim()
-    if (!parameter) continue
-
-    if (row.numeric) {
-      result[parameter] = Number(row.value)
-    } else {
-      result[parameter] = String(row.value ?? '').trim()
-    }
+    const p = row.name.trim()
+    if (!p) continue
+    result[p] = row.numeric ? Number(row.value) : String(row.value ?? '').trim()
   }
   return result
 }
 
 function validateForm() {
-  if (!selectedLot.value) return 'Aucun lot sélectionné.'
-  if (!quantity.value || Number(quantity.value) <= 0) return 'La quantité doit être supérieure à zéro.'
-  if (Number(quantity.value) > Number(selectedLot.value.qty)) return 'La quantité dépasse le stock disponible en quarantaine.'
-
+  if (!selectedLot.value) return 'Aucun lot selectionne.'
+  if (!quantity.value || Number(quantity.value) <= 0) return 'La quantite doit etre superieure a zero.'
+  if (Number(quantity.value) > Number(selectedLot.value.qty)) return 'La quantite depasse le stock disponible.'
   const params = serializeParameters()
-  if (Object.keys(params).length === 0) return 'Ajoutez au moins un paramètre laboratoire.'
-
+  if (Object.keys(params).length === 0) return 'Ajoutez au moins un parametre laboratoire.'
   for (const [key, value] of Object.entries(params)) {
-    if (!key || value === '' || Number.isNaN(value)) {
-      return 'Chaque paramètre doit avoir un nom et une valeur valide.'
-    }
+    if (!key || value === '' || Number.isNaN(value)) return 'Chaque parametre doit avoir un nom et une valeur valide.'
   }
-
   return null
 }
 
@@ -171,7 +156,6 @@ async function loadLots() {
     router.push({ name: 'hub' })
     return
   }
-
   loading.value = true
   error.value = ''
   try {
@@ -188,15 +172,9 @@ async function loadLots() {
 async function submitInspection() {
   const validationError = validateForm()
   if (validationError) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Saisie incomplète',
-      detail: validationError,
-      life: 3500,
-    })
+    toast.add({ severity: 'warn', summary: 'Saisie incomplete', detail: validationError, life: 3500 })
     return
   }
-
   submitting.value = true
   try {
     const payload = {
@@ -208,7 +186,6 @@ async function submitInspection() {
       resultado: selectedDecision.value,
       remarks: remarks.value.trim(),
     }
-
     const result = await aprobarCalidad(payload)
     auditTrail.value = {
       batchNo: result.batch_no,
@@ -219,402 +196,327 @@ async function submitInspection() {
       message: result.message_fr,
       at: new Date().toLocaleString('fr-FR'),
     }
-
     toast.add({
       severity: result.quality_status === 'Accepted' ? 'success' : 'info',
-      summary: result.quality_status === 'Accepted' ? 'Lot libéré' : 'Lot maintenu',
+      summary: result.quality_status === 'Accepted' ? 'Lot libere' : 'Lot maintenu',
       detail: result.message_fr,
       life: 4500,
     })
-
     await loadLots()
     drawerVisible.value = false
     selectedLot.value = null
   } catch (err) {
-    toast.add({
-      severity: 'error',
-      summary: 'Validation impossible',
-      detail: err?.message_fr ?? 'Erreur laboratoire inattendue.',
-      life: 5000,
-    })
+    toast.add({ severity: 'error', summary: 'Validation impossible', detail: err?.message_fr ?? 'Erreur laboratoire inattendue.', life: 5000 })
   } finally {
     submitting.value = false
   }
 }
 
-function openLot(lot) {
-  resetForm(lot)
-}
+function openLot(lot) { resetForm(lot) }
 
 onMounted(loadLots)
 </script>
 
 <template>
-  <div class="min-h-dvh px-5 py-5 text-slate-100">
-    <section class="mx-auto flex max-w-7xl flex-col gap-5">
-      <div class="glass-panel kiosk-panel overflow-hidden rounded-[28px] p-6 md:p-7">
-        <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div class="space-y-4">
-            <div class="kiosk-chip inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-300">
-              <FlaskConical :size="14" />
-              Laboratory Release Desk
-            </div>
-            <div>
-              <h1 class="text-4xl font-black tracking-tight text-white md:text-5xl">Laboratoire qualité</h1>
-              <p class="mt-3 max-w-3xl text-base leading-7 text-slate-300">
-                Vue complète des lots en quarantaine, décision qualité, libération immédiate et traçabilité native ERPNext dans une seule console d’analyse.
-              </p>
-            </div>
+  <KioskLayout>
+    <!-- Header -->
+    <div class="glass-panel kiosk-panel overflow-hidden rounded-md p-6 md:p-7">
+      <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div class="space-y-4">
+          <div class="kiosk-chip inline-flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
+            <FlaskConical :size="14" />
+            Laboratory Release Desk
           </div>
-
-          <div class="flex flex-wrap gap-3">
-            <Button
-              label="Retour aux modules"
-              severity="secondary"
-              class="!h-12 !rounded-2xl !border !border-slate-700 !bg-slate-900/80 !px-4 !text-slate-200 hover:!bg-slate-800"
-              @click="router.push({ name: 'hub' })"
-            >
-              <template #icon>
-                <ArrowLeft :size="18" />
-              </template>
-            </Button>
-            <Button
-              label="Actualiser"
-              class="!h-12 !rounded-2xl !border-0 !bg-gradient-to-r !from-teal-400 !to-emerald-400 !px-5 !font-bold !text-slate-950"
-              @click="loadLots"
-            >
-              <template #icon>
-                <RefreshCw :size="18" :class="{ 'animate-spin': loading }" />
-              </template>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid gap-4 lg:grid-cols-3">
-        <Card
-          v-for="metric in metrics"
-          :key="metric.label"
-          class="metric-card kiosk-panel overflow-hidden rounded-[24px]"
-        >
-          <template #content>
-            <div class="relative overflow-hidden rounded-[20px] border border-slate-800 p-5">
-              <div class="absolute inset-0 bg-gradient-to-br" :class="metric.tone" />
-              <div class="relative z-10 flex items-start justify-between gap-4">
-                <div>
-                  <div class="text-xs uppercase tracking-[0.22em] text-slate-500">{{ metric.label }}</div>
-                  <div class="mt-2 text-3xl font-black text-white">{{ metric.value }}</div>
-                </div>
-                <div class="kiosk-icon-shell flex h-12 w-12 items-center justify-center rounded-2xl text-slate-100">
-                  <component :is="metric.icon" :size="22" />
-                </div>
-              </div>
-            </div>
-          </template>
-        </Card>
-      </div>
-
-      <div class="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-        <div class="space-y-5">
-          <Card class="kiosk-panel overflow-hidden rounded-[28px]">
-            <template #content>
-              <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <div class="text-xs uppercase tracking-[0.24em] text-slate-500">Recherche</div>
-                  <div class="mt-2 text-2xl font-black text-white">Lots en quarantaine</div>
-                </div>
-                <div class="relative w-full md:max-w-sm">
-                  <Search :size="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <InputText
-                    v-model="query"
-                    placeholder="Item, lot, date..."
-                    class="!h-12 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !pl-11 !text-slate-100 placeholder:!text-slate-500"
-                  />
-                </div>
-              </div>
-            </template>
-          </Card>
-
-          <div v-if="loading" class="grid gap-4 md:grid-cols-2">
-            <Card v-for="n in 4" :key="n" class="kiosk-panel-soft rounded-[24px]">
-              <template #content>
-                <div class="space-y-3 p-1">
-                  <Skeleton width="8rem" height="1rem" class="!rounded-full" />
-                  <Skeleton width="14rem" height="2rem" class="!rounded-xl" />
-                  <Skeleton width="10rem" height="1rem" class="!rounded-xl" />
-                  <Skeleton width="100%" height="6rem" class="!rounded-2xl" />
-                </div>
-              </template>
-            </Card>
-          </div>
-
-          <Message v-else-if="error" severity="error" class="!rounded-2xl !border !border-rose-400/25 !bg-rose-400/10 !text-rose-100">
-            {{ error }}
-          </Message>
-
-          <div v-else-if="filteredLots.length === 0" class="empty-state kiosk-panel-soft rounded-[28px] border-dashed p-10 text-center">
-            <div class="kiosk-icon-shell mx-auto flex h-18 w-18 items-center justify-center rounded-3xl text-slate-400">
-              <ScanSearch :size="36" />
-            </div>
-            <h2 class="mt-5 text-2xl font-black text-white">Aucun lot visible</h2>
-            <p class="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-400">
-              La quarantaine est vide ou votre filtre masque tous les résultats. Rafraîchissez les données ou simplifiez la recherche.
+          <div>
+            <div class="gcma-section-label">Controle qualite</div>
+            <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-50 md:text-5xl">Laboratoire qualite</h1>
+            <p class="mt-3 max-w-3xl text-base leading-7 text-zinc-400">
+              Vue complete des lots en quarantaine, decision qualite, liberation immediate et tracabilite native ERPNext dans une seule console d'analyse.
             </p>
           </div>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button @click="router.push({ name: 'hub' })"
+                  class="h-12 rounded-md border border-zinc-800 bg-zinc-950 px-4 text-sm font-semibold text-zinc-50 flex items-center gap-2 active:bg-zinc-900 transition">
+            <ArrowLeft :size="18" />
+            Retour aux modules
+          </button>
+          <button @click="loadLots"
+                  class="h-12 rounded-md bg-zinc-50 px-5 text-sm font-bold text-zinc-900 flex items-center gap-2 active:bg-zinc-200 transition">
+            <RefreshCw :size="18" :class="{ 'animate-spin': loading }" />
+            Actualiser
+          </button>
+        </div>
+      </div>
+    </div>
 
-          <div v-else class="grid gap-4 md:grid-cols-2">
-            <Card
-              v-for="lot in filteredLots"
-              :key="`${lot.item_code}-${lot.batch_no}`"
-              class="lot-card kiosk-panel overflow-hidden rounded-[26px]"
-            >
-              <template #content>
-                <div class="space-y-5">
-                  <div class="flex items-start justify-between gap-4">
-                    <div class="space-y-3">
-                      <Tag :value="lot.batch_no" rounded class="!rounded-full !bg-teal-400/12 !px-3 !py-1 !text-[11px] !font-semibold !tracking-[0.18em] !text-teal-100" />
-                      <div>
-                        <h3 class="text-2xl font-black leading-tight text-white">{{ lot.item_name }}</h3>
-                        <p class="mt-1 text-sm text-slate-400">{{ lot.item_code }}</p>
-                      </div>
-                    </div>
-                    <div class="kiosk-icon-shell flex h-14 w-14 items-center justify-center rounded-3xl text-orange-200">
-                      <Beaker :size="24" />
-                    </div>
-                  </div>
+    <!-- Metrics -->
+    <div class="grid gap-4 lg:grid-cols-3 text-zinc-400">
+      <div v-for="metric in metrics" :key="metric.label"
+           class="metric-card kiosk-panel overflow-hidden rounded-md">
+        <div class="gcma-data-row flex items-start justify-between gap-4 p-5" :class="metric.cardClass">
+          <div>
+            <div class="gcma-section-label">{{ metric.label }}</div>
+            <div class="mt-2 text-3xl font-black text-white">{{ metric.value }}</div>
+          </div>
+          <div class="kiosk-icon-shell flex h-12 w-12 items-center justify-center rounded-md" :class="metric.iconClass">
+            <component :is="metric.icon" :size="22" />
+          </div>
+        </div>
+      </div>
+    </div>
 
-                  <div class="grid grid-cols-2 gap-3 text-sm text-slate-300">
-                    <div class="kiosk-tile rounded-2xl p-3">
-                      <div class="text-slate-500">Stock disponible</div>
-                      <div class="mt-1 text-xl font-black text-white">{{ lot.qty }} {{ lot.uom }}</div>
-                    </div>
-                    <div class="kiosk-tile rounded-2xl p-3">
-                      <div class="text-slate-500">Fabrication</div>
-                      <div class="mt-1 font-semibold text-white">{{ lot.fecha_fabricacion || 'N/A' }}</div>
-                    </div>
-                  </div>
-
-                  <Button
-                    label="Lancer l’inspection"
-                    class="!h-13 !w-full !rounded-2xl !border-0 !bg-gradient-to-r !from-orange-400 !to-amber-300 !font-black !uppercase !tracking-[0.16em] !text-slate-950"
-                    @click="openLot(lot)"
-                  >
-                    <template #icon>
-                      <ArrowRightLeft :size="18" />
-                    </template>
-                  </Button>
-                </div>
-              </template>
-            </Card>
+    <!-- Main grid -->
+    <div class="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+      <!-- Left: lots list -->
+      <div class="space-y-5">
+        <!-- Search bar -->
+        <div class="kiosk-panel overflow-hidden rounded-md p-5">
+          <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div class="gcma-section-label">Recherche</div>
+              <div class="mt-2 text-2xl font-black text-white">Lots en quarantaine</div>
+            </div>
+            <div class="relative w-full md:max-w-sm">
+              <Search :size="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <InputText v-model="query"
+                         placeholder="Item, lot, date..."
+                         class="!h-12 !w-full !rounded-md !border-zinc-800 !bg-zinc-950 !pl-11 !text-zinc-50 placeholder:!text-zinc-500" />
+            </div>
           </div>
         </div>
 
-        <div class="space-y-5">
-          <Card class="kiosk-panel overflow-hidden rounded-[28px]">
-            <template #content>
-              <div class="space-y-4">
-                <div class="flex items-center gap-3">
-                  <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/12 text-emerald-300">
-                    <Sparkles :size="22" />
-                  </div>
+        <!-- Loading skeletons -->
+        <div v-if="loading" class="grid gap-4 md:grid-cols-2">
+          <div v-for="n in 4" :key="n" class="kiosk-panel-soft rounded-md p-5 space-y-3">
+            <div class="h-4 w-32 animate-pulse rounded-md bg-zinc-800" />
+            <div class="h-8 w-56 animate-pulse rounded-md bg-zinc-800" />
+            <div class="h-4 w-40 animate-pulse rounded-md bg-zinc-800" />
+            <div class="h-24 w-full animate-pulse rounded-md bg-zinc-800" />
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div v-else-if="error" class="rounded-md border border-rose-400/25 bg-rose-400/10 p-5 text-sm text-rose-100">
+          {{ error }}
+        </div>
+
+        <!-- Empty state -->
+        <EmptyState v-else-if="filteredLots.length === 0"
+                    :icon="ScanSearch"
+                    title="Aucun lot visible"
+                    message="La quarantaine est vide ou votre filtre masque tous les resultats. Rafraichissez les donnees ou simplifiez la recherche." />
+
+        <!-- Lot cards -->
+        <div v-else class="grid gap-4 md:grid-cols-2">
+          <article v-for="lot in filteredLots" :key="`${lot.item_code}-${lot.batch_no}`"
+                   class="lot-card kiosk-panel overflow-hidden rounded-md">
+            <div class="space-y-5 p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div class="space-y-3">
+                  <span class="kiosk-chip inline-block rounded-md px-3 py-2 text-[11px] font-semibold tracking-[0.18em] text-zinc-300">
+                    {{ lot.batch_no }}
+                  </span>
                   <div>
-                    <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Dernière action</div>
-                    <div class="text-2xl font-black text-white">Journal immédiat</div>
+                    <h3 class="text-2xl font-black leading-tight text-zinc-50">{{ lot.item_name }}</h3>
+                    <p class="mt-1 text-sm text-zinc-400">{{ lot.item_code }}</p>
                   </div>
                 </div>
-
-                <div v-if="auditTrail" class="kiosk-tile rounded-[24px] p-5">
-                  <div class="flex items-center justify-between gap-3">
-                    <Tag
-                      :value="auditTrail.status === 'Accepted' ? 'Lot approuvé' : 'Lot rejeté'"
-                      rounded
-                      :class="auditTrail.status === 'Accepted'
-                        ? '!rounded-full !bg-emerald-400/14 !px-3 !py-1 !text-emerald-100'
-                        : '!rounded-full !bg-rose-400/14 !px-3 !py-1 !text-rose-100'"
-                    />
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">{{ auditTrail.at }}</div>
-                  </div>
-                  <div class="mt-4 space-y-2 text-sm text-slate-300">
-                    <div><span class="text-slate-500">Lot:</span> {{ auditTrail.batchNo }}</div>
-                    <div><span class="text-slate-500">QI:</span> {{ auditTrail.qualityInspection }}</div>
-                    <div v-if="auditTrail.stockEntry"><span class="text-slate-500">Stock Entry:</span> {{ auditTrail.stockEntry }}</div>
-                    <div><span class="text-slate-500">Quantité:</span> {{ auditTrail.qty }}</div>
-                    <div class="pt-2 text-slate-200">{{ auditTrail.message }}</div>
-                  </div>
-                </div>
-                <div v-else class="kiosk-panel-soft rounded-[24px] border-dashed p-6 text-sm leading-7 text-slate-400">
-                  Les décisions qualité validées apparaîtront ici avec leurs documents ERPNext pour laisser un repère visuel immédiat à l’équipe.
+                <div class="kiosk-icon-shell flex h-14 w-14 items-center justify-center rounded-md text-zinc-50">
+                  <Beaker :size="24" />
                 </div>
               </div>
-            </template>
-          </Card>
-
-          <Card class="kiosk-panel overflow-hidden rounded-[28px]">
-            <template #content>
-              <div class="space-y-4">
-                <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Cadre métier</div>
-                <div class="text-2xl font-black text-white">Décision assistée</div>
-                <Divider class="!my-0 !border-slate-800" />
-                <div class="space-y-3 text-sm leading-7 text-slate-300">
-                  <div class="rounded-2xl border border-emerald-400/16 bg-emerald-400/8 p-4">
-                    <div class="flex items-center gap-2 text-emerald-100"><BadgeCheck :size="16" /> Approuvé</div>
-                    <div class="mt-1 text-slate-200">Le lot est déplacé vers le stock vendable et l’inspection reste liée au document de libération.</div>
-                  </div>
-                  <div class="rounded-2xl border border-rose-400/16 bg-rose-400/8 p-4">
-                    <div class="flex items-center gap-2 text-rose-100"><ShieldAlert :size="16" /> Rejeté</div>
-                    <div class="mt-1 text-slate-200">Le lot reste en quarantaine et l’inspection référence le document qui a créé le stock retenu.</div>
-                  </div>
+              <div class="grid grid-cols-2 gap-3 text-sm text-zinc-400">
+                <div class="gcma-stat">
+                  <div class="text-zinc-500">Stock disponible</div>
+                  <div class="mt-1 text-xl font-black text-zinc-50">{{ lot.qty }} {{ lot.uom }}</div>
+                </div>
+                <div class="gcma-stat">
+                  <div class="text-zinc-500">Fabrication</div>
+                  <div class="mt-1 font-semibold text-zinc-50">{{ lot.fecha_fabricacion || 'N/A' }}</div>
                 </div>
               </div>
-            </template>
-          </Card>
+              <button @click="openLot(lot)"
+                      class="h-13 w-full rounded-md bg-zinc-50 px-5 text-sm font-black uppercase tracking-[0.16em] text-zinc-900 flex items-center justify-center gap-2 active:bg-zinc-200 transition">
+                <ArrowRightLeft :size="18" />
+                Lancer l'inspection
+              </button>
+            </div>
+          </article>
         </div>
       </div>
-    </section>
 
-    <Drawer v-model:visible="drawerVisible" position="right" class="!w-full !max-w-[38rem] !border-l !border-slate-800 !bg-[#091119] !text-slate-100">
+      <!-- Right: sidebar -->
+      <div class="space-y-5">
+        <!-- Audit trail -->
+        <div class="kiosk-panel overflow-hidden rounded-md p-5">
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="kiosk-icon-shell flex h-12 w-12 items-center justify-center rounded-md text-emerald-300">
+                <Sparkles :size="22" />
+              </div>
+              <div>
+                <div class="gcma-section-label">Derniere action</div>
+                <div class="text-2xl font-black text-zinc-50">Journal immediat</div>
+              </div>
+            </div>
+            <div v-if="auditTrail" class="gcma-data-row p-5">
+              <div class="flex items-center justify-between gap-3">
+                <span class="rounded-md px-3 py-2 text-[11px] font-semibold"
+                      :class="auditTrail.status === 'Accepted' ? 'bg-emerald-400/14 text-emerald-100' : 'bg-rose-400/14 text-rose-100'">
+                  {{ auditTrail.status === 'Accepted' ? 'Lot approuve' : 'Lot rejete' }}
+                </span>
+                <div class="text-xs uppercase tracking-[0.2em] text-zinc-500">{{ auditTrail.at }}</div>
+              </div>
+              <div class="mt-4 space-y-2 text-sm text-zinc-400">
+                <div><span class="text-zinc-500">Lot:</span> {{ auditTrail.batchNo }}</div>
+                <div><span class="text-zinc-500">QI:</span> {{ auditTrail.qualityInspection }}</div>
+                <div v-if="auditTrail.stockEntry"><span class="text-zinc-500">Stock Entry:</span> {{ auditTrail.stockEntry }}</div>
+                <div><span class="text-zinc-500">Quantite:</span> {{ auditTrail.qty }}</div>
+                <div class="pt-2 text-zinc-300">{{ auditTrail.message }}</div>
+              </div>
+            </div>
+            <div v-else class="kiosk-panel-soft rounded-md border-dashed p-6 text-sm leading-7 text-zinc-400">
+              Les decisions qualite validees apparaitront ici avec leurs documents ERPNext pour laisser un repere visuel immediat a l'equipe.
+            </div>
+          </div>
+        </div>
+
+        <!-- Decision guide -->
+        <div class="kiosk-panel overflow-hidden rounded-md p-5">
+          <div class="space-y-4">
+            <div class="gcma-section-label">Cadre metier</div>
+            <div class="text-2xl font-black text-zinc-50">Decision assistee</div>
+            <hr class="border-zinc-800" />
+            <div class="space-y-3 text-sm leading-7 text-zinc-400">
+              <div class="gcma-data-row border border-emerald-400/16 p-4">
+                <div class="flex items-center gap-2 text-emerald-100"><BadgeCheck :size="16" /> Approuve</div>
+                <div class="mt-1 text-zinc-300">Le lot est deplace vers le stock vendable et l'inspection reste liee au document de liberation.</div>
+              </div>
+              <div class="gcma-data-row border border-rose-400/16 p-4">
+                <div class="flex items-center gap-2 text-rose-100"><ShieldAlert :size="16" /> Rejete</div>
+                <div class="mt-1 text-zinc-300">Le lot reste en quarantaine et l'inspection reference le document qui a cree le stock retenu.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drawer (PrimeVue -- real value: slide-over, overlay, keyboard trap) -->
+    <Drawer v-model:visible="drawerVisible" position="right"
+            class="!w-full !max-w-[38rem] !border-l !border-zinc-800 !bg-zinc-900 !text-zinc-50">
       <template #header>
         <div class="flex items-center gap-3">
-          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-400/12 text-orange-200">
+          <div class="kiosk-icon-shell flex h-11 w-11 items-center justify-center rounded-md text-zinc-50">
             <FlaskConical :size="20" />
           </div>
           <div>
-            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Inspection en cours</div>
-            <div class="text-lg font-black text-white">{{ selectedLot?.batch_no }}</div>
+            <div class="text-xs uppercase tracking-[0.2em] text-zinc-500">Inspection en cours</div>
+            <div class="text-lg font-black text-zinc-50">{{ selectedLot?.batch_no }}</div>
           </div>
         </div>
       </template>
 
       <div v-if="selectedLot" class="space-y-5 pb-8">
-        <div class="kiosk-tile rounded-[24px] p-5">
-          <div class="text-sm text-slate-400">Produit</div>
-          <div class="mt-1 text-2xl font-black text-white">{{ selectedLot.item_name }}</div>
-          <div class="mt-1 text-sm text-slate-500">{{ selectedLot.item_code }}</div>
-          <div class="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-300">
-            <div class="kiosk-tile-muted rounded-2xl p-3">
-              <div class="text-slate-500">Disponible</div>
-              <div class="mt-1 font-bold text-white">{{ selectedLot.qty }} {{ selectedLot.uom }}</div>
+        <!-- Product summary -->
+        <div class="gcma-data-row p-5">
+          <div class="text-sm text-zinc-400">Produit</div>
+          <div class="mt-1 text-2xl font-black text-zinc-50">{{ selectedLot.item_name }}</div>
+          <div class="mt-1 text-sm text-zinc-500">{{ selectedLot.item_code }}</div>
+          <div class="mt-4 grid grid-cols-2 gap-3 text-sm text-zinc-400">
+            <div class="kiosk-tile-muted rounded-md p-3">
+              <div class="text-zinc-500">Disponible</div>
+              <div class="mt-1 font-bold text-zinc-50">{{ selectedLot.qty }} {{ selectedLot.uom }}</div>
             </div>
-            <div class="kiosk-tile-muted rounded-2xl p-3">
-              <div class="text-slate-500">Date</div>
-              <div class="mt-1 font-bold text-white">{{ selectedLot.fecha_fabricacion }}</div>
+            <div class="kiosk-tile-muted rounded-md p-3">
+              <div class="text-zinc-500">Date</div>
+              <div class="mt-1 font-bold text-zinc-50">{{ selectedLot.fecha_fabricacion }}</div>
             </div>
           </div>
         </div>
 
+        <!-- Verdict -->
         <div class="space-y-3">
-          <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Verdict</div>
-          <SelectButton
-            v-model="selectedDecision"
-            :options="decisionOptions"
-            option-label="label"
-            option-value="value"
-            :allow-empty="false"
-            class="decision-switch w-full"
-          />
+          <div class="text-xs uppercase tracking-[0.22em] text-zinc-500">Verdict</div>
+          <SelectButton v-model="selectedDecision" :options="decisionOptions"
+                        option-label="label" option-value="value" :allow-empty="false"
+                        class="decision-switch w-full" />
         </div>
 
+        <!-- Quantity + ref -->
         <div class="grid gap-4 md:grid-cols-2">
           <div class="space-y-2">
-            <label class="text-xs uppercase tracking-[0.22em] text-slate-500">Quantité inspectée</label>
-            <InputNumber
-              v-model="quantity"
-              :min="0"
-              :max="Number(selectedLot.qty)"
-              :min-fraction-digits="0"
-              :max-fraction-digits="2"
-              fluid
-              input-class="w-full"
-            />
+            <label class="text-xs uppercase tracking-[0.22em] text-zinc-500">Quantite inspectee</label>
+            <InputNumber v-model="quantity" :min="0" :max="Number(selectedLot.qty)"
+                         :min-fraction-digits="0" :max-fraction-digits="2" fluid input-class="w-full" />
           </div>
           <div class="space-y-2">
-            <label class="text-xs uppercase tracking-[0.22em] text-slate-500">Référence lot</label>
-            <InputText :model-value="selectedLot.batch_no" disabled class="!h-12 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !text-slate-300" />
+            <label class="text-xs uppercase tracking-[0.22em] text-zinc-500">Reference lot</label>
+            <InputText :model-value="selectedLot.batch_no" disabled
+                       class="!h-12 !w-full !rounded-md !border-zinc-800 !bg-zinc-950 !text-zinc-400" />
           </div>
         </div>
 
-        <div class="kiosk-tile rounded-[24px] space-y-4 p-5">
+        <!-- Parameters -->
+        <div class="gcma-data-row space-y-4 p-5">
           <div class="flex items-center justify-between gap-4">
             <div>
-              <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Mesures laboratoire</div>
-              <div class="mt-1 text-xl font-black text-white">Paramètres</div>
+              <div class="gcma-section-label">Mesures laboratoire</div>
+              <div class="mt-1 text-xl font-black text-zinc-50">Parametres</div>
             </div>
-            <Button
-              label="Ajouter"
-              severity="secondary"
-              class="!h-11 !rounded-2xl !border !border-slate-700 !bg-slate-900/85 !px-4 !text-slate-100"
-              @click="addParameterRow"
-            >
-              <template #icon>
-                <Plus :size="16" />
-              </template>
-            </Button>
+            <button @click="addParameterRow"
+                    class="h-11 rounded-md border border-zinc-800 bg-zinc-950 px-4 text-sm font-semibold text-zinc-50 flex items-center gap-2 active:bg-zinc-900 transition">
+              <Plus :size="16" />
+              Ajouter
+            </button>
           </div>
-
           <div class="space-y-3">
-            <div v-for="row in parameterRows" :key="row.id" class="grid gap-3 rounded-[22px] border border-slate-800 bg-slate-950/72 p-4 md:grid-cols-[1.1fr_0.9fr_auto]">
+            <div v-for="row in parameterRows" :key="row.id"
+                 class="grid gap-3 rounded-md border border-zinc-800 bg-zinc-950/72 p-4 md:grid-cols-[1.1fr_0.9fr_auto]">
               <div class="space-y-2">
-                <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Paramètre</label>
-                <InputText v-model="row.name" class="!h-11 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !text-slate-100" />
+                <label class="gcma-section-label">Parametre</label>
+                <InputText v-model="row.name" class="!h-11 !w-full !rounded-md !border-zinc-800 !bg-zinc-950 !text-zinc-50" />
               </div>
               <div class="space-y-2">
-                <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Valeur</label>
-                <InputNumber
-                  v-if="row.numeric"
-                  v-model="row.value"
-                  :min-fraction-digits="0"
-                  :max-fraction-digits="2"
-                  fluid
-                />
-                <InputText v-else v-model="row.value" class="!h-11 !w-full !rounded-2xl !border-slate-700 !bg-slate-900/85 !text-slate-100" />
+                <label class="gcma-section-label">Valeur</label>
+                <InputNumber v-if="row.numeric" v-model="row.value" :min-fraction-digits="0" :max-fraction-digits="2" fluid />
+                <InputText v-else v-model="row.value" class="!h-11 !w-full !rounded-md !border-zinc-800 !bg-zinc-950 !text-zinc-50" />
               </div>
               <div class="flex flex-col justify-end gap-2 md:items-end">
-                <Button
-                  :label="row.numeric ? 'Num.' : 'Texte'"
-                  severity="secondary"
-                  class="!h-11 !rounded-2xl !border !border-slate-700 !bg-slate-900/85 !px-4 !text-slate-100"
-                  @click="row.numeric = !row.numeric"
-                />
-                <Button
-                  icon="pi pi-trash"
-                  severity="danger"
-                  text
-                  rounded
-                  class="!h-10 !w-10 !text-rose-300"
-                  @click="removeParameterRow(row.id)"
-                >
-                  <template #icon>
-                    <Trash2 :size="16" />
-                  </template>
-                </Button>
+                <button @click="row.numeric = !row.numeric"
+                        class="h-11 rounded-md border border-zinc-800 bg-zinc-950 px-4 text-sm font-semibold text-zinc-50 active:bg-zinc-900 transition">
+                  {{ row.numeric ? 'Num.' : 'Texte' }}
+                </button>
+                <button @click="removeParameterRow(row.id)"
+                        class="h-10 w-10 rounded-md text-rose-300 flex items-center justify-center active:text-rose-400 transition">
+                  <Trash2 :size="16" />
+                </button>
               </div>
             </div>
           </div>
         </div>
 
+        <!-- Remarks -->
         <div class="space-y-2">
-          <label class="text-xs uppercase tracking-[0.22em] text-slate-500">Remarques</label>
-          <Textarea v-model="remarks" rows="4" auto-resize class="!w-full !rounded-[22px] !border-slate-700 !bg-slate-900/85 !text-slate-100" />
+          <label class="gcma-section-label">Remarques</label>
+          <Textarea v-model="remarks" rows="4" auto-resize
+                    class="!w-full !rounded-md !border-zinc-800 !bg-zinc-950 !text-zinc-50" />
         </div>
 
+        <!-- Actions -->
         <div class="grid gap-3 md:grid-cols-2">
-          <Button
-            label="Annuler"
-            severity="secondary"
-            class="!h-14 !rounded-2xl !border !border-slate-700 !bg-slate-900/85 !font-bold !text-slate-100"
-            @click="drawerVisible = false"
-          />
-          <Button
-            :label="selectedDecision === 'Approved' ? 'Valider et libérer' : 'Enregistrer le rejet'"
-            :loading="submitting"
-            class="!h-14 !rounded-2xl !border-0 !font-black !uppercase !tracking-[0.14em]"
-            :class="selectedDecision === 'Approved'
-              ? '!bg-gradient-to-r !from-emerald-400 !to-teal-300 !text-slate-950'
-              : '!bg-gradient-to-r !from-rose-400 !to-orange-300 !text-slate-950'"
-            @click="submitInspection"
-          />
+          <button @click="drawerVisible = false"
+                  class="h-14 rounded-md border border-zinc-800 bg-zinc-950 text-sm font-bold text-zinc-50 active:bg-zinc-900 transition">
+            Annuler
+          </button>
+          <button @click="submitInspection" :disabled="submitting"
+                  class="h-14 rounded-md bg-zinc-50 text-sm font-black uppercase tracking-[0.14em] text-zinc-900 flex items-center justify-center gap-2 active:bg-zinc-200 transition disabled:opacity-50">
+            <RefreshCw v-if="submitting" :size="16" class="animate-spin" />
+            {{ selectedDecision === 'Approved' ? 'Valider et liberer' : 'Enregistrer le rejet' }}
+          </button>
         </div>
       </div>
     </Drawer>
-  </div>
+  </KioskLayout>
 </template>
