@@ -32,6 +32,7 @@ import {
   Trash2,
   Sparkles,
   Beaker,
+  X,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -403,120 +404,136 @@ onMounted(loadLots)
       </div>
     </div>
 
-    <!-- Drawer (PrimeVue -- real value: slide-over, overlay, keyboard trap) -->
+    <!-- Drawer (PrimeVue -- #container slot = full layout control, scroll guaranteed) -->
     <Drawer v-model:visible="drawerVisible" position="right"
-            class="!w-full !max-w-[38rem] !border-l !border-zinc-200 !bg-white !text-zinc-900">
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="kiosk-icon-shell flex h-11 w-11 items-center justify-center rounded-md text-zinc-600">
-            <FlaskConical :size="20" />
-          </div>
-          <div>
-            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Inspection en cours</div>
-            <div class="text-lg font-black text-zinc-900">{{ selectedLot?.batch_no }}</div>
-          </div>
-        </div>
-      </template>
+            class="!w-full !max-w-[38rem]" :pt="{ root: { class: '!p-0 !bg-transparent' } }">
+      <template #container="{ closeCallback }">
+        <div class="flex h-full flex-col bg-white border-l border-zinc-200">
 
-      <div v-if="selectedLot" class="space-y-5 pb-4">
-        <!-- Product summary -->
-        <div class="gcma-data-row p-5">
-          <div class="text-sm text-zinc-500">Produit</div>
-          <div class="mt-1 text-2xl font-black text-zinc-900">{{ selectedLot.item_name }}</div>
-          <div class="mt-1 text-sm text-zinc-400">{{ selectedLot.item_code }}</div>
-          <div class="mt-4 grid grid-cols-2 gap-3 text-sm text-zinc-500">
-            <div class="rounded-md bg-zinc-50 border border-zinc-200 p-3">
-              <div class="text-zinc-400">Disponible</div>
-              <div class="mt-1 font-bold text-zinc-900">{{ selectedLot.qty }} {{ selectedLot.uom }}</div>
+          <!-- Header (fixed) -->
+          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200 p-5">
+            <div class="flex items-center gap-3">
+              <div class="kiosk-icon-shell flex h-11 w-11 items-center justify-center rounded-md text-zinc-600">
+                <FlaskConical :size="20" />
+              </div>
+              <div>
+                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Inspection en cours</div>
+                <div class="text-lg font-black text-zinc-900">{{ selectedLot?.batch_no }}</div>
+              </div>
             </div>
-            <div class="rounded-md bg-zinc-50 border border-zinc-200 p-3">
-              <div class="text-zinc-400">Date</div>
-              <div class="mt-1 font-bold text-zinc-900">{{ selectedLot.fecha_fabricacion }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Verdict -->
-        <div class="space-y-3">
-          <div class="text-xs uppercase tracking-[0.22em] text-zinc-400">Verdict</div>
-          <SelectButton v-model="selectedDecision" :options="decisionOptions"
-                        option-label="label" option-value="value" :allow-empty="false"
-                        class="decision-switch w-full" />
-        </div>
-
-        <!-- Quantity + ref -->
-        <div class="grid gap-4 md:grid-cols-2">
-          <div class="space-y-2">
-            <label class="text-xs uppercase tracking-[0.22em] text-zinc-400">Quantite inspectee</label>
-            <InputNumber v-model="quantity" :min="0" :max="Number(selectedLot.qty)"
-                         :min-fraction-digits="0" :max-fraction-digits="2" fluid input-class="w-full" />
-          </div>
-          <div class="space-y-2">
-            <label class="text-xs uppercase tracking-[0.22em] text-zinc-400">Reference lot</label>
-            <InputText :model-value="selectedLot.batch_no" disabled
-                       class="!h-12 !w-full !rounded-md !border-zinc-300 !bg-zinc-100 !text-zinc-500" />
-          </div>
-        </div>
-
-        <!-- Parameters -->
-        <div class="gcma-data-row space-y-4 p-5">
-          <div class="flex items-center justify-between gap-4">
-            <div>
-              <div class="gcma-section-label">Mesures laboratoire</div>
-              <div class="mt-1 text-xl font-black text-zinc-900">Parametres</div>
-            </div>
-            <button @click="addParameterRow"
-                    class="h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 flex items-center gap-2 active:bg-zinc-50 transition">
-              <Plus :size="16" />
-              Ajouter
+            <button @click="closeCallback"
+                    class="h-10 w-10 flex items-center justify-center rounded-md border border-zinc-200 text-zinc-400 active:bg-zinc-100 transition">
+              <X :size="18" />
             </button>
           </div>
-          <div class="space-y-3">
-            <div v-for="row in parameterRows" :key="row.id"
-                 class="grid gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-[1.1fr_0.9fr_auto]">
+
+          <!-- Scrollable content -->
+          <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+            <div v-if="selectedLot" class="space-y-5 pb-2">
+
+              <!-- Product summary -->
+              <div class="gcma-data-row p-5">
+                <div class="text-sm text-zinc-500">Produit</div>
+                <div class="mt-1 text-2xl font-black text-zinc-900">{{ selectedLot.item_name }}</div>
+                <div class="mt-1 text-sm text-zinc-400">{{ selectedLot.item_code }}</div>
+                <div class="mt-4 grid grid-cols-2 gap-3 text-sm text-zinc-500">
+                  <div class="rounded-md bg-zinc-50 border border-zinc-200 p-3">
+                    <div class="text-zinc-400">Disponible</div>
+                    <div class="mt-1 font-bold text-zinc-900">{{ selectedLot.qty }} {{ selectedLot.uom }}</div>
+                  </div>
+                  <div class="rounded-md bg-zinc-50 border border-zinc-200 p-3">
+                    <div class="text-zinc-400">Date</div>
+                    <div class="mt-1 font-bold text-zinc-900">{{ selectedLot.fecha_fabricacion }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Verdict -->
+              <div class="space-y-3">
+                <div class="text-xs uppercase tracking-[0.22em] text-zinc-400">Verdict</div>
+                <SelectButton v-model="selectedDecision" :options="decisionOptions"
+                              option-label="label" option-value="value" :allow-empty="false"
+                              class="decision-switch w-full" />
+              </div>
+
+              <!-- Quantity + ref -->
+              <div class="grid gap-4 md:grid-cols-2">
+                <div class="space-y-2">
+                  <label class="text-xs uppercase tracking-[0.22em] text-zinc-400">Quantite inspectee</label>
+                  <InputNumber v-model="quantity" :min="0" :max="Number(selectedLot.qty)"
+                               :min-fraction-digits="0" :max-fraction-digits="2" fluid input-class="w-full" />
+                </div>
+                <div class="space-y-2">
+                  <label class="text-xs uppercase tracking-[0.22em] text-zinc-400">Reference lot</label>
+                  <InputText :model-value="selectedLot.batch_no" disabled
+                             class="!h-12 !w-full !rounded-md !border-zinc-300 !bg-zinc-100 !text-zinc-500" />
+                </div>
+              </div>
+
+              <!-- Parameters -->
+              <div class="gcma-data-row space-y-4 p-5">
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <div class="gcma-section-label">Mesures laboratoire</div>
+                    <div class="mt-1 text-xl font-black text-zinc-900">Parametres</div>
+                  </div>
+                  <button @click="addParameterRow"
+                          class="h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 flex items-center gap-2 active:bg-zinc-50 transition">
+                    <Plus :size="16" />
+                    Ajouter
+                  </button>
+                </div>
+                <div class="space-y-3">
+                  <div v-for="row in parameterRows" :key="row.id"
+                       class="grid gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-[1.1fr_0.9fr_auto]">
+                    <div class="space-y-2">
+                      <label class="gcma-section-label">Parametre</label>
+                      <InputText v-model="row.name" class="!h-14 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
+                    </div>
+                    <div class="space-y-2">
+                      <label class="gcma-section-label">Valeur</label>
+                      <InputNumber v-if="row.numeric" v-model="row.value" :min-fraction-digits="0" :max-fraction-digits="2" fluid />
+                      <InputText v-else v-model="row.value" class="!h-14 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
+                    </div>
+                    <div class="flex flex-row items-center gap-2 md:flex-col md:items-end md:justify-end">
+                      <button @click="row.numeric = !row.numeric"
+                              class="flex-1 h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 active:bg-zinc-50 transition md:flex-none">
+                        {{ row.numeric ? 'Num.' : 'Texte' }}
+                      </button>
+                      <button @click="removeParameterRow(row.id)"
+                              class="h-12 w-12 shrink-0 rounded-md text-red-500 flex items-center justify-center active:text-red-600 transition">
+                        <Trash2 :size="16" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Remarks -->
               <div class="space-y-2">
-                <label class="gcma-section-label">Parametre</label>
-                <InputText v-model="row.name" class="!h-14 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
+                <label class="gcma-section-label">Remarques</label>
+                <Textarea v-model="remarks" rows="4" auto-resize
+                          class="!w-full !rounded-md !border-zinc-300 !bg-zinc-50 !text-zinc-900" />
               </div>
-              <div class="space-y-2">
-                <label class="gcma-section-label">Valeur</label>
-                <InputNumber v-if="row.numeric" v-model="row.value" :min-fraction-digits="0" :max-fraction-digits="2" fluid />
-                <InputText v-else v-model="row.value" class="!h-14 !w-full !rounded-md !border-zinc-300 !bg-white !text-zinc-900" />
-              </div>
-              <div class="flex flex-row items-center gap-2 md:flex-col md:items-end md:justify-end">
-                <button @click="row.numeric = !row.numeric"
-                        class="flex-1 h-12 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 active:bg-zinc-50 transition md:flex-none">
-                  {{ row.numeric ? 'Num.' : 'Texte' }}
-                </button>
-                <button @click="removeParameterRow(row.id)"
-                        class="h-12 w-12 shrink-0 rounded-md text-red-500 flex items-center justify-center active:text-red-600 transition">
-                  <Trash2 :size="16" />
-                </button>
-              </div>
+
             </div>
           </div>
-        </div>
 
-        <!-- Remarks -->
-        <div class="space-y-2">
-          <label class="gcma-section-label">Remarques</label>
-          <Textarea v-model="remarks" rows="4" auto-resize
-                    class="!w-full !rounded-md !border-zinc-300 !bg-zinc-50 !text-zinc-900" />
-        </div>
+          <!-- Footer (fixed) -->
+          <div class="shrink-0 border-t border-zinc-200 p-5">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <button @click="closeCallback"
+                      class="h-16 rounded-md border border-zinc-300 bg-white text-sm font-bold text-zinc-700 active:bg-zinc-50 transition">
+                Annuler
+              </button>
+              <button @click="submitInspection" :disabled="submitting || !selectedLot"
+                      class="h-16 rounded-md bg-blue-600 text-sm font-black uppercase tracking-[0.14em] text-white flex items-center justify-center gap-2 active:bg-blue-700 transition disabled:opacity-50">
+                <RefreshCw v-if="submitting" :size="16" class="animate-spin" />
+                {{ selectedDecision === 'Approved' ? 'Valider et liberer' : 'Enregistrer le rejet' }}
+              </button>
+            </div>
+          </div>
 
-      </div>
-
-      <template #footer>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <button @click="drawerVisible = false"
-                  class="h-16 rounded-md border border-zinc-300 bg-white text-sm font-bold text-zinc-700 active:bg-zinc-50 transition">
-            Annuler
-          </button>
-          <button @click="submitInspection" :disabled="submitting || !selectedLot"
-                  class="h-16 rounded-md bg-blue-600 text-sm font-black uppercase tracking-[0.14em] text-white flex items-center justify-center gap-2 active:bg-blue-700 transition disabled:opacity-50">
-            <RefreshCw v-if="submitting" :size="16" class="animate-spin" />
-            {{ selectedDecision === 'Approved' ? 'Valider et liberer' : 'Enregistrer le rejet' }}
-          </button>
         </div>
       </template>
     </Drawer>
