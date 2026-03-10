@@ -1,6 +1,8 @@
 # API Reference — GCMA Kiosco
 
-Base URL: `/api/method/gcma_kiosco.api.kiosco`
+Base URL principal: `/api/method/gcma_kiosco.api.kiosco`
+
+Base URL calidad: `/api/method/gcma_kiosco.api.calidad`
 
 Todos los endpoints usan `Content-Type: application/x-www-form-urlencoded`.
 La respuesta se envuelve en el sobre estándar Frappe: `{ "message": { ... } }`.
@@ -390,6 +392,155 @@ curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_co
 Consulta informativa de un lote: item, caducidad, stock actual.
 
 **Estado:** Pendiente de implementación.
+
+---
+
+## Bloque 4 — Control de Calidad
+
+Los endpoints de laboratorio viven en el módulo `gcma_kiosco.api.calidad` y se apoyan en los doctypes nativos `Quality Inspection`, `Quality Inspection Reading`, `Serial and Batch Entry` y `Stock Entry`.
+
+### EP6 — Listar Lotes en Cuarentena
+
+Devuelve los lotes de producto terminado con saldo positivo en `Cuarentena PT - <ABBR>`.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/gcma_kiosco.api.calidad.get_lotes_cuarentena` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `warehouse` | string | No | Almacén de cuarentena a consultar. Por defecto `Cuarentena PT - PDM`. |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "warehouse": "Cuarentena PT - PDM",
+  "lotes": [
+    {
+      "item_code": "PT-PIN-BLC-MAT-20L",
+      "item_name": "Peinture Blanche Mate 20L",
+      "batch_no": "LOTE-CHAOS-PT-001",
+      "uom": "Nos",
+      "qty": 5.0,
+      "fecha_fabricacion": "2026-03-10"
+    }
+  ],
+  "total": 1
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` | Causa |
+|------|-------------|-------------|-------|
+| 500 | `INTERNAL_ERROR` | Erreur interne lors de la consultation... | Excepción no controlada |
+
+### Notas de implementación
+
+- En ERPNext v16 el saldo por lote de este flujo se calcula desde `Serial and Batch Entry` con fallback legacy a `Stock Ledger Entry` sin bundle.
+- No confiar en `SLE.batch_no` como única fuente para PT en cuarentena; puede venir nulo aunque el lote exista y el stock sea correcto.
+
+### curl
+
+```bash
+curl "http://localhost:8080/api/method/gcma_kiosco.api.calidad.get_lotes_cuarentena" \
+  -b "sid=<session_id>"
+```
+
+### EP7 — Aprobar Calidad / Liberar Lote
+
+Registra una inspección de laboratorio nativa y, si el resultado es aprobado, crea un `Stock Entry` `Material Transfer` desde `Cuarentena PT - PDM` hacia `Producto Terminado - PDM`.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/gcma_kiosco.api.calidad.aprobar_calidad` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `item_code` | string | Sí | Código del producto terminado |
+| `batch_no` | string | Sí | Lote inspeccionado |
+| `qty` | float | Sí | Cantidad a inspeccionar/liberar |
+| `parametros` | string (JSON) | Sí | Mapa JSON `nombre_parametro -> valor` o array de filas manuales |
+| `aprobada` | bool/string | No | `1/true/oui/approuve` para aprobar. Si falta, se usa `resultado`. |
+| `resultado` | string | No | `Approved` o `Rejected` |
+| `remarks` | string | No | Observaciones del laboratorio |
+
+### Response — Aprobado (200 OK)
+
+```json
+{
+  "success": true,
+  "quality_inspection": "MAT-QA-2026-00001",
+  "stock_entry": "MAT-STE-2026-00010",
+  "item_code": "PT-PIN-BLC-MAT-20L",
+  "batch_no": "LOTE-CHAOS-PT-001",
+  "qty": 1.0,
+  "quality_status": "Accepted",
+  "message_fr": "Inspection qualité approuvée. Lot libéré vers le stock vendable."
+}
+```
+
+### Response — Rechazado (200 OK)
+
+```json
+{
+  "success": true,
+  "quality_inspection": "MAT-QA-2026-00002",
+  "item_code": "PT-PIN-BLC-MAT-20L",
+  "batch_no": "LOTE-CHAOS-PT-001",
+  "qty": 1.0,
+  "quality_status": "Rejected",
+  "message_fr": "Inspection qualité enregistrée. Lot maintenu en quarantaine."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` | Causa |
+|------|-------------|-------------|-------|
+| 400 | `MISSING_PARAMS` | Paramètres obligatoires... | Faltan `item_code`, `batch_no` o `qty` |
+| 400 | `MISSING_PARAMETERS` | Aucun paramètre laboratoire reçu... | `parametros` vacío o inválido |
+| 404 | `ITEM_NOT_FOUND` | Article introuvable. | El item no existe |
+| 404 | `BATCH_NOT_FOUND` | Lot introuvable. | El lote no existe |
+| 422 | `INVALID_QTY` | La quantité inspectée doit être supérieure à zéro. | `qty <= 0` |
+| 422 | `INVALID_RESULT` | Résultat qualité invalide... | `aprobada/resultado` incoherentes |
+| 422 | `BATCH_ITEM_MISMATCH` | Le lot indiqué ne correspond pas... | El lote pertenece a otro item |
+| 422 | `NO_STOCK_IN_QUARANTINE` | Aucun stock disponible... | No hay saldo del lote en cuarentena |
+| 422 | `QTY_EXCEEDS_AVAILABLE` | Quantité demandée supérieure... | Se intenta liberar más de lo disponible |
+| 422 | `MISSING_REFERENCE_STOCK_ENTRY` | Aucun document stock d'origine trouvé... | ERPNext no encontró el `Stock Entry` nativo que originó el lote en cuarentena |
+| 422 | `ERP_VALIDATION_ERROR` | Transaction refusée par ERPNext... | ERPNext rechaza la inspección o el movimiento |
+| 500 | `INTERNAL_ERROR` | Erreur interne lors de la validation... | Excepción no controlada |
+
+### Lógica interna
+
+1. Valida item, lote, parámetros y cantidad
+2. Calcula saldo en cuarentena desde `Serial and Batch Entry` con fallback legacy
+3. Si está aprobado, crea y submit un `Stock Entry` `Material Transfer`
+4. Si está rechazado, crea y submit un `Quality Inspection` manual ligado al `Stock Entry` que metió el lote en cuarentena
+5. Si está aprobado, crea y submit un `Quality Inspection` manual ligado al `Stock Entry` de liberación
+6. ERPNext rellena `quality_inspection` en la línea del `Stock Entry Detail` cuando existe movimiento de liberación
+7. Si está rechazado, solo registra la inspección y mantiene el stock en cuarentena
+
+### curl
+
+```bash
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.calidad.aprobar_calidad \
+  -b "sid=<session_id>" \
+  -d "item_code=PT-PIN-BLC-MAT-20L" \
+  -d "batch_no=LOTE-CHAOS-PT-001" \
+  -d "qty=1" \
+  -d 'parametros={"pH":8.4,"viscosité KU":96,"aspect":"Conforme"}' \
+  -d "aprobada=1" \
+  -d "remarks=Libération test laboratoire"
+```
 
 ---
 

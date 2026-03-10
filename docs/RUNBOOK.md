@@ -95,6 +95,7 @@ docker exec frappe_docker-backend-1 \
 ### Qué hace `test_data.run`
 
 - Resetea la demo previa: Work Orders de prueba, Stock Entries de test, Comments del kiosco y Job Cards ligadas.
+- También elimina `Quality Inspection` y `Stock Entry` de liberación QC creados durante Bloque 4.
 - Reinyecta stock válido para happy path.
 - Crea fixtures de caos:
   - `MP-RES-ALK-G70|LOTE-CHAOS-RES-EXP-001` → lote caducado
@@ -202,6 +203,26 @@ docker restart frappe_docker-backend-1 frappe_docker-frontend-1
 **Causa**: En ERPNext v16, el Item requiere `has_batch_no = 1` para que el SLE registre el batch. Si el Item no tiene este flag, el batch se ignora silenciosamente.
 
 **Solución**: Consultar stock vía tabla `Bin` (que siempre refleja `actual_qty` correcta), no vía SLE.
+
+### 6. Calidad: lotes en cuarentena vacíos aunque exista stock
+
+**Síntoma**: `get_lotes_cuarentena` devuelve lista vacía o `aprobar_calidad` responde `NO_STOCK_IN_QUARANTINE`, pero `Bin` muestra stock en `Cuarentena PT - PDM`.
+
+**Causa**: En ERPNext v16, para PT loteado el saldo por lote puede persistirse en `Serial and Batch Entry` / `Serial and Batch Bundle` mientras `Stock Ledger Entry.batch_no` queda `NULL`.
+
+**Solución aplicada**:
+```text
+- Listado y validación de calidad calculan el saldo desde Serial and Batch Entry
+- Se mantiene fallback a Stock Ledger Entry legacy sin bundle
+- No usar SLE.batch_no como única fuente para Bloque 4
+```
+
+**Validación reproducida**:
+```text
+- GET calidad.get_lotes_cuarentena → devuelve LOTE-CHAOS-PT-001 con qty 5
+- POST calidad.aprobar_calidad → crea Quality Inspection MAT-QA-2026-00001
+- También crea Stock Entry MAT-STE-2026-00010 y mueve 1 unidad a Producto Terminado - PDM
+```
 
 ---
 

@@ -27,6 +27,8 @@ PT_CODE = "PT-PIN-BLC-MAT-20L"
 TEST_STOCK_REMARK = "Test Data — Stock ampliado 2000 Kg por MP"
 CHAOS_STOCK_REMARK = "Test Data — Stock caos / edge cases"
 KIOSCO_COMMENT_PREFIX = "Consommation enregistrée via Kiosco"
+QC_RELEASE_REMARK_PREFIX = "Libération QC du lot"
+QC_REMARK_PREFIX = "Inspection laboratoire via Kiosco Qualité"
 
 VALID_BATCHES = [
     ("MP-RES-ALK-G70", "LOTE-TEST-RES-001", 2000.0, 25.00),
@@ -75,16 +77,19 @@ def _stock_entry_reset_priority(stock_entry_name: str) -> tuple[int, str]:
         stock_entry_name,
         ["purpose", "remarks"],
     ) or (None, None)
+    remarks = remarks or ""
 
     if purpose == "Manufacture":
         return (0, stock_entry_name)
     if purpose == "Material Transfer for Manufacture":
         return (1, stock_entry_name)
-    if remarks == CHAOS_STOCK_REMARK:
+    if remarks.startswith(QC_RELEASE_REMARK_PREFIX):
         return (2, stock_entry_name)
-    if remarks == TEST_STOCK_REMARK:
+    if remarks == CHAOS_STOCK_REMARK:
         return (3, stock_entry_name)
-    return (4, stock_entry_name)
+    if remarks == TEST_STOCK_REMARK:
+        return (4, stock_entry_name)
+    return (5, stock_entry_name)
 
 
 def reset_demo_state():
@@ -114,6 +119,13 @@ def reset_demo_state():
             pluck="name",
         )
     )
+    stock_entries.update(
+        frappe.get_all(
+            "Stock Entry",
+            filters={"remarks": ["like", f"{QC_RELEASE_REMARK_PREFIX}%"]},
+            pluck="name",
+        )
+    )
     if work_orders:
         stock_entries.update(
             frappe.get_all(
@@ -122,6 +134,24 @@ def reset_demo_state():
                 pluck="name",
             )
         )
+
+    quality_inspections = frappe.get_all(
+        "Quality Inspection",
+        filters={
+            "item_code": PT_CODE,
+            "batch_no": ["in", ["LOTE-CHAOS-PT-001"]],
+        },
+        fields=["name", "remarks", "reference_name"],
+    )
+    for inspection in quality_inspections:
+        if inspection.reference_name:
+            stock_entries.add(inspection.reference_name)
+
+    for inspection in quality_inspections:
+        if not (inspection.remarks or "").startswith(QC_REMARK_PREFIX):
+            continue
+        _cancel_and_delete("Quality Inspection", inspection.name)
+        print(f"  - Quality Inspection '{inspection.name}' eliminada.")
 
     for stock_entry in sorted(stock_entries, key=_stock_entry_reset_priority):
         _cancel_and_delete("Stock Entry", stock_entry)

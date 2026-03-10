@@ -7,6 +7,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ### Added
 
+**Backend — Bloque 4 Control de Calidad**
+- Nuevo módulo `gcma_kiosco.api.calidad` con endpoints nativos de laboratorio
+- `get_lotes_cuarentena` lista lotes de PT con saldo positivo en `Cuarentena PT - PDM`
+- `aprobar_calidad` crea `Quality Inspection` manual y, si aprueba, libera stock con `Stock Entry` `Material Transfer`
+- El `Quality Inspection` queda enlazado al `Stock Entry Detail.quality_inspection`
+
 **Backend — EP4 `reportar_consumo`**
 - Endpoint POST para registrar consumo real de materiales al finalizar la mezcla
 - Calcula desviaciones vs BOM teórica (cantidad, porcentaje)
@@ -31,9 +37,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 - `docs/API.md`: Documentación completa de EP4 (request, response, errores, curl)
 - `docs/FRONTEND.md`: Flujo EP4, tabla de API wrappers
 - `docs/RUNBOOK.md`: la demo contable ya no es manual; se verifica cierre automático con EP4
+- `docs/API.md`: se documentan EP6/EP7 de Control de Calidad y la base URL `gcma_kiosco.api.calidad`
+- `docs/RUNBOOK.md`: se añade la nota operativa de ERPNext v16 para lotes en cuarentena usando `Serial and Batch Entry`
 - `gcma_kiosco.setup.test_data.run`: ahora resetea la demo y recrea un entorno repetible con fixtures de caos
+- `gcma_kiosco.setup.test_data.run`: también limpia `Quality Inspection` y `Stock Entry` de liberación QC antes de reinyectar la demo
 - `reportar_consumo`: añade guardrail `EXTRA_QTY_ABSURD` para bloquear errores groseros de tipeo en extras
 - Sesión del kiosco: restauración desde cookie `sid`, logout explícito y headers anti-cache para evitar fallos entre navegadores
+
+### Fixed
+- `aprobar_calidad`: el flujo rechazado ahora referencia el `Stock Entry` que originó el lote en cuarentena, evitando errores nativos de `Quality Inspection` sin referencia
+- `get_lotes_cuarentena` y la validación de saldo por lote usan `Serial and Batch Entry` como fuente principal en ERPNext v16
 
 ## [0.3.0] — 2025-07-25
 
