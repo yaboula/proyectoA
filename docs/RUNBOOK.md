@@ -295,3 +295,43 @@ docker exec frappe_docker-backend-1 \
 - [ ] Test EP1 login OK desde curl
 - [ ] Test EP2/EP3 OK con sesión activa
 - [ ] `npm run build` compila sin errores en `kiosco-pwa/`
+
+---
+
+## Lecciones Aprendidas — Mobile / PWA
+
+### L1 — `crypto.randomUUID()` requiere HTTPS
+
+**Contexto**: La API `crypto.randomUUID()` es parte de la Web Crypto API y **solo está disponible en contextos seguros** (HTTPS o `localhost`). Cuando el kiosco se accede desde un móvil vía HTTP (`http://192.168.x.x:5173`), `crypto.randomUUID` es `undefined` y lanza `TypeError` silencioso.
+
+**Impacto**: Cualquier función que la llame falla sin mensaje visible. En `LaboratoireQC.vue`, esto dejaba `parameterRows = []` (filas vacías, botón «Ajouter» sin efecto).
+
+**Regla**: Nunca usar `crypto.randomUUID()` en código de la PWA. Usar contador simple (`let _seq = 0; function nextId() { return String(++_seq) }`) o `Date.now() + Math.random()`.
+
+### L2 — PrimeVue Drawer no scrollea en móvil (Aura preset)
+
+**Contexto**: PrimeVue 4.5 Aura preset aplica estilos con alta especificidad a `.p-drawer-content` que impiden `overflow-y: auto`. Los overrides CSS globales no siempre ganan esa batalla.
+
+**Solución definitiva**: Usar el slot `#container` del Drawer, que cede control total del layout interno. Estructurar con `flex-col h-full` + header `shrink-0` + content `flex-1 min-h-0 overflow-y-auto` + footer `shrink-0`. El `min-h-0` es **crítico**: sin él, un flex child no limita su altura natural y el overflow no funciona.
+
+**Regla**: Para cualquier panel lateral (Drawer/Sheet) con contenido variable en móvil, usar siempre el slot `#container` y construir el layout manualmente.
+
+### L3 — iOS auto-scroll al foco en Drawer (PrimeVue)
+
+**Contexto**: Al abrir un Drawer, PrimeVue enfoca el primer elemento interactivo para accesibilidad. En iOS, el navegador hace scroll automático para mostrar ese elemento, dejando el contenido anterior fuera del viewport.
+
+**Solución**: `@show` hook + `nextTick(() => contentScrollRef.value.scrollTop = 0)` después de que el Drawer termina de abrirse.
+
+### L4 — Tailwind JIT no detecta clases dinámicas interpoladas
+
+**Contexto**: Clases como `` `max-w-${props.maxWidth}` `` no son detectadas por el scanner estático de Tailwind JIT. El CSS para esas clases nunca se genera — la clase aparece en el DOM pero sin efecto visual.
+
+**Solución**: Usar lookup maps estáticos: `const widthMap = { '5xl': 'max-w-5xl', '6xl': 'max-w-6xl', '7xl': 'max-w-7xl' }` y acceder con `widthMap[props.maxWidth]`.
+
+**Regla**: Nunca construir nombres de clases Tailwind con interpolación de string. Siempre usar el nombre completo o un lookup map.
+
+### L5 — Breakpoints `xl:` en dispositivos medianos (768–1279px)
+
+**Contexto**: Usar `xl:` (1280px) para cambiar a layout de 2 columnas deja tablets Android/iPad (768–1023px) en layout de 1 columna aunque tengan espacio de sobra.
+
+**Regla**: Layouts de 2 columnas principales → `lg:` (1024px). `xl:` solo para ajustes finos de proporción. `sm:` (640px) obligatorio para grids de estadísticas y cards.

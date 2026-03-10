@@ -3,6 +3,25 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.7.2] — 2026-03-10
+
+### Fixed
+
+**Frontend — LaboratoireQC drawer bugs en móvil HTTP**
+
+- `crypto.randomUUID()` requiere contexto seguro (HTTPS). El kiosco accedido desde móvil vía HTTP (`http://192.168.x.x:5173`) hace que `crypto.randomUUID` sea `undefined`. `buildDefaultRows()` y `addParameterRow()` lanzaban `TypeError` silencioso → `parameterRows` quedaba `[]` → el `v-for` no renderizaba filas y el botón «Ajouter» no tenía efecto. Fix: contador simple `nextRowId()` reemplaza todas las llamadas a `randomUUID`.
+- Al abrir el Drawer en iOS, PrimeVue enfoca automáticamente el primer input interactivo (`InputNumber` de «Quantite inspectee»). iOS hace scroll automático para mostrarlo, dejando el bloque «Produit» y el `SelectButton` «Verdict» fuera del viewport. Fix: `@show` handler + `nextTick(() => contentScrollRef.scrollTop = 0)` resetea el scroll al inicio del contenido cada vez que se abre el Drawer.
+- Botones Num./Texte y Trash en las filas de parámetro cambiados de `flex-col` a `flex-row` en mobile para reducir la altura por fila.
+
+## [0.7.1] — 2026-03-10
+
+### Fixed
+
+**Frontend — LaboratoireQC Drawer sin scroll en mobile**
+- `style.css`: añadidos estilos globales `.p-drawer { display: flex; flex-direction: column }` y `.p-drawer-content { flex: 1 1 0%; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch }`. El Drawer de PrimeVue Aura preset ocultaba el contenido que superaba la altura de pantalla.
+- `LaboratoireQC.vue`: refactorizado para usar el slot `#container` del Drawer (control total de layout). Estructura: header fijo `shrink-0` + content `flex-1 overflow-y-auto min-h-0` (con `ref="contentScrollRef"`) + footer fijo `shrink-0`. El `min-h-0` en el div de contenido es necesario para que `overflow-y: auto` sea respetado por el navegador en un flexbox child.
+- Botones «Annuler» / «Valider» movidos al footer fijo del Drawer (siempre visibles independientemente del scroll del contenido).
+
 ## [0.7.0] — 2026-03-10
 
 ### Changed
