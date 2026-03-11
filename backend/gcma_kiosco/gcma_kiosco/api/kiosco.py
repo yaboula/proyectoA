@@ -283,6 +283,7 @@ def get_operario_session():
     employee = _get_operario_for_user(user_id)
 
     if not employee:
+        frappe.local.response["http_status_code"] = 401
         return {
             "success": False,
             "error_code": "NO_ACTIVE_SESSION",

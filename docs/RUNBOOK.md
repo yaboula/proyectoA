@@ -298,6 +298,54 @@ docker exec frappe_docker-backend-1 \
 
 ---
 
+## Smoke Suite Sprint 2
+
+Script oficial de validación rápida para endpoints críticos:
+
+`scripts/smoke/smoke-kiosco.ps1`
+
+### Ejecución base (solo lectura, no destructiva)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1
+```
+
+Cobertura base:
+
+- EP1 `login_operario`
+- EP1b `get_operario_session`
+- EP2 `get_tareas`
+- EP3 `validar_material`
+- EP5 `info_lote`
+- EP6 `get_lotes_cuarentena`
+
+### Ejecución con operaciones de escritura (opt-in)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1 \
+  -IncludeWriteOps \
+  -LotesUsadosJson '{"Résine Alkyde G-70":"LOTE-TEST-RES-001"}' \
+  -ConsumosExtraJson '{}'
+```
+
+`-IncludeWriteOps` ejecuta EP4 y modifica documentos productivos de demo.
+
+Para EP7 (inspección calidad), usar explícitamente:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1 \
+  -IncludeQualityWriteOps \
+  -QualityDecision Rejected
+```
+
+### Convenciones de salida
+
+- `PASS`/`FAIL` por endpoint.
+- Exit code `0` si todo pasa.
+- Exit code `1` si al menos una prueba falla.
+
+---
+
 ## Lecciones Aprendidas — Mobile / PWA
 
 ### L1 — `crypto.randomUUID()` requiere HTTPS

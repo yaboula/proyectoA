@@ -3,6 +3,28 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.7.5] — 2026-03-11
+
+### Added
+
+**QA — Smoke suite operativa de endpoints críticos**
+
+- Nuevo script `scripts/smoke/smoke-kiosco.ps1` para validación rápida de EP1, EP1b, EP2, EP3, EP5 y EP6.
+- Soporte opt-in para operaciones de escritura: `-IncludeWriteOps` (EP4) y `-IncludeQualityWriteOps` (EP7).
+- Salida estandarizada por paso (`PASS`/`FAIL`) con exit code `0/1` para uso en validación de release.
+
+### Changed
+
+**Runbook — Ejecución Sprint 2**
+
+- `docs/RUNBOOK.md`: añadida sección "Smoke Suite Sprint 2" con comandos base (read-only) y comandos de write-ops controlados.
+
+### Fixed
+
+**Backend — Consistencia HTTP en restauración de sesión**
+
+- `get_operario_session` ahora devuelve `401` cuando no existe sesión válida (`NO_ACTIVE_SESSION`), alineado con el contrato documentado.
+
 ## [0.7.4] — 2026-03-11
 
 ### Added
