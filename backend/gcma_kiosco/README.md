@@ -1,66 +1,81 @@
-# GCMA Kiosco — Custom Frappe App
+# GCMA Kiosco - Custom Frappe App
 
-App custom para la fábrica química GCMA. Contiene:
-- **Seed Data** del PoC Sandbox (Data Foundation §3.1)
-- **API REST** del Kiosco de operarios (Bloque 3 FSD) — *en desarrollo*
-- **Event hooks** para Server Scripts de QC/Stock (futuro)
+App custom para la fabrica quimica GCMA.
 
-## Instalación en Docker
+Incluye:
+
+- Seed data idempotente del PoC
+- API REST del kiosco de operarios
+- API REST del laboratorio de calidad
+- Hook `before_request` para exencion CSRF en rutas `gcma_kiosco.*`
+
+## Estado actual
+
+Endpoints de produccion implementados:
+
+- EP1 `login_operario`
+- EP1b `get_operario_session`
+- EP1c `logout_operario`
+- EP2 `get_tareas`
+- EP3 `validar_material`
+- EP4 `reportar_consumo`
+- EP5 pendiente
+
+Endpoints de calidad implementados:
+
+- EP6 `get_lotes_cuarentena`
+- EP7 `aprobar_calidad`
+
+## Estructura
+
+```text
+backend/gcma_kiosco/
+  gcma_kiosco/
+    api/
+      kiosco.py
+      calidad.py
+      qr_utils.py
+      _kiosco_architecture.py
+    setup/
+      seed_data.py
+      test_data.py
+      setup_admin_profile.py
+    hooks.py
+```
+
+## Instalacion en entorno Docker/Frappe
 
 ```bash
-# 1. Copiar el código al contenedor (o montar como volumen)
-docker cp backend/gcma_kiosco frappe-bench:/home/frappe/frappe-bench/apps/
+# Copiar app al contenedor
+docker cp backend/gcma_kiosco frappe_docker-backend-1:/home/frappe/frappe-bench/apps/
 
-# 2. Entrar al contenedor
-docker exec -it frappe-bench bash
+# Ajustar ownership
+docker exec --user root frappe_docker-backend-1 \
+  chown -R frappe:frappe /home/frappe/frappe-bench/apps/gcma_kiosco
 
-# 3. Instalar la app en el site
+# Instalar app en el site
+docker exec -it frappe_docker-backend-1 bash
 cd /home/frappe/frappe-bench
-bench --site tu-site.local install-app gcma_kiosco
-
-# 4. Ejecutar el Seed Data
-bench --site tu-site.local execute gcma_kiosco.setup.seed_data.run
-
-# 5. (Después de cargar precios) Submittear la BOM
-bench --site tu-site.local execute gcma_kiosco.setup.seed_data.submit_bom
+bench --site frontend install-app gcma_kiosco
 ```
 
-## Alternativa sin instalar la app
-
-Si no quieres instalar como app formal, puedes copiar solo el script:
+## Seed y entorno de prueba
 
 ```bash
-# Copiar el script al contenedor
-docker cp backend/gcma_kiosco/gcma_kiosco/setup/seed_data.py \
-  frappe-bench:/home/frappe/frappe-bench/apps/gcma_kiosco/gcma_kiosco/setup/
+# Seed principal
+docker exec frappe_docker-backend-1 \
+  /home/frappe/frappe-bench/env/bin/python -c \
+  "import frappe; frappe.connect(site='frontend'); from gcma_kiosco.setup.seed_data import run; run(); frappe.db.commit()"
 
-# Ejecutar directamente
-bench --site tu-site.local execute gcma_kiosco.setup.seed_data.run
+# Test data (reset + caos + WO)
+docker exec frappe_docker-backend-1 \
+  /home/frappe/frappe-bench/env/bin/python -c \
+  "import frappe; frappe.connect(site='frontend'); from gcma_kiosco.setup.test_data import run; run(); frappe.db.commit()"
 ```
 
-## Estructura del App
+## Notas tecnicas
 
-```
-gcma_kiosco/
-├── setup.py                          # Packaging Python
-├── requirements.txt
-├── README.md
-└── gcma_kiosco/
-    ├── __init__.py
-    ├── hooks.py                      # Hooks de Frappe (after_install, doc_events, etc.)
-    ├── modules.txt
-    ├── patches.txt
-    ├── setup/
-    │   ├── __init__.py
-    │   └── seed_data.py              # ★ Seed Data PoC (bench execute)
-    └── api/
-        ├── __init__.py
-        └── kiosco.py                 # ★ Endpoints REST Kiosco (próximo módulo)
-```
-
-## Notas Arquitectónicas
-
-- El seed es **idempotente**: se puede ejecutar N veces sin duplicar datos.
-- La BOM se crea en **Draft** porque necesita precios cargados antes del Submit.
-- Los almacenes se crean bajo el nodo padre que ERPNext genera automáticamente al crear la Company.
-- Solo carga PDM (Pinturas). PEM se cargará con un script paralelo para garantizar el Guardrail G2 (paridad CoA).
+- API contractual en `application/x-www-form-urlencoded`.
+- Respuestas bajo sobre Frappe `{ "message": ... }`.
+- Guardrail G3: no exponer `item_code` al operario en vistas de produccion.
+- Mensajeria operativa en frances para terminal de planta.

@@ -93,7 +93,7 @@ onMounted(async () => {
           <div class="text-xl font-black tracking-[0.08em] text-zinc-900 uppercase">GCMA Kiosque</div>
         </div>
       </div>
-      <div class="text-sm font-mono text-zinc-400">v0.5.0</div>
+      <div class="text-sm font-mono text-zinc-400">v0.7.2</div>
     </header>
 
     <main class="grid flex-1 gap-4 sm:gap-5 lg:grid-cols-[0.9fr_1.1fr]">

@@ -3,6 +3,21 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.7.3] — 2026-03-11
+
+### Changed
+
+**Docs — Sincronización checkpoint documental con estado real**
+
+- `docs/FRONTEND.md`: reescrito para reflejar la arquitectura vigente (light theme industrial, rutas por perfil, flujo EP1–EP4 y EP6/EP7, componentes compartidos, scanner HID y estado de implementación real).
+- `backend/gcma_kiosco/README.md`: actualizado de "API en desarrollo" a estado real de endpoints implementados (EP1–EP4, EP6, EP7) y comandos actuales de instalación/seed en Docker.
+
+### Fixed
+
+**Frontend — Versión visible en login**
+
+- `kiosco-pwa/src/views/LoginQR.vue`: badge de versión actualizado de `v0.5.0` a `v0.7.2` para alinear la UI con el release activo.
+
 ## [0.7.2] — 2026-03-10
 
 ### Fixed

@@ -1,389 +1,174 @@
-# Frontend Architecture — Kiosco PWA
+# Frontend Architecture - Kiosco PWA
 
 ## Stack
 
-| Librería | Versión | Rol |
+| Libreria | Version | Rol |
 |----------|---------|-----|
-| Vue 3 | 3.5 | Framework UI (Composition API + `<script setup>`) |
-| Vite | 7.3 | Bundler + dev server |
-| Tailwind CSS | 4.2 | Styling vía `@tailwindcss/vite` (no PostCSS) |
+| Vue 3 | 3.5 | UI framework |
+| Vite | 7.3 | Build + dev server |
+| Tailwind CSS | 4.2 | Utility styling |
 | Pinia | 3.0 | Estado global |
-| Vue Router | 4.6 | Navegación SPA |
-| Axios | 1.13 | HTTP client |
-| PrimeVue | 4.5 | Librería de componentes moderna (Cards, Drawer, Buttons, Toast, formularios) |
-| @primeuix/themes | 2.0 | Tema base Aura en modo oscuro |
-| vite-plugin-pwa | 1.2 | Service Worker + manifest |
+| Vue Router | 4.6 | Navegacion SPA |
+| Axios | 1.13 | Cliente HTTP |
+| PrimeVue | 4.5 | Drawer, inputs, Toast (modulo laboratorio) |
+| lucide-vue-next | 0.577 | Iconografia |
 
 ## Estructura
 
-```
+```text
 kiosco-pwa/src/
-├── api/
-│   ├── client.js            # Axios instance (baseURL, interceptors)
-│   └── kiosco.js            # Wrappers tipados EP1–EP4 + EP6/EP7 calidad
-├── composables/
-│   └── useScanner.js        # USB HID barcode scanner logic (shared)
-├── components/
-│   ├── KioskLayout.vue      # Outer shell wrapper for all views
-│   ├── ScanStation.vue      # Scanner state visualizer (idle/scanning/loading/success/error)
-│   ├── ManualInputModal.vue # Teleported manual QR input dialog
-│   ├── FullScreenOverlay.vue# Teleported fullscreen overlay (error/success/loading/info)
-│   └── EmptyState.vue       # Reusable "no data" display
-├── stores/
-│   └── operario.js          # Pinia store — sesión del operario
-├── router/
-│   └── index.js             # rutas protegidas + hub de módulos
-├── views/
-│   ├── LoginQR.vue          # Pantalla de login (escáner + modal manual)
-│   ├── ModuleHub.vue        # Hub visual para Production / Laboratoire
-│   ├── LaboratoireQC.vue    # Console qualité (Bloque 4)
-│   ├── TareasList.vue       # Lista de Work Orders
-│   └── PokaYokeScanner.vue  # Validación de materiales
-├── App.vue                  # Shell global + Toast + fondo temático
-├── main.js                  # Punto de entrada (Pinia + Router + PrimeVue)
-└── style.css                # Tailwind + overrides PrimeVue + visual system
+  api/
+    client.js          # Axios + form-urlencoded + unwrap response.message
+    kiosco.js          # Wrappers EP1-EP4 + EP6/EP7
+  components/
+    KioskLayout.vue
+    ScanStation.vue
+    ManualInputModal.vue
+    FullScreenOverlay.vue
+    EmptyState.vue
+  composables/
+    useScanner.js      # Scanner USB HID
+  router/
+    index.js           # Guards por sesion y modulo
+  stores/
+    operario.js        # Sesion, perfil y modulos permitidos
+  views/
+    LoginQR.vue
+    ModuleHub.vue
+    TareasList.vue
+    PokaYokeScanner.vue
+    LaboratoireQC.vue
+  App.vue
+  main.js
+  style.css
 ```
-
-## Composables
-
-### `useScanner(onScan, options?)`
-
-Shared USB HID barcode scanner logic extracted from LoginQR and PokaYokeScanner.
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `gapMs` | number | 80 | Max ms between keystrokes before buffer resets |
-| `minLength` | number | 3 | Minimum characters to trigger scan |
-| `disabled` | Ref\<boolean\> | `ref(false)` | Reactive flag to pause the listener |
-
-Returns `{ isScanning }` — a ref that is `true` while characters are being buffered.
-
-## Shared Components
-
-### `KioskLayout`
-
-Outer shell applied to every view. Provides consistent padding, max-width, select-none, and text-zinc-50.
-
-| Prop | Type | Default |
-|------|------|---------|
-| `maxWidth` | string | `'7xl'` |
-
-Slot: default (view content).
-
-### `ScanStation`
-
-Visual scanner state indicator with status-dependent borders, icons, and animations.
-
-| Prop | Type | Values |
-|------|------|--------|
-| `status` | string | `idle` \| `scanning` \| `loading` \| `success` \| `error` |
-| `message` | string | Main text |
-| `hint` | string | Secondary text |
-| `successLabel` | string | Override for success icon label |
-| `size` | string | `md` \| `lg` |
-
-### `ManualInputModal`
-
-Teleported modal dialog for manual QR code entry. Auto-focuses input on open.
-
-| Prop | Type |
-|------|------|
-| `open` | boolean |
-| `modelValue` | string (v-model) |
-| `title` | string |
-| `description` | string |
-| `placeholder` | string |
-| `minLength` | number |
-
-Emits: `close`, `submit`, `update:modelValue`.
-
-### `FullScreenOverlay`
-
-Teleported fullscreen overlay for error/success/loading/info states.
-
-| Prop | Type | Values |
-|------|------|--------|
-| `visible` | boolean | — |
-| `variant` | string | `error` \| `success` \| `loading` \| `info` |
-| `title` | string | — |
-| `subtitle` | string | — |
-| `hint` | string | — |
-| `shake` | boolean | Enables pulse animation |
-| `clickable` | boolean | Enables dismiss on click |
-
-Emits: `dismiss`. Slots: `#alert`, `#action`.
-
-### `EmptyState`
-
-Generic "no data" display with icon, title, message and optional action slot.
-
-| Prop | Type |
-|------|------|
-| `icon` | Component |
-| `title` | string |
-| `message` | string |
 
 ## Rutas
 
-| Path | Componente | Meta | Lazy |
-|------|-----------|------|------|
-| `/` | `LoginQR` | `{ guest: true }` | No |
-| `/hub` | `ModuleHub` | — | Sí |
-| `/tareas` | `TareasList` | `{ module: 'production' }` | Sí |
-| `/laboratoire` | `LaboratoireQC` | `{ module: 'quality' }` | Sí |
-| `/poka-yoke/:workOrder` | `PokaYokeScanner` | `{ module: 'production' }`, `props: true` | Sí |
+| Path | Vista | Meta |
+|------|-------|------|
+| / | LoginQR | guest |
+| /hub | ModuleHub | - |
+| /tareas | TareasList | module: production |
+| /laboratoire | LaboratoireQC | module: quality |
+| /poka-yoke/:workOrder | PokaYokeScanner | module: production |
 
-### Navigation Guard
+Guard global:
 
-```js
-router.beforeEach(async (to) => {
-  const store = useOperarioStore()
-  if (to.meta.guest) return true
-  const ok = await store.ensureSession()
-  if (!ok) return '/'
-  if (to.meta.module && !store.hasModule(to.meta.module)) return '/hub'
-})
-```
+- Rutas guest no requieren sesion.
+- El resto llama `ensureSession()`.
+- Si no hay sesion valida, redirige a `/`.
+- Si el perfil no tiene permiso para el modulo, redirige a `/hub`.
 
-Redirige a login si no hay sesión y antes intenta restaurarla desde la cookie `sid`, excepto rutas con `meta.guest`. Además bloquea navegación directa a módulos no autorizados por el perfil del `Employee`.
+## Store de Sesion
 
-## Estado (Pinia)
+Store: `operario`
 
-### `operario` store
+- Estado: `operario`, `sid`, `initialized`, `restoring`.
+- Persistencia: `sessionStorage` para rehidratar sesion de navegador.
+- Acciones:
+  - `login(qrToken)` -> EP1
+  - `restoreSession()` -> EP1b
+  - `ensureSession()`
+  - `logout()` -> EP1c
+  - `hasModule(code)`
 
-| Propiedad | Tipo | Descripción |
-|-----------|------|-------------|
-| `operario` | object \| null | Datos del empleado (de EP1) |
-| `sid` | string \| null | Session ID de Frappe |
-| `initialized` | boolean | Indica si el store ya intentó restaurar sesión |
-| `restoring` | boolean | Evita llamadas duplicadas a restauración |
+## API Client
 
-| Getter | Retorna |
-|--------|---------|
-| `isLoggedIn` | `!!operario` |
-| `fullName` | `operario.full_name` |
-| `profileCode` | `operario.profile_code` |
-| `profileLabel` | `operario.profile_label` |
-| `allowedModules` | `operario.allowed_modules[]` |
+`src/api/client.js`
 
-| Action | Descripción |
-|--------|-------------|
-| `login(qrToken)` | Llama EP1, guarda operario + sid |
-| `restoreSession()` | Llama EP1b y reconstruye el contexto desde la cookie `sid` |
-| `ensureSession()` | Devuelve la sesión actual o intenta restaurarla |
-| `hasModule(code)` | Indica si el perfil actual puede abrir un módulo |
-| `logout()` | Llama EP1c y limpia estado local |
+- `withCredentials: true` para cookie `sid`.
+- Convierte payloads object a `application/x-www-form-urlencoded`.
+- Desenvuelve sobre Frappe (`data.message`).
+- Cabeceras anti-cache para evitar estados inconsistentes en kioscos.
 
-## API Wrappers (`kiosco.js`)
+## Wrappers API
 
-| Función | Endpoint | Parámetros |
-|---------|----------|------------|
-| `loginOperario(qrToken)` | EP1 `login_operario` | `qr_token` |
-| `getOperarioSession()` | EP1b `get_operario_session` | — |
-| `logoutOperario()` | EP1c `logout_operario` | — |
-| `getTareas(company, warehouse)` | EP2 `get_tareas` | `company`, `warehouse` |
-| `validarMaterial(workOrder, qrData)` | EP3 `validar_material` | `work_order`, `qr_data` |
-| `reportarConsumo(workOrder, lotesUsados, consumosExtra)` | EP4 `reportar_consumo` | `work_order`, `lotes_usados` (JSON string), `consumos_extra` (JSON string) |
-| `getLotesCuarentena(warehouse)` | EP6 `get_lotes_cuarentena` | `warehouse?` |
-| `aprobarCalidad(payload)` | EP7 `aprobar_calidad` | `itemCode`, `batchNo`, `qty`, `parametros`, `aprobada`, `resultado`, `remarks` |
+`src/api/kiosco.js`
 
-## Shell de Aplicación
+- EP1 `loginOperario`
+- EP1b `getOperarioSession`
+- EP1c `logoutOperario`
+- EP2 `getTareas`
+- EP3 `validarMaterial`
+- EP4 `reportarConsumo`
+- EP6 `getLotesCuarentena`
+- EP7 `aprobarCalidad`
 
-- `main.js` inicializa PrimeVue con preset `Aura` y `ToastService`.
-- `App.vue` deja de ser un `RouterView` plano y monta una shell oscura con fondo atmosférico y `Toast` global.
-- El flujo post-login ya no entra directo en producción: redirige a `/hub`, donde el operario elige entre fabricación y laboratorio.
+## Flujo de Pantallas
 
-## ModuleHub — Selección de Zona
+### LoginQR
 
-Vista de entrada post-login con módulos filtrados según `operario.allowed_modules`:
+- Scanner QR por teclado HID con fallback manual.
+- Si hay sesion valida: salta a hub o ruta default del perfil.
+- UI en frances y touch-first.
 
-- **Production pilotée** → navega a `/tareas`
-- **Laboratoire qualité** → navega a `/laboratoire`
+### ModuleHub
 
-Características:
+- Muestra solo modulos permitidos por perfil (`production` / `quality`).
+- CTA grandes para tablet.
 
-- Hero visual tipo control room con resumen de sesión activa
-- Perfil kiosco visible en el panel de sesión
-- Cards de módulo con CTA grandes, énfasis visual distinto por dominio
-- Botón explícito de cierre de sesión
-- Navegación pensada para tablet, no para escritorio administrativo
-- Si el badge solo tiene un módulo permitido, Login redirige directamente a su ruta por defecto sin pasar por el hub
+### TareasList
 
-## LaboratoireQC — Console Qualité
+- Consume EP2 por empresa + warehouse por defecto.
+- Tarjetas de WO con estado de stock y CTA "DEMARRER LA PRODUCTION".
 
-Pantalla completa de Bloque 4 construida con PrimeVue (`Card`, `Drawer`, `SelectButton`, `InputNumber`, `Textarea`, `Message`, `Toast`).
+### PokaYokeScanner
 
-### Capacidades
+- Carga materiales de la WO desde EP2.
+- Valida cada escaneo por EP3.
+- Estados: ready/scanning/loading/success/error.
+- Cierre EP4:
+  - standard
+  - extras
+  - submitting
+  - success/error overlays
 
-- Consulta EP6 `get_lotes_cuarentena` al montar
-- KPIs superiores: número de lotes, volumen en cuarentena y lote más antiguo
-- Búsqueda libre por `item_code`, `item_name`, `batch_no` y fecha
-- Grid de lotes con CTA `Lancer l’inspection`
-- Drawer lateral de inspección con:
-  - cantidad inspeccionada
-  - selector de decisión `Approuver / Rejeter`
-  - parámetros dinámicos con filas editables
-  - textarea de observaciones
-- Submit contra EP7 `aprobar_calidad`
-- Journal lateral de la última acción con `Quality Inspection` y `Stock Entry` resultantes
+### LaboratoireQC
 
-### Comportamiento del drawer
+- Lista lotes en cuarentena (EP6).
+- Drawer de inspeccion con parametros dinamicos.
+- Decisiones Approved/Rejected.
+- Submit a EP7 con journal de ultima accion.
 
-- Si el veredicto es **Approved**, el botón principal ejecuta liberación y muestra toast success.
-- Si el veredicto es **Rejected**, registra la inspección y deja el stock en cuarentena.
-- Los parámetros se serializan como mapa JSON `nombre -> valor`, alineado con el backend actual.
+## Design System Actual (Light Industrial)
 
-## Axios Client (`client.js`)
+Fuente principal y estilo:
 
-- **Base URL**: `/api` (proxy por Vite en dev)
-- **Credentials**: `withCredentials: true` (cookies `sid`)
-- **Request interceptor**: Convierte `object` a `URLSearchParams` (Frappe requiere form-urlencoded)
-- **Response interceptor**: Desenvuelve `response.data.message` (sobre Frappe)
-- **Headers anti-cache**: `Cache-Control: no-store` y `Pragma: no-cache` para reducir estados inconsistentes entre navegadores
-- **CSRF**: Deshabilitado server-side via `exempt_csrf()` → no se envía token
+- Theme claro industrial.
+- Fondo base `#f4f4f5`.
+- Paneles blancos con borde zinc.
+- CTA principal azul (`bg-blue-600`).
 
-## Patrón Scanner USB HID
+Clases compartidas en `style.css`:
 
-Los escáneres de código de barras USB se comportan como un teclado: envían caracteres uno por uno vía eventos `keydown` y terminan con `Enter`.
+- `.kiosk-panel`
+- `.kiosk-panel-soft`
+- `.gcma-data-row`
+- `.gcma-stat`
+- `.kiosk-chip`
+- `.kiosk-icon-shell`
+- `.gcma-toolbar`
+- `.gcma-section-label`
 
-```
-┌──────────────┐    keydown 'O'     ┌─────────────┐
-│  USB Scanner  │───────────────────▶│  buffer += c │
-│  emulates     │    keydown 'P'     │  resetTimer  │
-│  keyboard     │───────────────────▶│  (80ms gap)  │
-│               │    keydown Enter   │              │
-│               │───────────────────▶│  → trigger() │
-└──────────────┘                     └─────────────┘
-```
+Reglas de accesibilidad/touch:
 
-**Implementación**: `src/composables/useScanner.js` — composable compartido por `LoginQR.vue` y `PokaYokeScanner.vue`.
+- Base font-size: 16px mobile, 18px desde `sm`.
+- CTA primarias en `h-16`.
+- Acciones secundarias/destructivas minimo `h-12`.
 
-1. `keydown` listener en `window` (montado con `onMounted`, limpiado con `onUnmounted`)
-2. Buffer acumula caracteres; timer de 80ms resetea si hay pausa larga
-3. `Enter` → llama callback con buffer completo → reset buffer
-4. Prop reactiva `disabled` pausa el listener cuando el modal manual está visible
+## Scanner HID
 
-## LoginQR — Modos de Entrada
+`useScanner(onScan, { gapMs = 80, minLength = 3, disabled })`
 
-### Modo 1: Escáner USB (por defecto)
-- Pantalla completa con animación de escaneo
-- El escáner envía el token via `keydown` + `Enter`
-- 5 estados visuales: idle → scanning → loading → success / error
-- Si el navegador ya tiene un `sid` válido, la vista restaura la sesión y redirige automáticamente a `/hub`
+- Escucha `keydown`.
+- Buffer con timeout por gap.
+- `Enter` dispara callback.
+- `disabled` pausa lectura (modales/errores).
 
-### Modo 2: Entrada Manual (Plan B)
-- Botón "Saisie Manuelle" abre modal via `<Teleport to="body">`
-- Input con auto-focus + botones Annuler / Valider
-- `manualOpen = true` pausa el listener del escáner
-- Mismo pipeline `handleLogin()` que el escáner
+## Estado de Implementacion
 
-## TareasList — Lista de Work Orders
-
-Pantalla principal post-login. Consume EP2 con `company` y `warehouse` del store Pinia.
-
-### Características
-- Llama `getTareas(company, warehouse)` en `onMounted`
-- Tarjetas gigantes con: nombre del producto, cantidad pendiente (font 5xl), badge de estado, indicador de stock de materiales
-- Botón "DÉMARRER LA PRODUCTION ▶" por tarjeta → navega a `/poka-yoke/:workOrder`
-- Estados: loading (spinner), error (con "Réessayer"), empty (mensaje)
-- Botón refresh (↻) en header + botón Déconnexion
-- Atajos extra: botón `Modules` para volver al hub y botón `Laboratoire` para saltar a QC
-
-### Indicador de Stock
-- **✓ Stock complet** (verde): todos los materiales tienen `suficiente: true`
-- **⚠ Stock insuffisant** (ámbar): al menos un material sin stock suficiente
-
-## PokaYokeScanner — Validación de Materiales
-
-Pantalla crítica de validación Poka-Yoke. Carga materiales de la WO via EP2, luego valida cada escaneo via EP3.
-
-### Flujo
-1. `onMounted` → carga tarea via `getTareas()` → filtra por `workOrder` → construye checklist con `status: 'pending'`
-2. Escáner USB captura QR → `handleScan(qrData)` → llama EP3 `validarMaterial()`
-3. Si EP3 `valido: true` → marca material matching como `'validated'` → flash verde en la card
-4. Si EP3 `valido: false` → overlay rojo STOP pantalla completa (Teleport)
-5. Cuando todos los materiales están validados → botón pulsante "FINALISER LE MÉLANGE ✓"
-6. Click "FINALISER" → modal de ajuste de consumo (EP4):
-   - **Fase `asking`**: Diálogo "Consommation standard ou extra ?" con 2 botones h-16 (emerald "NON, standard" / amber "OUI, extra")
-   - **Fase `extras`**: Lista scrollable de ingredientes con inputs numéricos `qty_extra` por material, botón "Valider et Enregistrer"
-   - **Fase `submitting`**: Overlay con spinner
-  - **Fase `success`**: Overlay fullscreen emerald-700 "LOT TERMINÉ — Placer en zone de Quarantaine" con redirect automático a `/tareas` tras 3s. Si hay alerta de desviación >10%, se muestra un banner amber.
-   - **Fase `error`**: Overlay fullscreen rose-700 con "Réessayer" y "Annuler"
-
-### Contrato EP4 desde la vista
-
-- `buildLotesUsados()` construye un mapa `item_name -> batch_no` a partir de `scanResult.batch_no`.
-- Para materiales no loteados envía `SIN-LOTE`.
-- `submitExtras()` construye un mapa `item_name -> qty_extra` solo con materiales cuyo extra sea `> 0`.
-- `confirmStandard()` llama EP4 con `consumosExtra = {}`.
-- EP4 ya no es un cierre “soft”: al responder `success`, la WO queda sincronizada con ERPNext y el producto terminado entra en `Cuarentena PT`.
-
-### UX Semafórica
-- **Verde**: Material validado → card pasa a fondo `green-50`, icono ✓ verde, flash `scale-[1.02]` durante 1.5s
-- **Rojo STOP**: Error → overlay `fixed inset-0` rojo con mensaje en `text-3xl`, botón FERMER. Para `alerta_nivel: 'CRITICO'` → overlay pulsa (`animate-pulse`)
-- **Barra de estado**: zona inferior con colores por estado (slate=ready, blue=scanning, amber=loading, green=success)
-
-### Checklist de Ingredientes
-- Cada material muestra: número ordinal, `item_name`, `qty_requerida` + `uom`, badge stock
-- Al validar: icono cambia a ✓ verde, se muestra `batch_no` del lote escaneado
-- Contador en header: `validatedCount / materials.length`
-
-### Entrada Manual
-- Botón "⌨ Saisie Manuelle" abre modal (Teleport)
-- Input con auto-focus (`watch` + `nextTick`), placeholder `CODE|LOT`
-- `manualOpen = true` pausa el listener del escáner USB
-- Mismo pipeline `handleScan()` que el escáner
-
-### Guards del Scanner
-- `if (manualOpen.value) return` — pausa durante entrada manual
-- `if (scanState.value === 'error') return` — ignora scans durante overlay rojo (debe cerrar primero)
-
-## PWA Config
-
-Manifest generado por `vite-plugin-pwa`:
-
-```js
-{
-  name: 'GCMA Kiosque Opérateur',
-  short_name: 'Kiosque',
-  display: 'standalone',
-  orientation: 'portrait',
-  theme_color: '#1e40af',
-  background_color: '#0f172a'
-}
-```
-
-## Estilos Industriales (`style.css`)
-
-```css
-@import "tailwindcss";
-
-html { font-size: 18px; }         /* Legibilidad en tablet industrial */
-body {
-  touch-action: manipulation;      /* Sin double-tap zoom */
-  user-select: none;               /* Sin selección accidental */
-  min-height: 100dvh;              /* Viewport dinámico */
-}
-```
-
-Además ahora incluye:
-
-- fondo multicapa con gradientes sutiles
-- clase `glass-panel` para bloques premium
-- overrides dark para `p-card`, `p-button`, `p-inputtext`, `p-inputnumber`, `p-textarea`, `p-drawer`, `p-selectbutton` y `p-toast`
-- visual language consistente entre producción y laboratorio sin depender de estilos inline improvisados
-
-## Proxy Vite (Desarrollo)
-
-```js
-// vite.config.js
-server: {
-  proxy: {
-    '/api': {
-      target: 'http://localhost:8080',    // Docker nginx
-      changeOrigin: true,
-      cookieDomainRewrite: { '*': '' }    // Cookies funcionen en localhost
-    }
-  }
-}
-```
+- Flujo production operativo: login -> tareas -> poka-yoke -> EP4.
+- Flujo quality operativo: hub -> laboratoire -> EP7.
+- Perfilado por badge operativo en frontend/router/store.
+- Mobile fixes del drawer de laboratorio aplicados (scroll + reset iOS).
