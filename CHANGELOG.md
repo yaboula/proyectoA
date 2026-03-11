@@ -3,6 +3,21 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.7.6] — 2026-03-11
+
+### Added
+
+**Release readiness — Cierre tecnico Bloque 1**
+
+- Nueva plantilla de checklist y evidencia en `docs/releases/BLOQUE1_RELEASE_CHECKLIST.md`.
+- Nueva plantilla de acta de cierre en `docs/releases/BLOQUE1_ACTA_CIERRE.md`.
+
+### Changed
+
+**Runbook — Flujo de pre-release estandarizado**
+
+- `docs/RUNBOOK.md`: nueva seccion "Release Readiness Bloque 1" con secuencia obligatoria build + smoke + registro de evidencia.
+
 ## [0.7.5] — 2026-03-11
 
 ### Added

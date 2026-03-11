@@ -346,6 +346,37 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1 \
 
 ---
 
+## Release Readiness Bloque 1
+
+### Flujo obligatorio pre-release
+
+1. Sincronizar codigo en backend docker (si aplica) y reiniciar `backend-1` + `frontend-1`.
+2. Ejecutar build frontend:
+
+```powershell
+cd kiosco-pwa
+npm run build
+cd ..
+```
+
+3. Ejecutar smoke suite base (read-only):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1
+```
+
+4. Validar que no existan endpoints core en `FAIL`.
+5. Si el release incluye cambios en EP4/EP7, correr smoke con write-ops controlados.
+6. Registrar evidencia en:
+  - `docs/releases/BLOQUE1_RELEASE_CHECKLIST.md`
+  - `docs/releases/BLOQUE1_ACTA_CIERRE.md`
+
+### Regla de liberacion
+
+- Sin evidencia de build + smoke + criterios de salida, el release no se considera aprobado.
+
+---
+
 ## Lecciones Aprendidas — Mobile / PWA
 
 ### L1 — `crypto.randomUUID()` requiere HTTPS
