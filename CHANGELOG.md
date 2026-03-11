@@ -3,6 +3,28 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.7.4] — 2026-03-11
+
+### Added
+
+**Backend — EP5 `info_lote` implementado**
+
+- Nuevo endpoint `GET /api/method/gcma_kiosco.api.kiosco.info_lote` con consulta rapida de lote.
+- Respuesta incluye `lote` (item/caducidad/dias restantes), `stock_por_almacen` y `total_qty`.
+- Validaciones funcionales implementadas: `MISSING_PARAMS`, `BATCH_NOT_FOUND`, `BATCH_ITEM_MISMATCH`.
+
+### Changed
+
+**Frontend — Integración EP5 en laboratorio**
+
+- `kiosco.js`: nuevo wrapper `getInfoLote(batchNo, itemCode?)`.
+- `LaboratoireQC.vue`: al abrir un lote, el drawer consulta EP5 y muestra expiracion, dias restantes y stock por almacen.
+
+### Docs
+
+- `docs/API.md`: sección EP5 completada (request/response/errores/curl).
+- `docs/FRONTEND.md`: actualizado uso de EP5 en wrappers y consola de laboratorio.
+
 ## [0.7.3] — 2026-03-11
 
 ### Changed

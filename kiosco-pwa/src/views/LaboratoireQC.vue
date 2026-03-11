@@ -16,7 +16,7 @@ import SelectButton from 'primevue/selectbutton'
 import KioskLayout from '../components/KioskLayout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { useOperarioStore } from '../stores/operario'
-import { aprobarCalidad, getLotesCuarentena } from '../api/kiosco'
+import { aprobarCalidad, getInfoLote, getLotesCuarentena } from '../api/kiosco'
 import {
   FlaskConical,
   RefreshCw,
@@ -50,6 +50,9 @@ const remarks = ref('')
 const selectedDecision = ref('Approved')
 const quantity = ref(1)
 const auditTrail = ref(null)
+const lotInfoLoading = ref(false)
+const lotInfoError = ref('')
+const lotInfo = ref(null)
 
 const decisionOptions = [
   { label: 'Approuver', value: 'Approved' },
@@ -76,6 +79,24 @@ function resetForm(lot) {
   quantity.value = lot ? Math.min(1, Number(lot.qty) || 1) || 1 : 1
   remarks.value = lot ? `Controle laboratoire du lot ${lot.batch_no}` : ''
   parameterRows.value = buildDefaultRows()
+  lotInfo.value = null
+  lotInfoError.value = ''
+}
+
+async function loadLotInfo(lot) {
+  if (!lot?.batch_no) return
+
+  lotInfoLoading.value = true
+  lotInfoError.value = ''
+  try {
+    const data = await getInfoLote(lot.batch_no, lot.item_code)
+    lotInfo.value = data
+  } catch (err) {
+    lotInfoError.value = err?.message_fr ?? 'Informations lot indisponibles.'
+    lotInfo.value = null
+  } finally {
+    lotInfoLoading.value = false
+  }
 }
 
 watch(selectedDecision, (decision) => {
@@ -224,7 +245,10 @@ function onDrawerShow() {
   })
 }
 
-function openLot(lot) { resetForm(lot) }
+function openLot(lot) {
+  resetForm(lot)
+  loadLotInfo(lot)
+}
 
 onMounted(loadLots)
 </script>
@@ -456,6 +480,27 @@ onMounted(loadLots)
                   <div class="rounded-md bg-zinc-50 border border-zinc-200 p-3">
                     <div class="text-zinc-400">Date</div>
                     <div class="mt-1 font-bold text-zinc-900">{{ selectedLot.fecha_fabricacion }}</div>
+                  </div>
+                </div>
+
+                <div class="mt-4 rounded-md border border-zinc-200 bg-white p-4">
+                  <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Info lot (EP5)</div>
+
+                  <div v-if="lotInfoLoading" class="mt-2 text-sm text-zinc-500">Chargement des informations...</div>
+                  <div v-else-if="lotInfoError" class="mt-2 text-sm text-red-600">{{ lotInfoError }}</div>
+                  <div v-else-if="lotInfo" class="mt-2 space-y-2 text-sm text-zinc-600">
+                    <div><span class="text-zinc-400">Expiration:</span> {{ lotInfo.lote?.expiry_date || 'N/A' }}</div>
+                    <div><span class="text-zinc-400">Jours restants:</span> {{ lotInfo.lote?.dias_restantes ?? 'N/A' }}</div>
+                    <div><span class="text-zinc-400">Total lot:</span> {{ lotInfo.total_qty }} Nos</div>
+                    <div v-if="lotInfo.stock_por_almacen?.length" class="pt-1">
+                      <div class="text-zinc-400">Stock par entrepot:</div>
+                      <div class="mt-1 grid gap-1">
+                        <div v-for="row in lotInfo.stock_por_almacen" :key="row.warehouse" class="flex items-center justify-between rounded-md bg-zinc-50 px-2 py-1">
+                          <span class="truncate pr-2">{{ row.warehouse }}</span>
+                          <span class="font-semibold text-zinc-900">{{ row.qty }}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

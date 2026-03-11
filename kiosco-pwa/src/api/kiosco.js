@@ -43,6 +43,13 @@ export function reportarConsumo(workOrder, lotesUsados = {}, consumosExtra = {})
   })
 }
 
+/** EP5 — Consulta informativa de lote */
+export function getInfoLote(batchNo, itemCode) {
+  const params = { batch_no: batchNo }
+  if (itemCode) params.item_code = itemCode
+  return client.get(`${BASE}.info_lote`, { params })
+}
+
 export function getLotesCuarentena(warehouse) {
   const params = {}
   if (warehouse) params.warehouse = warehouse

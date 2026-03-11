@@ -92,6 +92,7 @@ Store: `operario`
 - EP2 `getTareas`
 - EP3 `validarMaterial`
 - EP4 `reportarConsumo`
+- EP5 `getInfoLote`
 - EP6 `getLotesCuarentena`
 - EP7 `aprobarCalidad`
 
@@ -127,6 +128,7 @@ Store: `operario`
 ### LaboratoireQC
 
 - Lista lotes en cuarentena (EP6).
+- Consulta informativa de lote (EP5) al abrir el drawer.
 - Drawer de inspeccion con parametros dinamicos.
 - Decisiones Approved/Rejected.
 - Submit a EP7 con journal de ultima accion.

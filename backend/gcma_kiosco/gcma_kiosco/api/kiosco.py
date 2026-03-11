@@ -10,7 +10,7 @@ Endpoints implementados:
   [✓] EP2 — get_tareas          (GET,  Work Orders pendientes)
   [✓] EP3 — validar_material    (POST, Poka-Yoke escaneo MP)
     [✓] EP4 — reportar_consumo    (POST, consumo real post-mezcla)
-  [ ] EP5 — info_lote           (GET,  consulta informativa lote)
+    [✓] EP5 — info_lote           (GET,  consulta informativa lote)
 """
 
 from contextlib import contextmanager
@@ -99,6 +99,61 @@ def _require_kiosk_profile(*allowed_profiles: str):
         return _build_profile_error_response(*allowed_profiles)
 
     return None
+
+
+def _get_batch_stock_by_warehouse(item_code: str, batch_no: str):
+    """Consolida stock por almacén para un lote usando fuentes v16 + legacy."""
+    stock_map = {}
+
+    bundle_rows = frappe.db.sql(
+        """
+        SELECT
+            sbe.warehouse,
+            SUM(CASE WHEN IFNULL(sbe.is_outward, 0) = 1 THEN -ABS(sbe.qty) ELSE sbe.qty END) AS qty
+        FROM `tabSerial and Batch Entry` sbe
+        INNER JOIN `tabSerial and Batch Bundle` bundle ON bundle.name = sbe.parent
+        WHERE sbe.item_code = %s
+          AND sbe.batch_no = %s
+          AND sbe.is_cancelled = 0
+        GROUP BY sbe.warehouse
+        """,
+        (item_code, batch_no),
+        as_dict=True,
+    )
+
+    legacy_rows = frappe.db.sql(
+        """
+        SELECT
+            sle.warehouse,
+            SUM(sle.actual_qty) AS qty
+        FROM `tabStock Ledger Entry` sle
+        WHERE sle.item_code = %s
+          AND sle.batch_no = %s
+          AND sle.is_cancelled = 0
+          AND IFNULL(sle.serial_and_batch_bundle, '') = ''
+        GROUP BY sle.warehouse
+        """,
+        (item_code, batch_no),
+        as_dict=True,
+    )
+
+    for row in bundle_rows:
+        warehouse = row.warehouse
+        stock_map[warehouse] = flt(stock_map.get(warehouse, 0)) + flt(row.qty)
+
+    for row in legacy_rows:
+        warehouse = row.warehouse
+        stock_map[warehouse] = flt(stock_map.get(warehouse, 0)) + flt(row.qty)
+
+    rows = []
+    for warehouse, qty in stock_map.items():
+        qty = round(flt(qty), 2)
+        if qty <= 0:
+            continue
+        rows.append({"warehouse": warehouse, "qty": qty})
+
+    rows.sort(key=lambda r: r["warehouse"])
+    return rows
 
 
 def _get_operario_for_user(user_id: str):
@@ -1039,5 +1094,83 @@ def reportar_consumo(
 # ═══════════════════════════════════════════════════════════════════════════
 # EP5 — INFO LOTE (consulta rápida)
 # ═══════════════════════════════════════════════════════════════════════════
-# TODO: Cuarto módulo pendiente.
-# Arquitectura detallada en: _kiosco_architecture.py → ENDPOINT 5
+
+
+@frappe.whitelist()
+def info_lote(batch_no: str = None, item_code: str = None):
+    """Consulta rápida de lote para planta/laboratorio.
+
+    Devuelve metadatos del lote y stock agregado por almacén.
+    """
+    profile_error = _require_kiosk_profile("production", "quality")
+    if profile_error:
+        return profile_error
+
+    if not batch_no:
+        frappe.local.response["http_status_code"] = 400
+        return {
+            "success": False,
+            "error_code": "MISSING_PARAMS",
+            "message_fr": "Paramètre 'batch_no' obligatoire.",
+        }
+
+    batch_no = str(batch_no).strip()
+    item_code = str(item_code).strip() if item_code else None
+
+    try:
+        batch_data = frappe.db.get_value(
+            "Batch",
+            batch_no,
+            ["batch_id", "item", "expiry_date"],
+            as_dict=True,
+        )
+
+        if not batch_data:
+            frappe.local.response["http_status_code"] = 404
+            return {
+                "success": False,
+                "error_code": "BATCH_NOT_FOUND",
+                "message_fr": f"Lot '{batch_no}' introuvable.",
+            }
+
+        if item_code and batch_data.item != item_code:
+            frappe.local.response["http_status_code"] = 422
+            return {
+                "success": False,
+                "error_code": "BATCH_ITEM_MISMATCH",
+                "message_fr": "Le lot indique ne correspond pas a l'article fourni.",
+            }
+
+        resolved_item_code = batch_data.item
+        item_name = frappe.db.get_value("Item", resolved_item_code, "item_name") or resolved_item_code
+        expiry_date = str(batch_data.expiry_date) if batch_data.expiry_date else None
+        dias_restantes = date_diff(batch_data.expiry_date, today()) if batch_data.expiry_date else None
+
+        stock_rows = _get_batch_stock_by_warehouse(resolved_item_code, batch_no)
+        total_qty = round(sum(flt(row["qty"]) for row in stock_rows), 2)
+
+        return {
+            "success": True,
+            "lote": {
+                "batch_no": batch_no,
+                "item_code": resolved_item_code,
+                "item_name": item_name,
+                "expiry_date": expiry_date,
+                "dias_restantes": dias_restantes,
+            },
+            "stock_por_almacen": stock_rows,
+            "total_qty": total_qty,
+            "message_fr": "Informations du lot chargees.",
+        }
+
+    except Exception:
+        frappe.log_error(
+            title=f"Erreur info_lote — {batch_no}",
+            message=frappe.get_traceback(),
+        )
+        frappe.local.response["http_status_code"] = 500
+        return {
+            "success": False,
+            "error_code": "INTERNAL_ERROR",
+            "message_fr": "Erreur interne lors de la consultation du lot.",
+        }

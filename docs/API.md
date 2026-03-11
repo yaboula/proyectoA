@@ -402,11 +402,60 @@ curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.kiosco.reportar_co
 
 ---
 
-## EP5 — Info Lote (TODO)
+## EP5 — Info Lote
 
-Consulta informativa de un lote: item, caducidad, stock actual.
+Consulta informativa de un lote para uso rapido en planta/laboratorio.
 
-**Estado:** Pendiente de implementación.
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/gcma_kiosco.api.kiosco.info_lote` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `batch_no` | string | Sí | Lote a consultar |
+| `item_code` | string | No | Validación cruzada opcional del item del lote |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "lote": {
+    "batch_no": "LOTE-CHAOS-PT-001",
+    "item_code": "PT-PIN-BLC-MAT-20L",
+    "item_name": "Peinture Blanche Mate 20L",
+    "expiry_date": "2027-03-10",
+    "dias_restantes": 364
+  },
+  "stock_por_almacen": [
+    {
+      "warehouse": "Cuarentena PT - PDM",
+      "qty": 5.0
+    }
+  ],
+  "total_qty": 5.0,
+  "message_fr": "Informations du lot chargees."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` | Causa |
+|------|-------------|-------------|-------|
+| 400 | `MISSING_PARAMS` | Paramètre 'batch_no' obligatoire. | Falta `batch_no` |
+| 404 | `BATCH_NOT_FOUND` | Lot '...' introuvable. | Lote inexistente |
+| 422 | `BATCH_ITEM_MISMATCH` | Le lot indique ne correspond pas... | `item_code` no coincide con el lote |
+| 500 | `INTERNAL_ERROR` | Erreur interne lors de la consultation du lot. | Excepción no controlada |
+
+### curl
+
+```bash
+curl "http://localhost:8080/api/method/gcma_kiosco.api.kiosco.info_lote?batch_no=LOTE-CHAOS-PT-001&item_code=PT-PIN-BLC-MAT-20L" \
+  -b "sid=<session_id>"
+```
 
 ---
 
