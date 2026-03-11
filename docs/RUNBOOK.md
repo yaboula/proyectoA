@@ -330,6 +330,19 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1 \
 
 `-IncludeWriteOps` ejecuta EP4 y modifica documentos productivos de demo.
 
+### Test focalizado de EP5 (contrato `info_lote`)
+
+Para validar rapidamente el contrato de EP5 tras deploy backend:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/test-ep5-info-lote.ps1
+```
+
+Cobertura:
+
+- Caso positivo: lote + item correctos.
+- Caso de error de contrato: item incorrecto para el lote (se acepta HTTP 422 esperado).
+
 Para EP7 (inspección calidad), usar explícitamente:
 
 ```powershell

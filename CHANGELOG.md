@@ -3,6 +3,22 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.7.7] — 2026-03-11
+
+### Added
+
+**QA — Tests focalizados para EP5**
+
+- Nuevo script `scripts/smoke/test-ep5-info-lote.ps1` con dos casos ejecutables:
+  - EP5 positivo (lote + item validos).
+  - EP5 contrato de error con `item_code` incompatible (HTTP 422 esperado).
+
+### Changed
+
+**Runbook — Validacion post-deploy de EP5**
+
+- `docs/RUNBOOK.md`: añadida seccion de test focalizado EP5 para verificacion rapida tras recarga de backend.
+
 ## [0.7.6] — 2026-03-11
 
 ### Added
