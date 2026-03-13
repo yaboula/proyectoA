@@ -34,6 +34,14 @@ def _to_date(value: str | None) -> date:
     return getdate(value) if value else getdate(today())
 
 
+def _safe_customer_value(customer: str, fieldname: str, default: Any = None) -> Any:
+    try:
+        value = frappe.db.get_value("Customer", customer, fieldname)
+        return default if value is None else value
+    except Exception:
+        return default
+
+
 def _is_authorized_manager() -> bool:
     if frappe.session.user == "Administrator":
         return True
@@ -74,7 +82,7 @@ def _get_top_customers_by_ytd_billing(ref_date: date, percentile: float = 0.2) -
 
 
 def _get_churn_days_for_customer(customer: str) -> int:
-    tipo = frappe.db.get_value("Customer", customer, "tipo_drogueria")
+    tipo = None
 
     default_days = int(_to_float(frappe.conf.get("b2b_churn_days_default", 40), 40))
     by_tipo = frappe.conf.get("b2b_churn_days_by_tipo", {})
@@ -98,19 +106,15 @@ def _scorecard_rows(ref_date: date) -> list[dict[str, Any]]:
         select
             c.name as customer,
             c.customer_name as customer_name,
-            c.tipo_drogueria as tipo_drogueria,
             ifnull(sum(si.base_grand_total), 0) as facturacion_ytd,
             max(si.posting_date) as ultima_compra,
-            ifnull(c.deuda_vencida, 0) as deuda_vencida,
-            ifnull(c.deuda_total, 0) as deuda_total,
-            ifnull(c.dias_peor_mora, 0) as dias_peor_mora,
             count(distinct date_format(si.posting_date, '%%Y-%%m')) as frecuencia_mensual
         from `tabCustomer` c
         left join `tabSales Invoice` si
             on si.customer = c.name
            and si.docstatus = 1
            and si.posting_date between %(year_start)s and %(ref_date)s
-        group by c.name, c.customer_name, c.tipo_drogueria, c.deuda_vencida, c.deuda_total, c.dias_peor_mora
+        group by c.name, c.customer_name
         order by facturacion_ytd desc, c.name asc
         """,
         {"year_start": year_start, "ref_date": ref_date},
@@ -124,15 +128,27 @@ def _scorecard_rows(ref_date: date) -> list[dict[str, Any]]:
         if ultima_compra:
             dias_sin_compra = (ref_date - getdate(ultima_compra)).days
 
+        customer_fields = frappe.db.get_value(
+            "Customer",
+            row.customer,
+            ["name", "customer_name"],
+            as_dict=True,
+        ) or {}
+
+        tipo_drogueria = None
+        deuda_vencida = 0
+        deuda_total = 0
+        dias_peor_mora = 0
+
         scorecard.append(
             {
-                "customer": row.customer,
-                "customer_name": row.customer_name,
-                "tipo_drogueria": row.tipo_drogueria,
+                "customer": customer_fields.get("name") or row.customer,
+                "customer_name": customer_fields.get("customer_name") or row.customer_name,
+                "tipo_drogueria": tipo_drogueria,
                 "facturacion_ytd": flt(row.facturacion_ytd, 2),
-                "deuda_vencida": flt(row.deuda_vencida, 2),
-                "deuda_total": flt(row.deuda_total, 2),
-                "dias_peor_mora": int(_to_float(row.dias_peor_mora, 0)),
+                "deuda_vencida": flt(deuda_vencida, 2),
+                "deuda_total": flt(deuda_total, 2),
+                "dias_peor_mora": dias_peor_mora,
                 "frecuencia_mensual": int(_to_float(row.frecuencia_mensual, 0)),
                 "ultima_compra": str(ultima_compra) if ultima_compra else None,
                 "dias_sin_compra": dias_sin_compra,

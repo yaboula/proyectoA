@@ -93,21 +93,39 @@ def _current_portal_customer() -> str:
 
     customer = frappe.db.sql(
         """
-        select dl.link_name
-        from `tabContact Email` ce
-        inner join `tabDynamic Link` dl on dl.parent = ce.parent
-        where ce.email_id = %(user)s
+                select dl.link_name
+                from `tabContact` c
+                inner join `tabDynamic Link` dl on dl.parent = c.name
+                where c.email_id = %(user)s
+                    and dl.parenttype = 'Contact'
+                    and dl.link_doctype = 'Customer'
+
+                union
+
+                select dl.link_name
+                from `tabContact Email` ce
+                inner join `tabDynamic Link` dl on dl.parent = ce.parent
+                where ce.email_id = %(user)s
+                    and dl.parenttype = 'Contact'
           and dl.link_doctype = 'Customer'
-        order by ce.modified desc
-        limit 1
         """,
-        {"user": user},
+                {"user": user},
+                as_dict=True,
     )
 
-    if not customer:
-        frappe.throw(_("Usuario portal sin Customer vinculado"), frappe.PermissionError)
+    if customer and customer[0].get("link_name"):
+        return customer[0].link_name
 
-    return customer[0][0]
+    # Fallback: many portal setups enforce tenant scope via User Permission.
+    user_perm_customer = frappe.db.get_value(
+        "User Permission",
+        {"user": user, "allow": "Customer"},
+        "for_value",
+    )
+    if user_perm_customer:
+        return user_perm_customer
+
+    frappe.throw(_("Usuario portal sin Customer vinculado"), frappe.PermissionError)
 
 
 def _resolve_portal_customer(id_cliente: str | None = None) -> str:
