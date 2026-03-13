@@ -165,3 +165,13 @@ Razon:
 - `docs/plan-v2/sprints/bloque-2-inventario/SPRINT-04_RECEPCION.md`
 - `docs/plan-v2/sprints/bloque-2-inventario/SPRINT-05_CUARENTENA_Y_ETIQUETADO.md`
 - `docs/plan-v2/sprints/bloque-2-inventario/SPRINT-06_INVENTARIO_CIEGO.md`
+
+## 12. Enlaces a Sprints del Bloque 3 (Comercial y Logística)
+
+### Sub-bloque 3A: Fuerza de Ventas B2B
+- `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-07_RUTAS_Y_VISITAS.md`
+- `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-08_COBRANZAS_Y_PEDIDOS.md`
+
+### Sub-bloque 3B: Logística de Expedición
+- `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-09_PICKING_FEFO.md`
+- `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-10_BL_Y_POD.md`
