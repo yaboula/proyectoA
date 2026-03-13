@@ -42,6 +42,13 @@ def _safe_customer_value(customer: str, fieldname: str, default: Any = None) -> 
         return default
 
 
+def _has_checkin_visita_table() -> bool:
+    try:
+        return bool(frappe.db.table_exists("tabCheckIn_Visita"))
+    except Exception:
+        return False
+
+
 def _is_authorized_manager() -> bool:
     if frappe.session.user == "Administrator":
         return True
@@ -159,6 +166,15 @@ def _scorecard_rows(ref_date: date) -> list[dict[str, Any]]:
 
 
 def _hit_rate_rows(ref_date: date) -> dict[str, Any]:
+    if not _has_checkin_visita_table():
+        return {
+            "total_visitas": 0,
+            "visitas_con_pedido": 0,
+            "visitas_sin_pedido": 0,
+            "hit_rate": 0.0,
+            "por_comercial": [],
+        }
+
     start_dt = datetime.combine(ref_date, datetime.min.time())
     end_dt = datetime.combine(ref_date, datetime.max.time())
 
@@ -226,6 +242,9 @@ def _hit_rate_rows(ref_date: date) -> dict[str, Any]:
 
 
 def _cobertura_rows(ref_date: date) -> list[dict[str, Any]]:
+    if not _has_checkin_visita_table():
+        return []
+
     start_dt = datetime.combine(ref_date, datetime.min.time())
     end_dt = datetime.combine(ref_date, datetime.max.time())
 

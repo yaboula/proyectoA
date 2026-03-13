@@ -542,7 +542,11 @@ def create_support_ticket(
     if issue.meta.has_field("customer"):
         issue.customer = customer_id
     if issue.meta.has_field("issue_type"):
-        issue.issue_type = "Support"
+        issue_type = "Support"
+        if not frappe.db.exists("Issue Type", issue_type):
+            issue_type = frappe.db.get_value("Issue Type", {}, "name")
+        if issue_type:
+            issue.issue_type = issue_type
 
     issue.insert(ignore_permissions=True)
 

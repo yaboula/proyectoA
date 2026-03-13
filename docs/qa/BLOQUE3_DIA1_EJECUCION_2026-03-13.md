@@ -104,3 +104,16 @@ Se aprovisionaron usuarios/datos para Playwright en entorno local:
 	- Asignar roles efectivos al usuario `qa.manager.block3@gcma.local` en sitio `frontend`.
 	- Crear/validar linkage portal->Customer para `qa.portal.block3@gcma.local` (Contact/Dynamic Link o User Permission).
 	- Reejecutar `portal-b2b.spec.js` y `panel-gerencial-360.spec.js` esperando `Pass` completo (sin `skipped`).
+
+## 10. Verificacion de arranque Dia 2 (2026-03-14)
+
+- Preparacion runtime ejecutada:
+	- Roles agregados a manager QA: `System Manager`, `Accounts Manager`.
+	- Permiso de usuario portal agregado para `Customer=Droguerie Atlas`.
+- Correcciones adicionales de robustez backend:
+	- Panel gerencial tolera ausencia del doctype opcional `CheckIn_Visita`.
+	- Ticket SOS tolera ausencia de `Issue Type=Support` usando fallback seguro.
+- Resultado rerun E2E critico:
+	- `portal-b2b.spec.js`: Pass
+	- `panel-gerencial-360.spec.js`: Pass
+	- Resumen: `2 passed`.
