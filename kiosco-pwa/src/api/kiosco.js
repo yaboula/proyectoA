@@ -5,6 +5,7 @@ import client from './client'
 
 const BASE = '/api/method/gcma_kiosco.api.kiosco'
 const QUALITY_BASE = '/api/method/gcma_kiosco.api.calidad'
+const RECEPTION_BASE = '/api/method/gcma_kiosco.api.recepcion'
 
 /** EP1 — Login operario via QR badge token */
 export function loginOperario(qrToken) {
@@ -73,5 +74,44 @@ export function aprobarCalidad({
     aprobada,
     resultado,
     remarks,
+  })
+}
+
+export function getComprasPendientes(company, warehouse) {
+  const params = { company }
+  if (warehouse) params.warehouse = warehouse
+  return client.get(`${RECEPTION_BASE}.get_compras_pendientes`, { params })
+}
+
+export function registrarRecepcion(poName, itemsRecibidos, warehouse) {
+  const payload = {
+    po_name: poName,
+    items_recibidos: JSON.stringify(itemsRecibidos ?? []),
+  }
+  if (warehouse) payload.warehouse = warehouse
+  return client.post(`${RECEPTION_BASE}.registrar_recepcion`, payload)
+}
+
+export function trasladarLoteAprobado({ itemCode, batchNo, qtyToMove, sourceWarehouse, targetWarehouse }) {
+  const payload = {
+    item_code: itemCode,
+    batch_no: batchNo,
+    qty_to_move: qtyToMove,
+  }
+  if (sourceWarehouse) payload.source_warehouse = sourceWarehouse
+  if (targetWarehouse) payload.target_warehouse = targetWarehouse
+  return client.post(`${RECEPTION_BASE}.trasladar_lote_aprobado`, payload)
+}
+
+export function getLoteParaImpresion(batchNo) {
+  return client.get(`${RECEPTION_BASE}.get_lote_para_impresion`, {
+    params: { batch_no: batchNo },
+  })
+}
+
+export function subirConteoFisico(warehouse, conteo) {
+  return client.post(`${RECEPTION_BASE}.subir_conteo_fisico`, {
+    warehouse,
+    conteo: JSON.stringify(conteo ?? []),
   })
 }

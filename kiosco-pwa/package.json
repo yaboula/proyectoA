@@ -7,19 +7,29 @@
     "dev": "vite",
     "dev:kiosco": "vite --host 0.0.0.0 --port 5173 --strictPort",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e:prepare-reception": "powershell -ExecutionPolicy Bypass -File ..\\scripts\\e2e\\prepare-reception-sandbox.ps1",
+    "test:e2e:prepare-block2": "powershell -ExecutionPolicy Bypass -File ..\\scripts\\e2e\\prepare-block2-sandbox.ps1",
+    "test:e2e": "playwright test",
+    "test:e2e:block2": "playwright test --grep @block2 --workers=1",
+    "test:e2e:block2:evidence": "playwright test tests/e2e/block2-evidence.spec.js --project=chromium --workers=1",
+    "test:e2e:headed": "playwright test --headed --project=chromium",
+    "test:e2e:block2:headed": "playwright test --headed --project=chromium --grep @block2 --workers=1",
+    "test:e2e:debug": "playwright test --debug --project=chromium"
   },
   "dependencies": {
     "@primeuix/themes": "^2.0.3",
     "axios": "^1.13.6",
     "lucide-vue-next": "^0.577.0",
     "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.4",
     "vue": "^3.5.25",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "tailwindcss": "^4.2.1",

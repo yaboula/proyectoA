@@ -1,13 +1,15 @@
-﻿<script setup>
+<script setup>
 /**
  * PokaYokeScanner -- Validation des materiaux par scan QR (EP3/EP4).
  *
  * Refactored: useScanner, ScanStation, ManualInputModal, FullScreenOverlay, KioskLayout.
  */
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOperarioStore } from '../stores/operario'
-import { getTareas, validarMaterial, reportarConsumo } from '../api/kiosco'
+import { usePokaYokeStore } from '../stores/pokaYoke'
+import { useSyncQueueStore } from '../stores/syncQueue'
+import { validarMaterial, reportarConsumo } from '../api/kiosco'
 import { useScanner } from '../composables/useScanner'
 import KioskLayout from '../components/KioskLayout.vue'
 import ScanStation from '../components/ScanStation.vue'
@@ -30,10 +32,12 @@ import {
 const props = defineProps({ workOrder: String })
 const router = useRouter()
 const store = useOperarioStore()
+const pokeStore = usePokaYokeStore()
+const syncStore = useSyncQueueStore()
 
 // -- Tarea data --
-const tarea = ref(null)
-const materials = ref([])
+const tarea = computed(() => pokeStore.tarea)
+const materials = computed(() => pokeStore.materials)
 const loadingTarea = ref(true)
 const loadError = ref(null)
 
@@ -53,9 +57,8 @@ const finalizeResult = ref(null)
 const finalizeError = ref('')
 
 // -- Computed --
-const allValidated = computed(() =>
-  materials.value.length > 0 && materials.value.every(m => m.status === 'validated')
-)
+const allValidated = computed(() => pokeStore.allValidated)
+
 const validatedCount = computed(() =>
   materials.value.filter(m => m.status === 'validated').length
 )
@@ -84,25 +87,21 @@ const scanHint = computed(() => {
   return 'Le controle QR reste actif en continu tant que la liste n\'est pas complete.'
 })
 
-// -- Load tarea from EP2 --
+// -- Load tarea --
 async function loadTarea() {
   loadingTarea.value = true
   loadError.value = null
+
   try {
-    const data = await getTareas(store.operario.company, store.operario.default_warehouse)
-    const found = (data.tareas ?? []).find(t => t.work_order === props.workOrder)
-    if (found) {
-      tarea.value = found
-      materials.value = (found.materiales ?? []).map(m => ({
-        ...m,
-        status: 'pending',
-        scanResult: null,
-      }))
+    const isResumed = pokeStore.initWorkflow(props.workOrder, store.operario.company, store.operario.default_warehouse)
+
+    if (!isResumed) {
+      await pokeStore.fetchNewTarea(props.workOrder, store.operario.company, store.operario.default_warehouse)
     } else {
-      loadError.value = "Ordre de fabrication introuvable."
+      console.log('Resumed PokaYoke State from Persistent Store')
     }
   } catch (err) {
-    loadError.value = err?.message_fr ?? 'Erreur de chargement.'
+    loadError.value = err?.message_fr ?? err.message ?? 'Erreur de chargement.'
   } finally {
     loadingTarea.value = false
   }
@@ -119,12 +118,10 @@ async function handleScan(qrData) {
 
     if (data.valido) {
       scanState.value = 'success'
-      const idx = materials.value.findIndex(
-        m => m.item_name === data.item_name && m.status !== 'validated'
-      )
+      
+      const idx = pokeStore.markMaterialValidated(data.item_name, data)
+
       if (idx >= 0) {
-        materials.value[idx].status = 'validated'
-        materials.value[idx].scanResult = data
         recentlyValidated.value = idx
         setTimeout(() => { recentlyValidated.value = -1 }, 1500)
       }
@@ -153,7 +150,12 @@ function closeManual() { manualOpen.value = false }
 function submitManual(val) { closeManual(); if (val.length >= 3) handleScan(val) }
 
 // -- Navigation --
-function goBack() { router.push({ name: 'tareas' }) }
+function goBack() { 
+  if (allValidated.value) {
+     pokeStore.clearWorkflow()
+  }
+  router.push({ name: 'tareas' }) 
+}
 
 // -- EP4 finalization --
 function finalizeMix() { finalizePhase.value = 'asking' }
@@ -193,20 +195,50 @@ async function callEP4(extrasMap) {
     if (data.success) {
       finalizeResult.value = data
       finalizePhase.value = 'success'
+      pokeStore.clearWorkflow()
       setTimeout(() => router.push({ name: 'tareas' }), 3000)
     } else {
       finalizeError.value = data.message_fr ?? 'Erreur lors de l\'enregistrement.'
       finalizePhase.value = 'error'
     }
   } catch (err) {
-    finalizeError.value = err?.message_fr ?? 'Erreur de communication avec le serveur.'
-    finalizePhase.value = 'error'
+    finalizeError.value = err?.message_fr ?? err.message ?? 'Erreur de communication avec le serveur.'
+    // If it's a network error, allow saving to queue
+    const isNetworkError = err.message === 'Network Error' || String(err).includes('Network Error')
+    finalizePhase.value = isNetworkError ? 'network_error' : 'error'
   }
+}
+
+function queueFinalize() {
+  const extrasMap = (() => {
+    return Object.fromEntries(
+      extras.value.filter(e => e.qty_extra > 0).map(e => [e.item_name, e.qty_extra])
+    )
+  })()
+  
+  syncStore.enqueueOperation('EP4_REPORTAR_CONSUMO', {
+    workOrder: props.workOrder,
+    lotesUsados: buildLotesUsados(),
+    consumosExtra: extrasMap
+  }, { title: `Production ${props.workOrder}` })
+  
+  pokeStore.clearWorkflow()
+  finalizePhase.value = 'idle'
+  router.push({ name: 'tareas' })
 }
 
 function retryFinalize() { finalizePhase.value = 'asking' }
 
-onMounted(loadTarea)
+// Setup interval to attempt queue sync
+let syncInterval = null
+onMounted(() => {
+  loadTarea()
+  syncInterval = setInterval(() => {
+    if (navigator.onLine && syncStore.hasPending) {
+      syncStore.syncAll()
+    }
+  }, 30000)
+})
 </script>
 
 <template>
@@ -258,6 +290,30 @@ onMounted(loadTarea)
       <button @click="retryFinalize"
               class="mt-8 h-16 px-10 rounded-md bg-white border border-red-200 text-red-700 text-lg font-black active:bg-red-50 transition">
         Reessayer
+      </button>
+      <button @click="finalizePhase = 'idle'"
+              class="mt-3 text-red-200 text-sm font-medium underline">
+        Annuler
+      </button>
+    </template>
+  </FullScreenOverlay>
+
+  <!-- === EP4 -- NETWORK ERROR OVERLAY with queue-save option === -->
+  <FullScreenOverlay
+    :visible="finalizePhase === 'network_error'"
+    variant="error"
+    title="Erreur de Connexion"
+    :subtitle="finalizeError"
+    :shake="false"
+  >
+    <template #action>
+      <button @click="queueFinalize"
+              class="mt-8 h-16 px-10 rounded-md bg-white border border-yellow-400 text-yellow-700 text-lg font-black active:bg-yellow-50 transition">
+        Sauvegarder pour plus tard
+      </button>
+      <button @click="retryFinalize"
+              class="mt-3 text-white text-sm font-medium underline">
+        Reessayer maintenant
       </button>
       <button @click="finalizePhase = 'idle'"
               class="mt-3 text-red-200 text-sm font-medium underline">

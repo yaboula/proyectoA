@@ -6,6 +6,7 @@ import KioskLayout from '../components/KioskLayout.vue'
 import {
   Factory,
   FlaskConical,
+  Truck,
   ArrowRight,
   ShieldCheck,
   LogOut,
@@ -34,6 +35,15 @@ const allModules = [
     badge: 'Controle Qualite',
     route: { name: 'laboratoire' },
     cta: 'Ouvrir le laboratoire',
+  },
+  {
+    code: 'reception',
+    title: 'Reception materiaux',
+    subtitle: 'Entree quai, reception ERP et etiquettes Zebra locales',
+    icon: Truck,
+    badge: 'Inventaire usine',
+    route: { name: 'recepcion' },
+    cta: 'Ouvrir la reception',
   },
 ]
 
@@ -180,6 +190,10 @@ function logout() {
             <div class="gcma-data-row p-4">
               <div class="gcma-section-label">Qualite</div>
               <div class="mt-1 text-sm text-zinc-600">Vue lots, verdict approuve/rejete, inspection liee aux documents natifs.</div>
+            </div>
+            <div class="gcma-data-row p-4">
+              <div class="gcma-section-label">Reception</div>
+              <div class="mt-1 text-sm text-zinc-600">Reception quai, mise en quarantaine MP et impression locale Zebra.</div>
             </div>
           </div>
         </div>

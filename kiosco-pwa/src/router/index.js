@@ -27,6 +27,30 @@ const routes = [
     meta: { module: 'quality' },
   },
   {
+    path: '/recepcion',
+    name: 'recepcion',
+    component: () => import('../views/ReceptionMateriaux.vue'),
+    meta: { module: 'reception' },
+  },
+  {
+    path: '/traslado-cuarentena',
+    name: 'traslado-cuarentena',
+    component: () => import('../views/TransladoCuarentena.vue'),
+    meta: { module: 'reception' },
+  },
+  {
+    path: '/reimpresion',
+    name: 'reimpresion',
+    component: () => import('../views/ReimpresionEtiqueta.vue'),
+    meta: { module: 'reception' },
+  },
+  {
+    path: '/inventario-ciego',
+    name: 'inventario-ciego',
+    component: () => import('../views/InventarioCiego.vue'),
+    meta: { module: 'reception' },
+  },
+  {
     path: '/poka-yoke/:workOrder',
     name: 'poka-yoke',
     component: () => import('../views/PokaYokeScanner.vue'),

@@ -6,14 +6,9 @@ import {
   logoutOperario as apiLogout,
 } from '../api/kiosco'
 
-const STORAGE_KEY = 'gcma-kiosco-operario-session'
-
 export const useOperarioStore = defineStore('operario', () => {
-  const saved = typeof window !== 'undefined'
-    ? JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) || 'null')
-    : null
 
-  const operario = ref(saved?.operario ?? null)
+  const operario = ref(null)
   const sid = ref(null)
   const initialized = ref(false)
   const restoring = ref(false)
@@ -24,29 +19,14 @@ export const useOperarioStore = defineStore('operario', () => {
   const profileLabel = computed(() => operario.value?.profile_label ?? '')
   const allowedModules = computed(() => operario.value?.allowed_modules ?? [])
 
-  function persist() {
-    if (typeof window === 'undefined') return
-
-    if (operario.value) {
-      window.sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ operario: operario.value })
-      )
-    } else {
-      window.sessionStorage.removeItem(STORAGE_KEY)
-    }
-  }
-
   function applySession(data) {
     operario.value = data.operario
     sid.value = data.sid ?? null
-    persist()
   }
 
   function clearSession() {
     operario.value = null
     sid.value = null
-    persist()
   }
 
   async function login(qrToken) {
@@ -128,5 +108,10 @@ export const useOperarioStore = defineStore('operario', () => {
     restoreSession,
     ensureSession,
     logout,
+  }
+}, {
+  persist: {
+    storage: sessionStorage,
+    paths: ['operario', 'sid']
   }
 })
