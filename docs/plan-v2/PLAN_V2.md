@@ -168,9 +168,13 @@ Razon:
 
 ## 12. Enlaces a Sprints del Bloque 3 (Comercial y Logística)
 
-### Sub-bloque 3A: Fuerza de Ventas B2B
+### Sub-bloque 3A (y 3A.2): Fuerza de Ventas B2B y Panel Gerencial
 - `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-07_RUTAS_Y_VISITAS.md`
 - `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-08_COBRANZAS_Y_PEDIDOS.md`
+- `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-12_PANEL_GERENCIAL_360.md`
+
+### Sub-bloque 3C: Portal de Auto-servicio B2B (Droguerías)
+- `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-11_PORTAL_B2B_CLIENTE.md`
 
 ### Sub-bloque 3B: Logística de Expedición
 - `docs/plan-v2/sprints/bloque-3-comercial-y-b2b/SPRINT-09_PICKING_FEFO.md`
