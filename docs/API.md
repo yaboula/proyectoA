@@ -927,3 +927,170 @@ Ejemplos válidos:
 - `ENV-ETQ-PIN-BLC|SIN-LOTE`
 
 Parseado por `qr_utils.parse_qr_material()`.
+
+---
+
+## Sprint 12 - Panel Gerencial Comercial 360
+
+Base URL contractual: `/api/method/maroc_b2b.api.gerencial`
+
+### GET `get_panel_gerencial_360`
+
+Devuelve el payload agregado del dashboard directivo para una fecha:
+
+- `scorecard`: facturacion YTD vs deuda vencida vs frecuencia de compra.
+- `hit_rate`: visitas con pedido vs visitas sin pedido.
+- `cobertura_resumen`: total de check-ins y desviaciones GPS.
+
+Parametros:
+
+- `fecha` (opcional, formato `YYYY-MM-DD`, default hoy).
+
+Incluye cache de 5 minutos para mantener carga rapida.
+
+### GET `get_cobertura_mapa`
+
+Entrega puntos GPS para mapa operativo:
+
+```json
+{
+  "fecha": "2026-03-13",
+  "rows": [
+    {
+      "checkin_id": "CHKIN-2026-0001",
+      "cliente": "CLI-DROG-0001",
+      "comercial": "vendedor@empresa.com",
+      "lat": 33.57,
+      "lng": -7.58,
+      "time": "2026-03-13 09:10:00",
+      "estado_visita": "valida",
+      "es_desviacion": false
+    }
+  ]
+}
+```
+
+Las desviaciones (`es_desviacion=true`) corresponden a check-ins fuera del umbral de geocerca (>500m).
+
+### GET `get_reporte_fotos_competencia`
+
+Reporte simple de fotos vinculadas a evidencias de competencia/precio:
+
+- Busca archivos en `File` ligados a `Issue`/`CheckIn_Visita` con keywords de competencia/precio.
+- Devuelve metadata para auditoria comercial.
+
+Parametro:
+
+- `limit` (opcional, default 100, max 500).
+
+### GET `export_scorecard_csv`
+
+Exporta el scorecard a CSV en payload JSON (`filename`, `content_type`, `content`) para descarga desde frontend.
+
+### POST `run_alerta_abandono_clientes`
+
+Ejecuta alerta de churn para clientes del Top 20% por facturacion YTD.
+
+Reglas:
+
+- Marca clientes con `dias_sin_compra > umbral`.
+- Umbral parametrizable por tipo de drogueria mediante:
+  - `b2b_churn_days_default` (default 40)
+  - `b2b_churn_days_by_tipo` (JSON map por `tipo_drogueria`)
+
+Notificacion:
+
+- Envia email a `Sales Manager`.
+- Registra `Notification Log` in-app.
+
+Scheduler diario habilitado en `hooks.py`:
+
+- `gcma_kiosco.api.gerencial.scheduler_alerta_abandono_clientes`
+
+---
+
+## Sprint 11 - Portal B2B Cliente (Sub-bloque 3C)
+
+Base URL contractual: `/api/method/maroc_b2b.api.comercial`
+
+### GET `get_portal_dashboard`
+
+Resumen del cliente portal autenticado (tenant aislado): estado de cuenta, bloqueo por mora > 30 dias y sugerencias de catalogo.
+
+Request params opcionales:
+
+- `id_cliente` (string). Si se envia y no coincide con el Customer ligado al usuario portal, el backend responde `403 Forbidden`.
+
+Response ejemplo:
+
+```json
+{
+  "id_cliente": "CLI-DROG-0003",
+  "estado_cuenta": {
+    "limite_credito": 50000,
+    "deuda_total": 9200,
+    "deuda_vencida": 3200,
+    "dias_peor_mora": 18,
+    "bloqueado_para_venta": false,
+    "mensaje_bloqueo": ""
+  },
+  "bloqueado_30_dias": false,
+  "mensaje_bloqueo_30_dias": "",
+  "sugerencias": [
+    { "item_code": "PT-PIN-BLC-MAT-20L", "item_name": "Peinture Blanche", "score": 6 }
+  ]
+}
+```
+
+### GET `get_portal_estado_cuenta`
+
+Devuelve historico de facturas y pagos para el cliente portal autenticado.
+
+Request params:
+
+- `id_cliente` (opcional, validado por tenant).
+- `limit` (opcional, default `20`, max `100`).
+
+### POST `crear_pedido_portal`
+
+Crea un `Sales Order` desde el portal.
+
+Reglas de seguridad y negocio:
+
+- Tenant isolation: `id_cliente` debe coincidir con el customer del usuario portal.
+- Bloqueo de mora: si `dias_peor_mora > 30` y existe deuda vencida, rechaza la creacion.
+
+Payload:
+
+- `id_cliente` (string)
+- `items` (JSON string) con lineas `{ "item_code": "...", "qty": 1 }`
+
+Response ejemplo:
+
+```json
+{
+  "status": "success",
+  "sales_order": "SAL-ORD-2026-00123"
+}
+```
+
+### POST `create_support_ticket`
+
+Crea ticket SOS en `Issue` vinculado al cliente portal y alerta al equipo de calidad.
+
+Payload:
+
+- `description` (string, obligatorio)
+- `b64Photo` (string base64 opcional)
+- `affectedBatch` (string opcional)
+- `id_cliente` (string opcional, sujeto a validacion tenant)
+
+Efectos:
+
+- Alta de `Issue` con estado `Open`.
+- Adjunta imagen privada si llega `b64Photo`.
+- Envia alerta por email y `Notification Log` a usuarios con roles `Quality Manager` o `Quality Inspector`.
+
+DoD seguridad:
+
+- Intento de forzar `id_cliente` de otro tenant devuelve `403 Forbidden`.

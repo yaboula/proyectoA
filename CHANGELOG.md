@@ -3,6 +3,79 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.8.6] — 2026-03-13
+
+### Added
+
+**Backend — Sprint 12 Panel Gerencial 360**
+
+- Nuevo modulo `backend/gcma_kiosco/gcma_kiosco/api/gerencial.py` con endpoints:
+  - `get_panel_gerencial_360`
+  - `get_cobertura_mapa`
+  - `get_reporte_fotos_competencia`
+  - `export_scorecard_csv`
+  - `run_alerta_abandono_clientes`
+- Nuevo namespace contractual `backend/gcma_kiosco/maroc_b2b/api/gerencial.py`.
+- Cache de 5 minutos para consultas del dashboard.
+- Scheduler diario activado en `hooks.py` para alerta de abandono parametrizable.
+
+### Added
+
+**Frontend — Dashboard directivo con mapa GPS**
+
+- Nuevo cliente API `kiosco-pwa/src/api/gerencial.js`.
+- Nueva vista `kiosco-pwa/src/views/PanelGerencial360.vue` con:
+  - Scorecard de clientes.
+  - Mapa Leaflet de check-ins y desviaciones (rojo/verde).
+  - Hit-rate visitas con/sin pedido.
+  - Boton de ejecucion de alerta de abandono.
+  - Export CSV del scorecard.
+  - Reporte de fotos de competencia.
+- Nueva ruta `/panel-gerencial-360` en `kiosco-pwa/src/router/index.js`.
+- Dependencia `leaflet` instalada en `kiosco-pwa/package.json`.
+
+### Added
+
+**QA — Evidencia Sprint 12**
+
+- Nuevo spec `kiosco-pwa/tests/e2e/panel-gerencial-360.spec.js` para carga del dashboard, trigger de alerta y screenshot de evidencia.
+
+## [0.8.5] — 2026-03-13
+
+### Added
+
+**Backend — Sprint 11 Portal B2B Cliente**
+
+- Nuevos endpoints en `maroc_b2b.api.comercial` para portal cliente:
+  - `get_portal_dashboard`
+  - `get_portal_estado_cuenta`
+  - `crear_pedido_portal`
+  - `create_support_ticket`
+- Aislamiento por tenant para usuarios portal (`403 Forbidden` al forzar `id_cliente` ajeno).
+- Bloqueo de creacion de pedidos por mora mayor a 30 dias.
+- Ticket SOS crea `Issue`, adjunta foto base64 y dispara alerta a Calidad (email + `Notification Log`).
+
+### Added
+
+**Frontend — Portal B2B self-service**
+
+- Nuevo cliente API `kiosco-pwa/src/api/customerPortal.js`.
+- Nueva vista `kiosco-pwa/src/views/PortalB2BCliente.vue` con:
+  - Estado de cuenta en tiempo real.
+  - Panel de sugerencias de catalogo.
+  - Pedido rapido con bloqueo visual por mora.
+  - Formulario SOS con foto movil (`capture="environment"`).
+- Nueva ruta `/portal-b2b` en `kiosco-pwa/src/router/index.js`.
+
+### Added
+
+**QA — Evidencia Playwright Sprint 11**
+
+- Nuevo spec `kiosco-pwa/tests/e2e/portal-b2b.spec.js`:
+  - Login de cliente portal.
+  - Intento de fraude por `id_cliente` ajeno con espera de `403`.
+  - Creacion exitosa de ticket SOS.
+
 ## [0.8.4] — 2026-03-13
 
 ### Fixed

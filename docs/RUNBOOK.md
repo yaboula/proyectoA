@@ -419,6 +419,66 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1 \
 
 ### Smoke recepcion Sprint 4
 
+## Sprint 11 - Portal B2B (operacion)
+
+Variables sugeridas para E2E de tenant isolation:
+
+```powershell
+$env:PLAYWRIGHT_PORTAL_USER = "cliente.portal@example.com"
+$env:PLAYWRIGHT_PORTAL_PASSWORD = "<secret>"
+$env:PLAYWRIGHT_PORTAL_CUSTOMER = "CLI-DROG-0003"
+$env:PLAYWRIGHT_PORTAL_OTHER_CUSTOMER = "CLI-DROG-0004"
+```
+
+Ejecucion del spec del portal:
+
+```powershell
+cd kiosco-pwa
+npx playwright test tests/e2e/portal-b2b.spec.js --project=chromium --headed
+```
+
+Checks backend rapidos:
+
+- `GET /api/method/maroc_b2b.api.comercial.get_portal_dashboard`
+- `GET /api/method/maroc_b2b.api.comercial.get_portal_estado_cuenta`
+- `POST /api/method/maroc_b2b.api.comercial.crear_pedido_portal`
+- `POST /api/method/maroc_b2b.api.comercial.create_support_ticket`
+
+Si aparece 403 en pruebas de fraude con `id_cliente` ajeno, el aislamiento de tenant esta funcionando como esperado.
+
+## Sprint 12 - Operacion panel gerencial
+
+Endpoints operativos:
+
+- `GET /api/method/maroc_b2b.api.gerencial.get_panel_gerencial_360`
+- `GET /api/method/maroc_b2b.api.gerencial.get_cobertura_mapa`
+- `GET /api/method/maroc_b2b.api.gerencial.get_reporte_fotos_competencia`
+- `GET /api/method/maroc_b2b.api.gerencial.export_scorecard_csv`
+- `POST /api/method/maroc_b2b.api.gerencial.run_alerta_abandono_clientes`
+
+Scheduler diario habilitado:
+
+- Hook: `gcma_kiosco.api.gerencial.scheduler_alerta_abandono_clientes`
+- Ejecuta alerta para fecha de referencia `hoy - 1 dia`.
+
+Parametros de configuracion (site_config):
+
+- `b2b_churn_days_default`: umbral global de abandono (default 40).
+- `b2b_churn_days_by_tipo`: JSON con overrides por `tipo_drogueria`.
+
+Ejemplo:
+
+```json
+{
+  "b2b_churn_days_default": 40,
+  "b2b_churn_days_by_tipo": {
+    "Mayorista": 35,
+    "Minorista": 45,
+    "Distribuidor Regional": 50
+  }
+}
+```
+
 Script oficial del modulo de quai:
 
 `scripts/smoke/test-ep-recepcion.ps1`

@@ -262,3 +262,49 @@ Prerequisitos operativos:
 - Flujo Sprint 6 operativo: recepcion -> inventario-ciego -> conteo offline -> EP_REC_5 o cola diferida.
 - Perfilado por badge operativo en frontend/router/store.
 - Mobile fixes del drawer de laboratorio aplicados (scroll + reset iOS).
+
+## Sprint 12 - Panel Gerencial 360
+
+Nuevas piezas frontend:
+
+- `src/api/gerencial.js`
+  - `getPanelGerencial360(fecha?)`
+  - `getCoberturaMapa(fecha?)`
+  - `getReporteFotosCompetencia(limit?)`
+  - `runAlertaAbandonoClientes(fecha?)`
+  - `exportScorecardCsv(fecha?)`
+- `src/views/PanelGerencial360.vue`
+  - KPI cards (clientes, check-ins, desviaciones, hit-rate).
+  - Mapa de Marruecos con `leaflet` y marcadores por estado de visita.
+  - Tabla scorecard top clientes.
+  - Boton de ejecucion manual de alerta de abandono.
+  - Descarga CSV del scorecard.
+  - Reporte visual de fotos de competencia/precio.
+- `src/router/index.js`
+  - Nueva ruta `/panel-gerencial-360`.
+
+Dependencia nueva:
+
+- `leaflet` para renderizado del mapa GPS.
+
+## Sprint 11 - Portal B2B Cliente
+
+Nuevas piezas frontend:
+
+- `src/api/customerPortal.js`
+  - `getPortalDashboard(idCliente?)`
+  - `getPortalEstadoCuenta(idCliente?, limit?)`
+  - `crearPedidoPortal({ id_cliente, items })`
+  - `createSupportTicket(description, b64Photo, affectedBatch, idCliente?)`
+- `src/views/PortalB2BCliente.vue`
+  - Home portal self-service con estado de cuenta y sugerencias.
+  - Bloqueo visual por mora > 30 dias (sin permitir alta de pedido).
+  - Formulario SOS con adjunto de foto (`capture="environment"`).
+  - Historial de facturas/pagos.
+- `src/router/index.js`
+  - Nueva ruta `/portal-b2b`.
+
+Notas UX:
+
+- Se mantienen componentes y clases del design system industrial light (`kiosk-panel`, `gcma-stat`, `gcma-data-row`, `h-16` para CTA primario).
+- Textos visibles al cliente en frances.
