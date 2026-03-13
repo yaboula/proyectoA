@@ -148,39 +148,8 @@ def _ensure_quality_parameter(parameter_name: str, group_name: str = LAB_PARAMET
 
 
 def _get_quarantine_balance(item_code: str, batch_no: str, warehouse: str = WH_QA_PT):
-    bundle_rows = frappe.db.sql(
-        """
-        SELECT
-            sbe.qty,
-            sbe.is_outward
-        FROM `tabSerial and Batch Entry` sbe
-        INNER JOIN `tabSerial and Batch Bundle` bundle ON bundle.name = sbe.parent
-        WHERE bundle.company = %s
-          AND sbe.warehouse = %s
-          AND sbe.item_code = %s
-          AND sbe.batch_no = %s
-          AND sbe.is_cancelled = 0
-        """,
-        (COMPANY, warehouse, item_code, batch_no),
-        as_dict=True,
-    )
-
-    legacy_rows = frappe.db.sql(
-        """
-        SELECT actual_qty
-        FROM `tabStock Ledger Entry`
-        WHERE company = %s
-          AND warehouse = %s
-          AND item_code = %s
-          AND batch_no = %s
-          AND is_cancelled = 0
-          AND IFNULL(serial_and_batch_bundle, '') = ''
-        """,
-        (COMPANY, warehouse, item_code, batch_no),
-        as_dict=True,
-    )
-
-    return _sum_batch_movements(bundle_rows) + sum(flt(row.actual_qty) for row in legacy_rows)
+    from gcma_kiosco.api.stock_utils import get_stock_lote_almacen
+    return get_stock_lote_almacen(item_code, warehouse, batch_no)
 
 
 def _get_quarantine_lots(warehouse: str):

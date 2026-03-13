@@ -21,17 +21,18 @@ from frappe.utils import today, date_diff, getdate, get_datetime, flt, cint
 from gcma_kiosco.api.qr_utils import parse_qr_material
 from erpnext.manufacturing.doctype.work_order.work_order import make_stock_entry as erpnext_make_stock_entry
 from erpnext.stock.serial_batch_bundle import SerialBatchCreation
+from gcma_kiosco.api.stock_utils import get_stock_lote_almacen, get_stock_lote_detallado
 
 
 KIOSK_PROFILE_CONFIG = {
     "production": {
         "label": "Production",
-        "allowed_modules": ["production"],
+        "allowed_modules": ["production", "reception"],
         "default_route": "/tareas",
     },
     "quality": {
         "label": "Laboratoire",
-        "allowed_modules": ["quality"],
+        "allowed_modules": ["quality", "reception"],
         "default_route": "/laboratoire",
     },
 }
@@ -99,61 +100,6 @@ def _require_kiosk_profile(*allowed_profiles: str):
         return _build_profile_error_response(*allowed_profiles)
 
     return None
-
-
-def _get_batch_stock_by_warehouse(item_code: str, batch_no: str):
-    """Consolida stock por almacén para un lote usando fuentes v16 + legacy."""
-    stock_map = {}
-
-    bundle_rows = frappe.db.sql(
-        """
-        SELECT
-            sbe.warehouse,
-            SUM(CASE WHEN IFNULL(sbe.is_outward, 0) = 1 THEN -ABS(sbe.qty) ELSE sbe.qty END) AS qty
-        FROM `tabSerial and Batch Entry` sbe
-        INNER JOIN `tabSerial and Batch Bundle` bundle ON bundle.name = sbe.parent
-        WHERE sbe.item_code = %s
-          AND sbe.batch_no = %s
-          AND sbe.is_cancelled = 0
-        GROUP BY sbe.warehouse
-        """,
-        (item_code, batch_no),
-        as_dict=True,
-    )
-
-    legacy_rows = frappe.db.sql(
-        """
-        SELECT
-            sle.warehouse,
-            SUM(sle.actual_qty) AS qty
-        FROM `tabStock Ledger Entry` sle
-        WHERE sle.item_code = %s
-          AND sle.batch_no = %s
-          AND sle.is_cancelled = 0
-          AND IFNULL(sle.serial_and_batch_bundle, '') = ''
-        GROUP BY sle.warehouse
-        """,
-        (item_code, batch_no),
-        as_dict=True,
-    )
-
-    for row in bundle_rows:
-        warehouse = row.warehouse
-        stock_map[warehouse] = flt(stock_map.get(warehouse, 0)) + flt(row.qty)
-
-    for row in legacy_rows:
-        warehouse = row.warehouse
-        stock_map[warehouse] = flt(stock_map.get(warehouse, 0)) + flt(row.qty)
-
-    rows = []
-    for warehouse, qty in stock_map.items():
-        qty = round(flt(qty), 2)
-        if qty <= 0:
-            continue
-        rows.append({"warehouse": warehouse, "qty": qty})
-
-    rows.sort(key=lambda r: r["warehouse"])
-    return rows
 
 
 def _get_operario_for_user(user_id: str):
@@ -599,13 +545,7 @@ def validar_material(work_order: str = None, qr_data: str = None):
         abbr = frappe.db.get_value("Company", wo_data.company, "abbr")
         wh_mp = f"Materia Prima Aprobada - {abbr}"
 
-        qty_en_almacen = flt(
-            frappe.db.get_value(
-                "Bin",
-                {"item_code": item_code, "warehouse": wh_mp},
-                "actual_qty",
-            )
-        )
+        qty_en_almacen = get_stock_lote_almacen(item_code, wh_mp, batch_no)
 
         # Cantidad requerida por la BOM para las unidades pendientes
         qty_pendiente = flt(wo_data.qty) - flt(wo_data.produced_qty)
@@ -723,7 +663,7 @@ def _resolve_item_key_maps(wo_doc):
     return item_names, name_to_code
 
 
-def _resolve_source_warehouse(item_code: str, company_abbr: str, preferred: str | None = None):
+def _resolve_source_warehouse(item_code: str, company_abbr: str, preferred: str | None = None, batch_no: str = None):
     candidates = []
     if preferred:
         candidates.append(preferred)
@@ -734,7 +674,7 @@ def _resolve_source_warehouse(item_code: str, company_abbr: str, preferred: str 
     for warehouse in candidates:
         if warehouse and warehouse not in seen:
             seen.add(warehouse)
-            qty = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"))
+            qty = get_stock_lote_almacen(item_code, warehouse, batch_no)
             if qty > 0:
                 return warehouse
 
@@ -743,9 +683,18 @@ def _resolve_source_warehouse(item_code: str, company_abbr: str, preferred: str 
         filters={"item_code": item_code, "actual_qty": [">", 0]},
         fields=["warehouse", "actual_qty"],
         order_by="actual_qty desc",
-        limit=1,
     )
-    return bins[0].warehouse if bins else preferred
+    if not batch_no and bins:
+        return bins[0].warehouse
+    
+    # If batch specific, need to check entries directly since Bin may not have it
+    if batch_no:
+        from gcma_kiosco.api.stock_utils import get_stock_lote_detallado
+        detailed_stock = get_stock_lote_detallado(item_code, batch_no)
+        if detailed_stock:
+             return detailed_stock[0]["warehouse"]
+
+    return preferred
 
 
 def _build_consumption_plan(wo_doc, lotes_usados_map, extras_map):
@@ -842,6 +791,7 @@ def _build_transfer_entry(wo_doc, consumption_plan):
             row.item_code,
             company_abbr,
             plan_row["preferred_source_warehouse"],
+            plan_row["batch_no"],
         )
         row.batch_no = None
         row.serial_no = None
@@ -1147,7 +1097,8 @@ def info_lote(batch_no: str = None, item_code: str = None):
         expiry_date = str(batch_data.expiry_date) if batch_data.expiry_date else None
         dias_restantes = date_diff(batch_data.expiry_date, today()) if batch_data.expiry_date else None
 
-        stock_rows = _get_batch_stock_by_warehouse(resolved_item_code, batch_no)
+        from gcma_kiosco.api.stock_utils import get_stock_lote_detallado
+        stock_rows = get_stock_lote_detallado(resolved_item_code, batch_no)
         total_qty = round(sum(flt(row["qty"]) for row in stock_rows), 2)
 
         return {

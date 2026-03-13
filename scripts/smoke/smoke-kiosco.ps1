@@ -1,6 +1,7 @@
 param(
     [string]$BaseUrl = "http://localhost:8080",
     [string]$BadgeToken = "OP-2026-BADGE-00042",
+    [string]$QualityBadgeToken = "QC-2026-BADGE-00077",
     [string]$Company = "Peintures du Maroc SARL",
     [string]$WorkOrder = "MFG-WO-2026-00001",
     [string]$QrData = "MP-RES-ALK-G70|LOTE-TEST-RES-001",
@@ -86,6 +87,7 @@ function Add-Result {
 
 $results = New-Object 'System.Collections.Generic.List[object]'
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$qualitySession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 
 $kioscoBase = "$BaseUrl/api/method/gcma_kiosco.api.kiosco"
 $qualityBase = "$BaseUrl/api/method/gcma_kiosco.api.calidad"
@@ -145,7 +147,12 @@ catch {
 }
 
 try {
-    $ep6 = Invoke-KioscoRequest -Method GET -Url "$qualityBase.get_lotes_cuarentena" -Session $session
+    $qualityLogin = Invoke-KioscoRequest -Method POST -Url "$kioscoBase.login_operario" -Body @{ qr_token = $QualityBadgeToken } -Session $qualitySession
+    if ($qualityLogin.message.success -ne $true) {
+        throw "quality login failed"
+    }
+
+    $ep6 = Invoke-KioscoRequest -Method GET -Url "$qualityBase.get_lotes_cuarentena" -Session $qualitySession
     $ok = $ep6.message.success -eq $true
     $note = if ($ok) { "total=$($ep6.message.total)" } else { $ep6.message.error_code }
     Add-Result -Results $results -Step "EP6 get_lotes_cuarentena" -Ok $ok -Note $note
@@ -177,6 +184,11 @@ if ($IncludeWriteOps) {
 
 if ($IncludeQualityWriteOps) {
     try {
+        $qualityLogin = Invoke-KioscoRequest -Method POST -Url "$kioscoBase.login_operario" -Body @{ qr_token = $QualityBadgeToken } -Session $qualitySession
+        if ($qualityLogin.message.success -ne $true) {
+            throw "quality login failed"
+        }
+
         $ep7 = Invoke-KioscoRequest -Method POST -Url "$qualityBase.aprobar_calidad" -Body @{
             item_code = $ItemCode
             batch_no = $BatchNo
@@ -184,7 +196,7 @@ if ($IncludeQualityWriteOps) {
             parametros = '{"pH":7.2,"aspect":"Conforme"}'
             resultado = $QualityDecision
             remarks = "Smoke suite sprint 2"
-        } -Session $session
+        } -Session $qualitySession
 
         $ok = $ep7.message.success -eq $true
         $note = if ($ok) { "qi=$($ep7.message.quality_inspection)" } else { $ep7.message.error_code }
