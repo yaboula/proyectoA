@@ -51,6 +51,33 @@ const routes = [
     meta: { module: 'reception' },
   },
   {
+    path: '/rutas-comercial',
+    name: 'rutas-comercial',
+    component: () => import('../views/RutaComercial.vue'),
+  },
+  {
+    path: '/picking-fefo',
+    name: 'picking-fefo',
+    component: () => import('../views/KioscoPickingFEFO.vue'),
+  },
+  {
+    path: '/chofer-pod',
+    name: 'chofer-pod',
+    component: () => import('../views/AppChoferPOD.vue'),
+  },
+  {
+    path: '/portal-b2b',
+    name: 'portal-b2b',
+    component: () => import('../views/PortalB2BCliente.vue'),
+    meta: { guest: true },
+  },
+  {
+    path: '/panel-gerencial-360',
+    name: 'panel-gerencial-360',
+    component: () => import('../views/PanelGerencial360.vue'),
+    meta: { guest: true },
+  },
+  {
     path: '/poka-yoke/:workOrder',
     name: 'poka-yoke',
     component: () => import('../views/PokaYokeScanner.vue'),

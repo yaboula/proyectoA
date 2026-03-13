@@ -26,6 +26,41 @@ before_request = ["gcma_kiosco.api.kiosco.exempt_csrf"]
 # ---------------------------------------------------------------------------
 fixtures = [
     {"dt": "Custom Field", "filters": [["fieldname", "like", "custom_qr_%"]]},
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["dt", "=", "Customer"],
+            [
+                "fieldname",
+                "in",
+                [
+                    "deuda_total",
+                    "deuda_vencida",
+                    "dias_peor_mora",
+                    "gps_lat",
+                    "gps_lng",
+                    "id_comercial_asignado",
+                ],
+            ],
+        ],
+    },
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["dt", "=", "Delivery Note"],
+            [
+                "fieldname",
+                "in",
+                [
+                    "firma_receptor",
+                    "foto_sello_pod",
+                    "estado_entrega_pwa",
+                    "gps_entrega_lat",
+                    "gps_entrega_lng",
+                ],
+            ],
+        ],
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -38,11 +73,11 @@ fixtures = [
 # ---------------------------------------------------------------------------
 # Scheduled Tasks — Tareas cron (futuro: alertas de caducidad, etc.)
 # ---------------------------------------------------------------------------
-# scheduler_events = {
-#     "daily": [
-#         "gcma_kiosco.tasks.daily_batch_expiry_check"
-#     ],
-# }
+scheduler_events = {
+    "daily": [
+        "gcma_kiosco.api.gerencial.scheduler_alerta_abandono_clientes",
+    ],
+}
 
 # ---------------------------------------------------------------------------
 # Doc Events — Hooks sobre DocTypes nativos (futuro: Server Scripts vía código)

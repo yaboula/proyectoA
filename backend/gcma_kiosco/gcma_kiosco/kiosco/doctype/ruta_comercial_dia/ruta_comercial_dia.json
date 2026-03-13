@@ -1,0 +1,78 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "naming_series:",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "naming_series",
+    "comercial",
+    "fecha_ruta",
+    "estado",
+    "visitas_programadas"
+  ],
+  "fields": [
+    {
+      "fieldname": "naming_series",
+      "fieldtype": "Select",
+      "label": "Serie",
+      "options": "RUTA-.YYYY.-.####",
+      "reqd": 1
+    },
+    {
+      "fieldname": "comercial",
+      "fieldtype": "Link",
+      "label": "Comercial",
+      "options": "Sales Person",
+      "reqd": 1
+    },
+    {
+      "fieldname": "fecha_ruta",
+      "fieldtype": "Date",
+      "label": "Fecha Ruta",
+      "reqd": 1
+    },
+    {
+      "default": "Planificada",
+      "fieldname": "estado",
+      "fieldtype": "Select",
+      "label": "Estado",
+      "options": "Planificada\nEn Curso\nCompletada",
+      "reqd": 1
+    },
+    {
+      "fieldname": "visitas_programadas",
+      "fieldtype": "Table",
+      "label": "Visitas Programadas",
+      "options": "Visitas_Programadas",
+      "reqd": 1
+    }
+  ],
+  "grid_page_length": 50,
+  "index_web_pages_for_search": 1,
+  "is_submittable": 1,
+  "links": [],
+  "modified": "2026-03-13 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Kiosco",
+  "name": "Ruta_Comercial_Dia",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "submit": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

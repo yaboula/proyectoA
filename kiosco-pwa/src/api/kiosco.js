@@ -6,6 +6,8 @@ import client from './client'
 const BASE = '/api/method/gcma_kiosco.api.kiosco'
 const QUALITY_BASE = '/api/method/gcma_kiosco.api.calidad'
 const RECEPTION_BASE = '/api/method/gcma_kiosco.api.recepcion'
+const B2B_COMERCIAL_BASE = '/api/method/maroc_b2b.api.comercial'
+const B2B_LOGISTICA_BASE = '/api/method/maroc_b2b.api.logistica'
 
 /** EP1 — Login operario via QR badge token */
 export function loginOperario(qrToken) {
@@ -113,5 +115,45 @@ export function subirConteoFisico(warehouse, conteo) {
   return client.post(`${RECEPTION_BASE}.subir_conteo_fisico`, {
     warehouse,
     conteo: JSON.stringify(conteo ?? []),
+  })
+}
+
+export function getRutaDia() {
+  return client.get(`${B2B_COMERCIAL_BASE}.get_ruta_dia`)
+}
+
+export function postCheckin({ id_cliente, gps_lat_capturada, gps_lng_capturada, timestamp }) {
+  return client.post(`${B2B_COMERCIAL_BASE}.post_checkin`, {
+    id_cliente,
+    gps_lat_capturada,
+    gps_lng_capturada,
+    timestamp,
+  })
+}
+
+export function validarScanFefo({ sales_order, item_code, batch_scanned }) {
+  return client.post(`${B2B_LOGISTICA_BASE}.validar_scan_fefo`, {
+    sales_order,
+    item_code,
+    batch_scanned,
+  })
+}
+
+export function getEntregasPendientesChofer() {
+  return client.get('/api/resource/Delivery Note', {
+    params: {
+      fields: JSON.stringify(['name', 'customer', 'posting_date', 'status', 'docstatus']),
+      filters: JSON.stringify([['docstatus', 'in', [0, 1]], ['status', 'not in', ['Completed', 'Closed']]]),
+      order_by: 'posting_date asc',
+      limit_page_length: 50,
+    },
+  })
+}
+
+export function registrarPod({ delivery_note_id, b64_signature, b64_photo }) {
+  return client.post(`${B2B_LOGISTICA_BASE}.registrar_pod`, {
+    delivery_note_id,
+    b64_signature,
+    b64_photo,
   })
 }

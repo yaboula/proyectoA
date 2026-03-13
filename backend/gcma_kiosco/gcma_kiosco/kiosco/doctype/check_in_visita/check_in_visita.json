@@ -1,0 +1,104 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "naming_series:",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "naming_series",
+    "cliente",
+    "comercial",
+    "timestamp_in",
+    "timestamp_out",
+    "gps_lat_capturada",
+    "gps_lng_capturada",
+    "es_visita_valida",
+    "motivo_no_venta"
+  ],
+  "fields": [
+    {
+      "fieldname": "naming_series",
+      "fieldtype": "Select",
+      "label": "Serie",
+      "options": "CHKIN-.YYYY.-.####",
+      "reqd": 1
+    },
+    {
+      "fieldname": "cliente",
+      "fieldtype": "Link",
+      "label": "Cliente",
+      "options": "Customer",
+      "reqd": 1
+    },
+    {
+      "fieldname": "comercial",
+      "fieldtype": "Link",
+      "label": "Comercial",
+      "options": "User",
+      "reqd": 1
+    },
+    {
+      "fieldname": "timestamp_in",
+      "fieldtype": "Datetime",
+      "label": "Timestamp In",
+      "reqd": 1
+    },
+    {
+      "fieldname": "timestamp_out",
+      "fieldtype": "Datetime",
+      "label": "Timestamp Out"
+    },
+    {
+      "fieldname": "gps_lat_capturada",
+      "fieldtype": "Data",
+      "label": "GPS Lat Capturada",
+      "reqd": 1
+    },
+    {
+      "fieldname": "gps_lng_capturada",
+      "fieldtype": "Data",
+      "label": "GPS Lng Capturada",
+      "reqd": 1
+    },
+    {
+      "default": "0",
+      "fieldname": "es_visita_valida",
+      "fieldtype": "Check",
+      "label": "Es Visita Valida",
+      "read_only": 1
+    },
+    {
+      "fieldname": "motivo_no_venta",
+      "fieldtype": "Select",
+      "label": "Motivo No Venta",
+      "options": "Stock Alto\nSin Dinero\nDueno Ausente\nPrefiere Competencia"
+    }
+  ],
+  "grid_page_length": 50,
+  "index_web_pages_for_search": 1,
+  "is_submittable": 1,
+  "links": [],
+  "modified": "2026-03-13 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Kiosco",
+  "name": "CheckIn_Visita",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "submit": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

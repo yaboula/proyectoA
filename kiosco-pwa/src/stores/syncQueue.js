@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { reportarConsumo, aprobarCalidad, subirConteoFisico } from '../api/kiosco'
+import { reportarConsumo, aprobarCalidad, subirConteoFisico, postCheckin } from '../api/kiosco'
 
 export const useSyncQueueStore = defineStore('syncQueue', () => {
   const queue = ref([])
@@ -53,9 +53,12 @@ export const useSyncQueueStore = defineStore('syncQueue', () => {
           result = await aprobarCalidad(op.payload)
         } else if (op.type === 'EP_REC_5_SUBIR_CONTEO') {
           result = await subirConteoFisico(op.payload.warehouse, op.payload.conteo)
+        } else if (op.type === 'B2B_POST_CHECKIN') {
+          result = await postCheckin(op.payload)
         }
 
-        if (result && result.success) {
+        const isSuccess = (result && result.success) || (result?.status === 'success')
+        if (isSuccess) {
           removeOperation(op.id)
           successCount++
         } else {

@@ -1,0 +1,108 @@
+[
+  {
+    "doctype": "Custom Field",
+    "dt": "Customer",
+    "fieldname": "deuda_total",
+    "fieldtype": "Currency",
+    "insert_after": "customer_name",
+    "label": "Deuda Total",
+    "name": "Customer-deuda_total",
+    "precision": "2",
+    "read_only": 1
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Customer",
+    "fieldname": "deuda_vencida",
+    "fieldtype": "Currency",
+    "insert_after": "deuda_total",
+    "label": "Deuda Vencida",
+    "name": "Customer-deuda_vencida",
+    "precision": "2",
+    "read_only": 1
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Customer",
+    "fieldname": "dias_peor_mora",
+    "fieldtype": "Int",
+    "insert_after": "deuda_vencida",
+    "label": "Dias Peor Mora",
+    "name": "Customer-dias_peor_mora",
+    "read_only": 1
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Customer",
+    "fieldname": "gps_lat",
+    "fieldtype": "Data",
+    "insert_after": "dias_peor_mora",
+    "label": "GPS Latitud",
+    "name": "Customer-gps_lat"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Customer",
+    "fieldname": "gps_lng",
+    "fieldtype": "Data",
+    "insert_after": "gps_lat",
+    "label": "GPS Longitud",
+    "name": "Customer-gps_lng"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Customer",
+    "fieldname": "id_comercial_asignado",
+    "fieldtype": "Link",
+    "insert_after": "gps_lng",
+    "label": "ID Comercial Asignado",
+    "name": "Customer-id_comercial_asignado",
+    "options": "Sales Person"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Delivery Note",
+    "fieldname": "firma_receptor",
+    "fieldtype": "Attach Image",
+    "insert_after": "driver",
+    "label": "Firma Receptor",
+    "name": "Delivery Note-firma_receptor"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Delivery Note",
+    "fieldname": "foto_sello_pod",
+    "fieldtype": "Attach Image",
+    "insert_after": "firma_receptor",
+    "label": "Foto Sello POD",
+    "name": "Delivery Note-foto_sello_pod"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Delivery Note",
+    "fieldname": "estado_entrega_pwa",
+    "fieldtype": "Select",
+    "insert_after": "foto_sello_pod",
+    "label": "Estado Entrega PWA",
+    "name": "Delivery Note-estado_entrega_pwa",
+    "options": "En Transito\nEntregado\nRechazado Parcial\nRechazado Total"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Delivery Note",
+    "fieldname": "gps_entrega_lat",
+    "fieldtype": "Data",
+    "insert_after": "estado_entrega_pwa",
+    "label": "GPS Entrega Lat",
+    "name": "Delivery Note-gps_entrega_lat"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Delivery Note",
+    "fieldname": "gps_entrega_lng",
+    "fieldtype": "Data",
+    "insert_after": "gps_entrega_lat",
+    "label": "GPS Entrega Lng",
+    "name": "Delivery Note-gps_entrega_lng"
+  }
+]
