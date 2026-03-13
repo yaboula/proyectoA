@@ -4,6 +4,8 @@ Base URL principal: `/api/method/gcma_kiosco.api.kiosco`
 
 Base URL calidad: `/api/method/gcma_kiosco.api.calidad`
 
+Base URL recepcion: `/api/method/gcma_kiosco.api.recepcion`
+
 Todos los endpoints usan `Content-Type: application/x-www-form-urlencoded`.
 La respuesta se envuelve en el sobre estándar Frappe: `{ "message": { ... } }`.
 
@@ -47,7 +49,7 @@ Autentica al operario escaneando su badge QR personal.
     "default_warehouse": "Planta Mezclas WIP - PDM",
     "profile_code": "production",
     "profile_label": "Production",
-    "allowed_modules": ["production"],
+    "allowed_modules": ["production", "reception"],
     "default_route": "/tareas"
   },
   "sid": "abc123...",
@@ -97,7 +99,7 @@ Permite a la PWA reconstruir el contexto del operario a partir de la cookie `sid
     "default_warehouse": "Planta Mezclas WIP - PDM",
     "profile_code": "production",
     "profile_label": "Production",
-    "allowed_modules": ["production"],
+    "allowed_modules": ["production", "reception"],
     "default_route": "/tareas"
   },
   "sid": "abc123..."
@@ -455,6 +457,303 @@ Consulta informativa de un lote para uso rapido en planta/laboratorio.
 ```bash
 curl "http://localhost:8080/api/method/gcma_kiosco.api.kiosco.info_lote?batch_no=LOTE-CHAOS-PT-001&item_code=PT-PIN-BLC-MAT-20L" \
   -b "sid=<session_id>"
+```
+
+---
+
+## Bloque 2 — Recepcion de Materias Primas
+
+Los endpoints de recepcion viven en `gcma_kiosco.api.recepcion` y trabajan sobre `Purchase Order`, `Purchase Receipt`, `Purchase Receipt Item`, `Quality Inspection` y `Batch`.
+
+### EP_REC_1 — Compras Pendientes de Recepcion
+
+Lista Purchase Orders abiertas con lineas stock pendientes para el modulo de quai.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/gcma_kiosco.api.recepcion.get_compras_pendientes` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `company` | string | Sí | Empresa operativa (`Peintures du Maroc SARL`) |
+| `warehouse` | string | No | Filtro opcional por almacén de línea |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "company": "Peintures du Maroc SARL",
+  "warehouse": null,
+  "total": 1,
+  "ordenes": [
+    {
+      "po_name": "PUR-ORD-2026-00001",
+      "supplier": "ChimEurope SARL",
+      "supplier_name": "ChimEurope SARL",
+      "transaction_date": "2026-03-11",
+      "items": [
+        {
+          "po_item_name": "abc123",
+          "item_code": "MP-RES-ALK-G70",
+          "item_name": "Résine Alkyde G-70",
+          "qty_pending": 250.0,
+          "uom": "Kg",
+          "has_batch_no": 1,
+          "has_expiry_date": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` |
+|------|-------------|-------------|
+| 400 | `MISSING_COMPANY` | Parametre 'company' obligatoire. |
+| 500 | `INTERNAL_ERROR` | Erreur interne lors du chargement des commandes en attente. |
+
+### EP_REC_2 — Registrar Recepcion
+
+Crea un `Purchase Receipt` nativo en `Cuarentena MP - <ABBR>`, auto-genera `Quality Inspection` de entrada si el item la exige y devuelve los lotes resultantes para etiquetado Zebra.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/gcma_kiosco.api.recepcion.registrar_recepcion` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `po_name` | string | Sí | Purchase Order origen |
+| `items_recibidos` | string (JSON) | Sí | Array JSON de `{item_code, qty, supplier_batch, expiry_date}` |
+| `warehouse` | string | No | Override del warehouse destino |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "purchase_receipt": "MAT-PRE-2026-00002",
+  "warehouse": "Cuarentena MP - PDM",
+  "posting_date": "2026-03-11",
+  "lotes_generados": [
+    {
+      "item_code": "MP-RES-ALK-G70",
+      "item_name": "Résine Alkyde G-70",
+      "batch_no": null,
+      "qty": 1.0,
+      "uom": "Kg",
+      "expiry_date": "2027-03-11",
+      "supplier_batch": "FOURN-20260311220000"
+    }
+  ],
+  "message_fr": "Reception enregistree avec succes."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` |
+|------|-------------|-------------|
+| 400 | `MISSING_PARAMS` | Parametres obligatoires: po_name et items_recibidos. |
+| 400 | `INVALID_ITEMS_JSON` | Format JSON invalide pour items_recibidos. |
+| 400 | `INVALID_ITEMS_TYPE` | items_recibidos doit etre une liste. |
+| 404 | `PO_NOT_FOUND` | Commande d'achat introuvable. |
+| 409 | `PO_NOT_RECEIVABLE` | Cette commande n'est pas ouverte a la reception. |
+| 422 | `ITEM_NOT_PENDING` | L'article n'est pas en attente sur cette commande. |
+| 422 | `QTY_EXCEEDS_PENDING` | Quantite recue superieure au reliquat. |
+| 500 | `INTERNAL_ERROR` | Erreur interne pendant l'enregistrement de la reception. |
+
+### Notas de implementación
+
+- La transacción se ejecuta como usuario sistema durante `insert/save/submit` para permitir la creación nativa de lotes y stock ledger.
+- Si el item tiene `inspection_required_before_purchase = 1`, el endpoint crea una `Quality Inspection` de entrada auto-generada y la enlaza al `Purchase Receipt Item` antes del submit.
+- El parser de `items_recibidos` tolera payload JSON anidado, dict único o lista.
+
+### curl
+
+```bash
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.recepcion.registrar_recepcion \
+  -b "sid=<session_id>" \
+  -d "po_name=PUR-ORD-2026-00001" \
+  --data-urlencode 'items_recibidos=[{"item_code":"MP-RES-ALK-G70","qty":1,"supplier_batch":"FOURN-001","expiry_date":"2027-03-11"}]'
+```
+
+### EP_REC_3 — Trasladar Lote Aprobado
+
+Genera un `Stock Entry` nativo `Material Transfer` desde `Cuarentena MP - <ABBR>` hacia `Materia Prima Aprobada - <ABBR>` para un lote ya validado.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/gcma_kiosco.api.recepcion.trasladar_lote_aprobado` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `item_code` | string | Sí | Código del item loteado |
+| `batch_no` | string | Sí | Lote interno a mover |
+| `qty_to_move` | float | Sí | Cantidad a trasladar |
+| `source_warehouse` | string | No | Origen. Por defecto `Cuarentena MP - <ABBR>` |
+| `target_warehouse` | string | No | Destino. Por defecto `Materia Prima Aprobada - <ABBR>` |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "stock_entry": "MAT-STE-2026-00015",
+  "item_code": "MP-RES-ALK-G70",
+  "batch_no": "LOTE-QA-RECEP-0001",
+  "qty_moved": 5.0,
+  "source_warehouse": "Cuarentena MP - PDM",
+  "target_warehouse": "Materia Prima Aprobada - PDM",
+  "message_fr": "Lot transfere vers le stock approuve."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` |
+|------|-------------|-------------|
+| 400 | `MISSING_PARAMS` | Parametres obligatoires: item_code, batch_no et qty_to_move. |
+| 400 | `INVALID_QTY` | La quantite a transferer doit etre strictement positive. |
+| 404 | `BATCH_NOT_FOUND` | Lot introuvable. |
+| 422 | `BATCH_ITEM_MISMATCH` | Le lot scanne ne correspond pas a cet article. |
+| 422 | `INSUFFICIENT_STOCK` | Stock insuffisant en quarantaine. |
+| 500 | `INTERNAL_ERROR` | Erreur interne pendant le transfert du lot. |
+
+### Notas de implementación
+
+- El saldo previo se valida con `stock_utils.get_stock_lote_almacen` antes de crear el movimiento.
+- El `Stock Entry` se inserta y submittea como usuario sistema para evitar bloqueos de permisos operativos sobre stock.
+- El endpoint acepta badges `production`, `quality` y `reception`.
+
+### curl
+
+```bash
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.recepcion.trasladar_lote_aprobado \
+  -b "sid=<session_id>" \
+  -d "item_code=MP-RES-ALK-G70" \
+  -d "batch_no=LOTE-QA-RECEP-0001" \
+  -d "qty_to_move=5" \
+  -d "source_warehouse=Cuarentena MP - PDM" \
+  -d "target_warehouse=Materia Prima Aprobada - PDM"
+```
+
+### EP_REC_4 — Obtener Datos de Etiqueta para Reimpresión
+
+Reconstruye los datos mínimos de Zebra a partir del `Batch` y del `Item` nativo, sin depender del `Purchase Receipt` original.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/gcma_kiosco.api.recepcion.get_lote_para_impresion` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `batch_no` | string | Sí | Lote interno a reimprimir |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "etiqueta": {
+    "item_code": "MP-RES-ALK-G70",
+    "item_name": "Résine Alkyde G-70",
+    "batch_no": "LOTE-QA-RECEP-0001",
+    "expiry_date": "2027-12-31"
+  },
+  "message_fr": "Donnees de reimpression chargees."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` |
+|------|-------------|-------------|
+| 400 | `MISSING_PARAMS` | Parametre 'batch_no' obligatoire. |
+| 404 | `BATCH_NOT_FOUND` | Lot introuvable. |
+| 500 | `INTERNAL_ERROR` | Erreur interne lors de la lecture de l'etiquette. |
+
+### curl
+
+```bash
+curl "http://localhost:8080/api/method/gcma_kiosco.api.recepcion.get_lote_para_impresion?batch_no=LOTE-QA-RECEP-0001" \
+  -b "sid=<session_id>"
+```
+
+### EP_REC_5 — Subir Conteo Fisico
+
+Crea un `Stock Reconciliation` en borrador a partir de un conteo ciego offline. Solo persiste las lineas donde existe diferencia real contra el stock actual del warehouse seleccionado.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/gcma_kiosco.api.recepcion.subir_conteo_fisico` |
+| **Auth** | Sesión requerida (cookie `sid`) |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `warehouse` | string | Sí | Warehouse auditado |
+| `conteo` | string (JSON) | Sí | Array JSON de `{item_code, batch_no, qty_fisica}` |
+
+### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "reconciliation_doc": "MAT-RECO-2026-00002",
+  "warehouse": "Materia Prima Aprobada - PDM",
+  "items_count": 1,
+  "message_fr": "Comptage envoye en brouillon pour reconciliation."
+}
+```
+
+### Errores
+
+| HTTP | `error_code` | `message_fr` |
+|------|-------------|-------------|
+| 400 | `MISSING_PARAMS` | Parametres obligatoires: warehouse et conteo. |
+| 400 | `INVALID_CONTEO_JSON` | Format JSON invalide pour conteo. |
+| 400 | `INVALID_CONTEO_TYPE` | conteo doit etre une liste. |
+| 400 | `MISSING_ITEM_CODE` | Chaque ligne doit contenir item_code. |
+| 400 | `MISSING_BATCH_NO` | Chaque ligne doit contenir batch_no. |
+| 400 | `INVALID_QTY` | Chaque quantite physique doit etre strictement positive. |
+| 404 | `WAREHOUSE_NOT_FOUND` | Entrepot introuvable. |
+| 404 | `ITEM_NOT_FOUND` | Article introuvable dans ERPNext. |
+| 404 | `BATCH_NOT_FOUND` | Lot introuvable dans ERPNext. |
+| 422 | `BATCH_ITEM_MISMATCH` | Le lot scanne ne correspond pas a cet article. |
+| 422 | `NO_DIFFERENCES_FOUND` | Aucune difference detectee entre le comptage physique et le stock systeme. |
+| 500 | `INTERNAL_ERROR` | Erreur interne pendant la creation du brouillon de reconciliation. |
+
+### Notas de implementación
+
+- El endpoint agrega filas repetidas por `(item_code, batch_no)` antes de generar el borrador.
+- Cada línea calcula `current_qty` mediante `stock_utils.get_stock_lote_almacen`.
+- Si una línea no cambia la cantidad real contra el sistema, se omite del documento final.
+- Si ninguna línea genera diferencia, el endpoint rechaza con `NO_DIFFERENCES_FOUND`.
+- El `Stock Reconciliation` se crea en `docstatus = 0`; la aprobación contable queda fuera del kiosco.
+
+### curl
+
+```bash
+curl -X POST http://localhost:8080/api/method/gcma_kiosco.api.recepcion.subir_conteo_fisico \
+  -b "sid=<session_id>" \
+  -d "warehouse=Materia Prima Aprobada - PDM" \
+  --data-urlencode 'conteo=[{"item_code":"MP-RES-ALK-G70","batch_no":"LOTE-CIEGO-2026-0001","qty_fisica":10}]'
 ```
 
 ---

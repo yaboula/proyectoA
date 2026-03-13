@@ -3,6 +3,135 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.8.4] — 2026-03-13
+
+### Fixed
+
+**Frontend — Mensajeria coherente en traslado de cuarentena (Sprint 5)**
+
+- `kiosco-pwa/src/views/TransladoCuarentena.vue`: tras `EP_REC_3` exitoso, la recarga del lote ya no reemplaza el exito con el aviso "Le lot n'est pas en quarantaine MP.".
+- Se conserva la confirmacion operativa y el contexto de auditoria del traslado para evitar falsos negativos percibidos por operario.
+
+### Changed
+
+**QA — Cierre determinista Bloque 2 (Sprint 5/6)**
+
+- `kiosco-pwa/tests/e2e/quarantine.spec.js`: expectativa alineada al mensaje real de exito post-traslado.
+- `kiosco-pwa/package.json`: `test:e2e:block2` y `test:e2e:block2:headed` ejecutan con `--workers=1` para evitar interferencias de fixtures compartidos.
+- Ejecuciones finales en verde: `scripts/smoke/test-bloque-2.ps1` y `npm run test:e2e:block2`.
+
+## [0.8.3] — 2026-03-12
+
+### Added
+
+**QA — Playwright visible para kiosco**
+
+- Configuracion inicial de Playwright en `kiosco-pwa/` con `playwright.config.js`, scripts npm y primer spec E2E de recepcion parcial.
+- Nuevo helper `scripts/e2e/prepare-reception-sandbox.ps1` para preparar una Purchase Order abierta antes de ejecutar el navegador automatizado.
+- Nueva suite `@block2` con specs de recepcion, cuarentena, reimpresion e inventario ciego.
+- Nuevo orquestador `scripts/smoke/test-bloque-2.ps1` para validar los tres sprints del Bloque 2 en una sola pasada.
+
+### Fixed
+
+**Frontend — Cierre del modal de recepcion tras submit exitoso**
+
+- `kiosco-pwa/src/views/ReceptionMateriaux.vue`: el modal ya se cierra correctamente despues de `EP_REC_2` sin quedar bloqueado en estado `submitting`.
+
+**Backend — Elevacion segura en recepcion e inventario**
+
+- `backend/gcma_kiosco/gcma_kiosco/api/recepcion.py`: la elevacion interna vuelve a permitir operaciones nativas de ERPNext que requieren permisos de sistema, sin corromper la sesion HTTP del operario.
+
+## [0.8.2] — 2026-03-11
+
+### Added
+
+**Backend — Sprint 6 Inventario ciego**
+
+- Nuevo endpoint `subir_conteo_fisico` (EP_REC_5) en `backend/gcma_kiosco/gcma_kiosco/api/recepcion.py` para crear borradores `Stock Reconciliation`.
+- Nuevos helpers `bootstrap_inventario_ciego_sandbox` e `inspect_latest_blind_inventory_reconciliation` para smoke y diagnostico.
+
+### Added
+
+**Frontend — Conteo offline persistente**
+
+- Nuevo store `kiosco-pwa/src/stores/blindInventory.js` con persistencia por warehouse.
+- Nueva vista `kiosco-pwa/src/views/InventarioCiego.vue` y nueva ruta `/inventario-ciego`.
+- Nuevo parser `kiosco-pwa/src/utils/qr.js` y soporte de cola diferida `EP_REC_5_SUBIR_CONTEO` en `syncQueue.js`.
+
+### Added
+
+**QA — Smoke Sprint 6**
+
+- Nuevo script `scripts/smoke/test-ep-inventario-ciego.ps1` con bootstrap de 5 lotes, alta EP_REC_5 e inspeccion del draft persistido.
+
+### Changed
+
+**Docs — Cobertura Sprint 6**
+
+- `docs/API.md`, `docs/FRONTEND.md`, `docs/RUNBOOK.md` y `docs/plan-v2/sprints/bloque-2-inventario/SPRINT-06_INVENTARIO_CIEGO.md` actualizados con el flujo de inventario ciego.
+
+## [0.8.1] — 2026-03-11
+
+### Added
+
+**Backend — Sprint 5 Cuarentena y re-etiquetado**
+
+- Nuevos endpoints `trasladar_lote_aprobado` (EP_REC_3) y `get_lote_para_impresion` (EP_REC_4) en `backend/gcma_kiosco/gcma_kiosco/api/recepcion.py`.
+- Nuevo helper `bootstrap_cuarentena_transfer_sandbox` para preparar stock de cuarentena reutilizable en smoke tests.
+- Perfil `quality` ampliado para permitir acceso al modulo `reception` cuando se use el flujo de inventario.
+
+### Added
+
+**Frontend — Sprint 5 Inventario operativo**
+
+- Nuevas vistas `TransladoCuarentena.vue` y `ReimpresionEtiqueta.vue` con scanner HID/manual, verificacion EP5 y acciones touch-first.
+- Nuevas rutas `/traslado-cuarentena` y `/reimpresion` protegidas por `module: reception`.
+- `printer.js` generalizado para reuso de etiquetas kiosco con `printSingleKioscoLabel`.
+
+### Added
+
+**QA — Smoke cuarentena Sprint 5**
+
+- Nuevo script `scripts/smoke/test-ep-cuarentena.ps1` con bootstrap, happy path EP_REC_3, rechazo por stock insuficiente y contrato EP_REC_4.
+
+### Changed
+
+**Docs — Cobertura Sprint 5**
+
+- `docs/API.md`, `docs/FRONTEND.md`, `docs/RUNBOOK.md` y el sprint plan de Bloque 2 actualizados con contratos, rutas y smoke operativo.
+
+## [0.8.0] — 2026-03-11
+
+### Added
+
+**Backend — Sprint 4 Recepcion de materias primas**
+
+- Nuevo modulo `backend/gcma_kiosco/gcma_kiosco/api/recepcion.py` con EP_REC_1 `get_compras_pendientes` y EP_REC_2 `registrar_recepcion`.
+- Bootstrap sandbox reutilizable para smoke de recepcion con `Purchase Order` abierta de prueba.
+- `registrar_recepcion` crea `Purchase Receipt` nativo en `Cuarentena MP - PDM` y auto-genera `Quality Inspection` de entrada cuando el item lo exige.
+
+### Added
+
+**Frontend — Modulo Reception**
+
+- Nueva vista `ReceptionMateriaux.vue` accesible en `/recepcion`.
+- Nuevo componente `ReceptionCaptureModal.vue` para captura touch-first de qty, lote proveedor y vencimiento.
+- Nuevo servicio `src/utils/printer.js` para impresion local ZPL en `http://localhost:9000/print`.
+- `ModuleHub.vue` incorpora el modulo `reception`.
+
+### Added
+
+**QA — Smoke recepcion**
+
+- Nuevo script `scripts/smoke/test-ep-recepcion.ps1` con bootstrap sandbox + validacion HTTP de EP_REC_1 y EP_REC_2.
+- `scripts/smoke/smoke-kiosco.ps1` usa badge de calidad dedicado para EP6/EP7.
+
+### Changed
+
+**Docs — Cobertura Sprint 4**
+
+- `docs/API.md`, `docs/FRONTEND.md` y `docs/RUNBOOK.md` actualizados con contratos y operativa del modulo de recepcion.
+
 ## [0.7.7] — 2026-03-11
 
 ### Added

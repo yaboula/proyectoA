@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-03-12T23:45:37.561Z",
+  "reception": {
+    "purchase_order": "PUR-ORD-2026-00004",
+    "item_code": "ENV-BID-20L-BLC",
+    "pending_before": 37,
+    "purchase_receipt": "MAT-PRE-2026-00029",
+    "pending_after": 36
+  },
+  "quarantine": {
+    "stock_entry": "MAT-STE-2026-00059"
+  },
+  "reprint": {
+    "batch_no": "LOTE-QA-RECEP-0001",
+    "item_code": "MP-RES-ALK-G70",
+    "item_name": "Résine Alkyde G-70",
+    "expiry_date": "2027-12-31",
+    "bridge_active_message": "Etiquette reimprimee pour LOTE-QA-RECEP-0001.",
+    "bridge_down_message": "PRINT_HTTP_503"
+  },
+  "inventory": {
+    "scans_before_submit": 3,
+    "distinct_lots_before_submit": 2,
+    "reconciliation_doc": "MAT-RECO-2026-00012"
+  }
+}

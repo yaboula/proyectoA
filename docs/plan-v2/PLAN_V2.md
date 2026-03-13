@@ -159,3 +159,9 @@ Razon:
 - `docs/plan-v2/sprints/bloque-1-nucleo-operativo/SPRINT-01_EP5_Y_CONTRATOS.md`
 - `docs/plan-v2/sprints/bloque-1-nucleo-operativo/SPRINT-02_HARDENING_Y_SMOKE.md`
 - `docs/plan-v2/sprints/bloque-1-nucleo-operativo/SPRINT-03_RELEASE_READINESS.md`
+
+## 11. Enlaces a Sprints del Bloque 2
+
+- `docs/plan-v2/sprints/bloque-2-inventario/SPRINT-04_RECEPCION.md`
+- `docs/plan-v2/sprints/bloque-2-inventario/SPRINT-05_CUARENTENA_Y_ETIQUETADO.md`
+- `docs/plan-v2/sprints/bloque-2-inventario/SPRINT-06_INVENTARIO_CIEGO.md`

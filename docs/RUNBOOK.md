@@ -36,6 +36,66 @@ docker exec -it frappe_docker-backend-1 \
 docker exec -it frappe_docker-db-1 mariadb -u root -p123 -D _1bd3e0294da19198
 ```
 
+### Playwright E2E visible
+
+El frontend `kiosco-pwa` incluye Playwright para automatizar flujos del kiosco viendo el navegador en pantalla.
+
+Preparacion recomendada:
+
+```bash
+cd kiosco-pwa
+npm run test:e2e:prepare-reception
+```
+
+Preparacion completa de Bloque 2:
+
+```bash
+cd kiosco-pwa
+npm run test:e2e:prepare-block2
+```
+
+Ejecucion visible:
+
+```bash
+cd kiosco-pwa
+npm run test:e2e:headed
+```
+
+Suite visible solo de Bloque 2:
+
+```bash
+cd kiosco-pwa
+npm run test:e2e:block2:headed
+```
+
+Modo depuracion paso a paso:
+
+```bash
+cd kiosco-pwa
+npm run test:e2e:debug
+```
+
+Notas:
+
+- Playwright reutiliza o arranca el dev server Vite en `http://127.0.0.1:5173`.
+- El backend Frappe debe seguir accesible en `http://localhost:8080` para que el proxy `/api` funcione.
+- La suite `@block2` cubre recepcion parcial, cuarentena, reimpresion e inventario ciego.
+
+### Smoke completo Bloque 2
+
+Para validar backend/API de los tres sprints de inventario:
+
+```bash
+cd D:\proyectoA
+./scripts/smoke/test-bloque-2.ps1
+```
+
+Cobertura actual:
+
+- Sprint 4: `EP_REC_1` y `EP_REC_2` con verificacion de reload tras recepcion parcial.
+- Sprint 5: `EP_REC_3`, rechazo por stock insuficiente y `EP_REC_4`.
+- Sprint 6: `EP_REC_5` con inspeccion del `Stock Reconciliation` draft.
+
 ---
 
 ## Deploy de Código Backend
@@ -356,6 +416,80 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke/smoke-kiosco.ps1 \
 - `PASS`/`FAIL` por endpoint.
 - Exit code `0` si todo pasa.
 - Exit code `1` si al menos una prueba falla.
+
+### Smoke recepcion Sprint 4
+
+Script oficial del modulo de quai:
+
+`scripts/smoke/test-ep-recepcion.ps1`
+
+Cobertura:
+
+- bootstrap sandbox de Purchase Order via `bench --site frontend execute gcma_kiosco.api.recepcion.bootstrap_recepcion_sandbox`
+- EP_REC_1 `get_compras_pendientes`
+- EP_REC_2 `registrar_recepcion`
+
+Comando:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/test-ep-recepcion.ps1 -PrepareSandbox
+```
+
+Notas operativas:
+
+- EP_REC_2 crea `Quality Inspection` de entrada auto-generada si el item exige `inspection_required_before_purchase`.
+
+### Smoke cuarentena Sprint 5
+
+Script oficial del flujo de traslado y re-etiquetado:
+
+`scripts/smoke/test-ep-cuarentena.ps1`
+
+Cobertura:
+
+- bootstrap sandbox de lote reusable via `bench --site frontend execute gcma_kiosco.api.recepcion.bootstrap_cuarentena_transfer_sandbox`
+- EP5 `info_lote` sobre stock en `Cuarentena MP - PDM`
+- EP_REC_3 happy path con `Material Transfer`
+- EP_REC_3 rechazo de stock insuficiente (HTTP `422` esperado)
+- EP_REC_4 `get_lote_para_impresion`
+
+Comando:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/test-ep-cuarentena.ps1 -PrepareSandbox
+```
+
+Notas operativas:
+
+- Si el smoke responde con `404` o `417` en EP_REC_3 / EP_REC_4, el contenedor backend sigue cargando una version vieja de `recepcion.py`.
+- En ese caso, copiar `backend/gcma_kiosco/gcma_kiosco/api/recepcion.py` y `backend/gcma_kiosco/gcma_kiosco/api/kiosco.py`, aplicar `chown frappe:frappe` y reiniciar `frappe_docker-backend-1`.
+- Para este smoke puntual, el caso negativo se considera valido si la API rechaza con HTTP `422` aunque el body de error llegue vacio en PowerShell 5.1.
+- El submit del `Purchase Receipt` se ejecuta con usuario sistema para permitir la autogeneracion nativa de lotes.
+- El smoke actual valida backend HTTP; la impresion Zebra local sigue siendo una validacion manual o con mock local.
+
+### Smoke inventario ciego Sprint 6
+
+Script oficial del flujo de conteo ciego y borrador de reconciliacion:
+
+`scripts/smoke/test-ep-inventario-ciego.ps1`
+
+Cobertura:
+
+- bootstrap sandbox de cinco lotes en `Materia Prima Aprobada - PDM` via `bench --site frontend execute gcma_kiosco.api.recepcion.bootstrap_inventario_ciego_sandbox`
+- EP_REC_5 `subir_conteo_fisico`
+- inspeccion del ultimo `Stock Reconciliation` draft via `gcma_kiosco.api.recepcion.inspect_latest_blind_inventory_reconciliation`
+
+Comando:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/test-ep-inventario-ciego.ps1 -PrepareSandbox
+```
+
+Notas operativas:
+
+- El payload del smoke fuerza una sola diferencia real para que ERPNext persista exactamente una linea en el draft.
+- Si todas las cantidades fisicas coinciden con `current_qty`, EP_REC_5 responde `422 NO_DIFFERENCES_FOUND`.
+- Si el smoke devuelve `404` o `417`, verificar que `recepcion.py` actualizado haya sido copiado al contenedor backend antes de ejecutar.
 
 ---
 
