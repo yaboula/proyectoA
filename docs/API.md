@@ -6,8 +6,76 @@ Base URL calidad: `/api/method/gcma_kiosco.api.calidad`
 
 Base URL recepcion: `/api/method/gcma_kiosco.api.recepcion`
 
+Base URL comercial B2B (Sprint 07+): `/api/method/gcma_kiosco.api.comercial`
+
 Todos los endpoints usan `Content-Type: application/x-www-form-urlencoded`.
 La respuesta se envuelve en el sobre estándar Frappe: `{ "message": { ... } }`.
+
+---
+
+## S07-C1 - Ruta comercial del dia
+
+Retorna la ruta diaria del usuario comercial autenticado.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/gcma_kiosco.api.comercial.get_ruta_dia` |
+| **Auth** | Sesion requerida |
+
+### Response (200 OK)
+
+```json
+{
+  "message": {
+    "fecha": "2026-03-14",
+    "comercial": "qa.portal.block3@gcma.local",
+    "ruta_id": "RUTA-2026-0001",
+    "estado": "En Curso",
+    "rutas": [
+      { "id_cliente": "Droguerie Atlas", "orden_visita": 1 }
+    ]
+  }
+}
+```
+
+Nota: si no existe ruta para el usuario/fecha, retorna `rutas: []` con HTTP 200.
+
+---
+
+## S07-C2 - Check-in de visita con geocerca
+
+Registra check-in y evalua validez de geocerca en backend.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/gcma_kiosco.api.comercial.post_checkin` |
+| **Auth** | Sesion requerida |
+
+### Request
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `id_cliente` | string | Sí | Customer visitado |
+| `gps_lat_capturada` | number/string | Sí | Latitud capturada |
+| `gps_lng_capturada` | number/string | Sí | Longitud capturada |
+| `timestamp` | string | No | Fecha-hora ISO del check-in |
+
+### Response (200 OK)
+
+```json
+{
+  "message": {
+    "status": "success",
+    "checkin_id": "CHKIN-2026-0001",
+    "id_cliente": "Droguerie Atlas",
+    "es_visita_valida": true,
+    "distancia_metros": 42.8,
+    "radio_geocerca_m": 150.0
+  }
+}
+```
+
+Nota: en entornos sin tabla activa de `CheckIn_Visita`, el endpoint mantiene contrato y retorna `checkin_id: null`.
 
 ---
 

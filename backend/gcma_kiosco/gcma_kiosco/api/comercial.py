@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, flt, today
+from frappe.utils import add_days, flt, get_datetime, now_datetime, today
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -84,6 +85,26 @@ def _ensure_customer_exists(id_cliente: str):
 
     if not frappe.db.exists("Customer", id_cliente):
         frappe.throw(_("Cliente no existe: {0}").format(id_cliente))
+
+
+def _table_exists(table_name: str) -> bool:
+    try:
+        return bool(frappe.db.table_exists(table_name))
+    except Exception:
+        return False
+
+
+def _distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    # Distancia Haversine para validar geocerca en servidor.
+    r = 6371000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return r * c
 
 
 def _current_portal_customer() -> str:
@@ -278,6 +299,106 @@ def _get_portal_suggestions(id_cliente: str, limit: int = 5) -> list[dict[str, A
         }
         for row in rows
     ]
+
+
+@frappe.whitelist()
+def get_ruta_dia():
+    """Sprint 07 — Ruta diaria del comercial autenticado."""
+    if not _table_exists("tabRuta_Comercial_Dia"):
+        return {"fecha": str(today()), "comercial": frappe.session.user, "rutas": []}
+
+    user = frappe.session.user
+    sales_person = frappe.db.get_value("Sales Person", {"user": user}, "name")
+    if not sales_person:
+        return {"fecha": str(today()), "comercial": user, "rutas": []}
+
+    rutas = frappe.get_all(
+        "Ruta_Comercial_Dia",
+        filters={"comercial": sales_person, "fecha_ruta": today(), "docstatus": ["in", [0, 1]]},
+        fields=["name", "fecha_ruta", "estado"],
+        order_by="modified desc",
+        limit=1,
+    )
+
+    if not rutas:
+        return {"fecha": str(today()), "comercial": user, "rutas": []}
+
+    ruta = rutas[0]
+    visitas = frappe.get_all(
+        "Visitas_Programadas",
+        filters={"parent": ruta.name, "parenttype": "Ruta_Comercial_Dia"},
+        fields=["cliente", "orden_visita"],
+        order_by="orden_visita asc",
+    )
+
+    return {
+        "fecha": str(ruta.fecha_ruta),
+        "comercial": user,
+        "ruta_id": ruta.name,
+        "estado": ruta.estado,
+        "rutas": [
+            {
+                "id_cliente": row.cliente,
+                "orden_visita": int(_to_float(row.orden_visita, 0)),
+            }
+            for row in visitas
+            if row.cliente
+        ],
+    }
+
+
+@frappe.whitelist()
+def post_checkin(
+    id_cliente: str,
+    gps_lat_capturada: str,
+    gps_lng_capturada: str,
+    timestamp: str | None = None,
+):
+    """Sprint 07 — Registrar check-in y validar geocerca."""
+    _ensure_customer_exists(id_cliente)
+
+    lat = _to_float(gps_lat_capturada, None)
+    lng = _to_float(gps_lng_capturada, None)
+    if lat is None or lng is None:
+        frappe.throw(_("Parametros GPS invalidos"), frappe.ValidationError)
+
+    customer = frappe.get_doc("Customer", id_cliente)
+    lat_ref = _to_float(getattr(customer, "gps_lat", None), None)
+    lng_ref = _to_float(getattr(customer, "gps_lng", None), None)
+    geofence_m = _to_float(frappe.conf.get("b2b_geofence_radius_m", 150), 150)
+
+    distancia_m = None
+    es_visita_valida = 1
+    if lat_ref is not None and lng_ref is not None:
+        distancia_m = round(_distance_meters(lat_ref, lng_ref, lat, lng), 2)
+        es_visita_valida = 1 if distancia_m <= geofence_m else 0
+
+    checkin_id = None
+    if _table_exists("tabCheckIn_Visita"):
+        checkin_doc = frappe.get_doc(
+            {
+                "doctype": "CheckIn_Visita",
+                "naming_series": "CHKIN-.YYYY.-.####",
+                "cliente": id_cliente,
+                "comercial": frappe.session.user,
+                "timestamp_in": get_datetime(timestamp) if timestamp else now_datetime(),
+                "gps_lat_capturada": str(lat),
+                "gps_lng_capturada": str(lng),
+                "es_visita_valida": int(es_visita_valida),
+            }
+        )
+        checkin_doc.insert(ignore_permissions=True)
+        checkin_id = checkin_doc.name
+        frappe.db.commit()
+
+    return {
+        "status": "success",
+        "checkin_id": checkin_id,
+        "id_cliente": id_cliente,
+        "es_visita_valida": bool(es_visita_valida),
+        "distancia_metros": distancia_m,
+        "radio_geocerca_m": geofence_m,
+    }
 
 
 @frappe.whitelist()

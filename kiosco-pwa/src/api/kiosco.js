@@ -7,7 +7,24 @@ const BASE = '/api/method/gcma_kiosco.api.kiosco'
 const QUALITY_BASE = '/api/method/gcma_kiosco.api.calidad'
 const RECEPTION_BASE = '/api/method/gcma_kiosco.api.recepcion'
 const B2B_COMERCIAL_BASE = '/api/method/maroc_b2b.api.comercial'
+const B2B_COMERCIAL_BASE_FALLBACK = '/api/method/gcma_kiosco.api.comercial'
 const B2B_LOGISTICA_BASE = '/api/method/maroc_b2b.api.logistica'
+
+function shouldNamespaceFallback(error) {
+  const text = JSON.stringify(error || {})
+  return text.includes('App maroc_b2b is not installed')
+}
+
+async function withNamespaceFallback(primaryRequest, fallbackRequest) {
+  try {
+    return await primaryRequest()
+  } catch (error) {
+    if (shouldNamespaceFallback(error)) {
+      return fallbackRequest()
+    }
+    throw error
+  }
+}
 
 /** EP1 — Login operario via QR badge token */
 export function loginOperario(qrToken) {
@@ -119,16 +136,24 @@ export function subirConteoFisico(warehouse, conteo) {
 }
 
 export function getRutaDia() {
-  return client.get(`${B2B_COMERCIAL_BASE}.get_ruta_dia`)
+  return withNamespaceFallback(
+    () => client.get(`${B2B_COMERCIAL_BASE}.get_ruta_dia`),
+    () => client.get(`${B2B_COMERCIAL_BASE_FALLBACK}.get_ruta_dia`),
+  )
 }
 
 export function postCheckin({ id_cliente, gps_lat_capturada, gps_lng_capturada, timestamp }) {
-  return client.post(`${B2B_COMERCIAL_BASE}.post_checkin`, {
+  const payload = {
     id_cliente,
     gps_lat_capturada,
     gps_lng_capturada,
     timestamp,
-  })
+  }
+
+  return withNamespaceFallback(
+    () => client.post(`${B2B_COMERCIAL_BASE}.post_checkin`, payload),
+    () => client.post(`${B2B_COMERCIAL_BASE_FALLBACK}.post_checkin`, payload),
+  )
 }
 
 export function validarScanFefo({ sales_order, item_code, batch_scanned }) {

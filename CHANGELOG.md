@@ -3,6 +3,33 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.8.7] — 2026-03-14
+
+### Added
+
+**Backend — Sprint 07 contrato comercial restaurado**
+
+- Nuevos endpoints en `backend/gcma_kiosco/gcma_kiosco/api/comercial.py`:
+  - `get_ruta_dia`
+  - `post_checkin`
+- Exposicion de ambos endpoints en namespace contractual `backend/gcma_kiosco/maroc_b2b/api/comercial.py`.
+- Manejo defensivo para entornos QA sin tablas activas (`Ruta_Comercial_Dia` / `CheckIn_Visita`) manteniendo respuesta controlada del contrato.
+
+### Changed
+
+**Frontend — Resiliencia namespace B2B Sprint 07**
+
+- `kiosco-pwa/src/api/kiosco.js` ahora aplica fallback automatico de namespace `maroc_b2b -> gcma_kiosco` para:
+  - `getRutaDia`
+  - `postCheckin`
+
+### Added
+
+**QA/Docs — Ejecucion Dia 2 Bloque 3**
+
+- Nuevo reporte `docs/qa/BLOQUE3_DIA2_EJECUCION_2026-03-14.md`.
+- `docs/API.md` actualizado con referencia de los endpoints Sprint 07 comerciales.
+
 ## [0.8.6] — 2026-03-13
 
 ### Added
