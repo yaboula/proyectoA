@@ -3,6 +3,26 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.8.9] — 2026-03-14
+
+### Added
+
+**QA — Dia 4 S11/S12 + seguridad ejecutado**
+
+- Nuevo reporte `docs/qa/BLOQUE3_DIA4_EJECUCION_2026-03-14.md`.
+- Evidencia consolidada de:
+  - Tenant isolation portal (`403` forzado + `200` valido).
+  - Dashboard gerencial 360 (`200`).
+  - Ejecucion manual scheduler de abandono (`200`).
+  - Export CSV scorecard (`200`).
+  - Controles de autorizacion anonima en endpoints criticos (`403`).
+
+### Changed
+
+**QA — Progreso de cierre Bloque 3**
+
+- Dia 4 finaliza sin defectos criticos/altos abiertos, quedando preparado el Dia 5 de regresion final y reporte Go/No-Go.
+
 ## [0.8.8] — 2026-03-14
 
 ### Added
