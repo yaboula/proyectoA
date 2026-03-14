@@ -3,6 +3,27 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.8.8] — 2026-03-14
+
+### Added
+
+**QA — Dia 3 S09/S10 ejecutado y automatizado**
+
+- Nuevo reporte `docs/qa/BLOQUE3_DIA3_EJECUCION_2026-03-14.md` con evidencia FEFO/POD.
+- Nuevo spec `kiosco-pwa/tests/e2e/logistica-fefo-pod.spec.js` cubriendo:
+  - FEFO rechazo/aceptacion.
+  - POD invalido/valido.
+- Scripts operativos de soporte para entorno QA:
+  - `scripts/manual/day3_probe_runtime.py`
+  - `scripts/manual/day3_runtime_prepare.py`
+  - `scripts/manual/day3_generate_image_payloads.py`
+
+### Changed
+
+**Datos QA — Preparacion reproducible para S09/S10**
+
+- Se estandariza preparacion de dataset FEFO/POD en runtime para garantizar ejecucion repetible de casos criticos.
+
 ## [0.8.7] — 2026-03-14
 
 ### Added
