@@ -3,6 +3,26 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.8.10] — 2026-03-14
+
+### Added
+
+**QA — Dia 5 regresion final y cierre Go/No-Go**
+
+- Nuevo reporte `docs/qa/BLOQUE3_DIA5_EJECUCION_2026-03-14.md`.
+- Nuevo reporte final `docs/qa/BLOQUE3_REPORTE_FINAL_GO_NO_GO_2026-03-14.md`.
+- Evidencia de cierre consolidada:
+  - Regresion E2E critica final (`3 passed`).
+  - Smoke API critico S07-S12 en Pass.
+  - Revalidacion de seguridad por tenant isolation y acceso anonimo (`403`).
+  - Medicion performance final de panel gerencial con `p95=20.62 ms`.
+
+### Changed
+
+**QA — Recomendacion final de release Bloque 3**
+
+- Decision final de QA emitida como `GO` para release board, con riesgo residual bajo y mitigacion operativa documentada.
+
 ## [0.8.9] — 2026-03-14
 
 ### Added
