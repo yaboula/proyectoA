@@ -1,21 +1,26 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { AlertTriangle, CreditCard, Headset, PackagePlus, RefreshCcw, ShieldAlert, Sparkles } from 'lucide-vue-next'
+import { AlertTriangle, Award, CreditCard, Headset, PackagePlus, RefreshCcw, ShieldAlert, Sparkles } from 'lucide-vue-next'
 import KioskLayout from '../components/KioskLayout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import {
   createSupportTicket,
   crearPedidoPortal,
+  getLoyaltyPoints,
   getPortalDashboard,
   getPortalEstadoCuenta,
+  redimirPuntos,
 } from '../api/customerPortal'
 
 const loading = ref(false)
 const submittingOrder = ref(false)
 const submittingTicket = ref(false)
+const submittingRedeem = ref(false)
 
 const dashboard = ref(null)
 const estadoCuenta = ref(null)
+const loyalty = ref(null)
+const puntosARedimir = ref('100')
 
 const orderItemCode = ref('')
 const orderQty = ref('1')
@@ -44,19 +49,41 @@ async function loadPortalData() {
   errorMessage.value = ''
 
   try {
-    const [home, cuenta] = await Promise.all([
+    const [home, cuenta, pts] = await Promise.all([
       getPortalDashboard(),
       getPortalEstadoCuenta(),
+      getLoyaltyPoints().catch(() => null),
     ])
 
     dashboard.value = home
     estadoCuenta.value = cuenta
+    loyalty.value = pts
   } catch (error) {
     errorMessage.value = normalizeError(error, 'Impossible de charger votre espace client.')
     dashboard.value = null
     estadoCuenta.value = null
+    loyalty.value = null
   } finally {
     loading.value = false
+  }
+}
+
+async function onRedimirPuntos() {
+  const puntos = parseInt(puntosARedimir.value || '0', 10)
+  if (!puntos || puntos <= 0) return
+
+  submittingRedeem.value = true
+  successMessage.value = ''
+  errorMessage.value = ''
+
+  try {
+    const res = await redimirPuntos({ puntos })
+    successMessage.value = `${res.puntos_canjeados} points échangés — remise de ${res.descuento_aplicado_mad} MAD sur votre prochaine commande.`
+    await loadPortalData()
+  } catch (error) {
+    errorMessage.value = normalizeError(error, 'Échec de l\'échange de points.')
+  } finally {
+    submittingRedeem.value = false
   }
 }
 
@@ -355,6 +382,78 @@ onMounted(loadPortalData)
           <p v-if="!(dashboard.sugerencias || []).length" class="text-sm text-zinc-500">
             Pas encore de suggestions disponibles.
           </p>
+        </div>
+      </section>
+
+      <!-- Sección Loyalty Program -->
+      <section v-if="loyalty" class="kiosk-panel rounded-md p-5 md:p-6 space-y-4">
+        <div class="gcma-toolbar items-start">
+          <div>
+            <div class="gcma-section-label">Fidélité</div>
+            <h2 class="mt-1 text-xl font-black text-zinc-900 flex items-center gap-2">
+              <Award :size="20" class="text-amber-500" />
+              Programme de fidélité
+            </h2>
+          </div>
+          <div class="gcma-stat text-right">
+            <div class="text-2xl font-black text-amber-600">{{ loyalty.saldo?.saldo_puntos ?? 0 }}</div>
+            <div class="gcma-section-label mt-0.5">points</div>
+          </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="gcma-stat text-center">
+            <div class="text-lg font-black text-zinc-900">{{ loyalty.saldo?.puntos_acumulados ?? 0 }}</div>
+            <div class="gcma-section-label mt-0.5">accumulés</div>
+          </div>
+          <div class="gcma-stat text-center">
+            <div class="text-lg font-black text-zinc-900">{{ loyalty.saldo?.puntos_canjeados ?? 0 }}</div>
+            <div class="gcma-section-label mt-0.5">échangés</div>
+          </div>
+          <div class="gcma-stat text-center">
+            <div class="text-lg font-black text-amber-600">{{ loyalty.equivalencia_mad ?? 0 }} MAD</div>
+            <div class="gcma-section-label mt-0.5">valeur</div>
+          </div>
+        </div>
+
+        <!-- Detalle por familia -->
+        <div v-if="loyalty.detalle_por_familia?.length" class="space-y-2">
+          <div class="gcma-section-label">Points par famille de produit</div>
+          <div
+            v-for="fam in loyalty.detalle_por_familia"
+            :key="fam.familia"
+            class="gcma-data-row flex items-center justify-between px-3 py-2"
+          >
+            <span class="text-sm font-semibold text-zinc-700">{{ fam.familia }}</span>
+            <span class="kiosk-chip rounded-md px-2 py-1 text-xs font-bold">
+              {{ fam.puntos_estimados }} pts · {{ fam.facturacion_ytd }} MAD
+            </span>
+          </div>
+        </div>
+
+        <!-- Redimir puntos -->
+        <div v-if="(loyalty.saldo?.saldo_puntos ?? 0) > 0" class="kiosk-panel-soft rounded-md p-4 space-y-3">
+          <div class="gcma-section-label">Échanger des points</div>
+          <div class="flex gap-3">
+            <input
+              v-model="puntosARedimir"
+              type="number"
+              min="10"
+              :max="loyalty.saldo?.saldo_puntos"
+              class="w-28 rounded-md border border-zinc-300 bg-white px-4 py-3 text-xl font-mono text-zinc-900 text-center focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            />
+            <button
+              type="button"
+              :disabled="submittingRedeem || !puntosARedimir"
+              class="h-14 flex-1 rounded-md bg-amber-500 text-sm font-black uppercase tracking-[0.14em] text-white active:bg-amber-600 disabled:opacity-40 transition flex items-center justify-center gap-2"
+              @click="onRedimirPuntos"
+            >
+              <Award :size="16" />
+              {{ submittingRedeem ? 'Traitement...' : 'Échanger' }}
+            </button>
+          </div>
+          <p class="text-xs text-zinc-500">1 point = 10 MAD de remise sur votre prochaine commande</p>
         </div>
       </section>
 

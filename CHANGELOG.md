@@ -3,6 +3,35 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.2] — 2026-03-18
+
+### Security
+
+- `.gitignore` actualizado: `cookies*.txt`, `*.sid`, `session*.txt`, `auth*.txt`, `kiosco-pwa/evidence/` y `.cursor/` excluidos. Los archivos de sesión nunca serán commiteados accidentalmente.
+- Restaurados `.agents/rules/context.md` y `.github/instructions/context.instructions.md` que habían sido eliminados del disco.
+
+### Added
+
+**Backend — Comercial (Sprint 11 — Loyalty Program)**
+
+- `get_loyalty_points(id_cliente)`: saldo de puntos acumulados/canjeados desde `Loyalty Point Entry`, detalle por familia de producto (facturación YTD), equivalencia en MAD (10 MAD/punto). Tenant-isolated via `_resolve_portal_customer`.
+- `redimir_puntos(id_cliente, puntos)`: crea entrada de tipo Redemption en `Loyalty Point Entry`. Valida saldo suficiente, registra descuento equivalente. Rechaza si no hay programa activo.
+
+**Frontend — Portal B2B (Sprint 11)**
+
+- `PortalB2BCliente.vue` enriquecido: nuevo widget de Loyalty con saldo, stats acumulados/canjeados, detalle por familia y formulario de canje inline. Se carga en paralelo con el dashboard y estado de cuenta.
+
+**Tests E2E — Playwright**
+
+- `rutas-comercial-s07.spec.js`: 5 tests que cubren carga de la vista, navegación a catálogo, búsqueda debounced, añadir al carrito y apertura de `CartePedidoModal`.
+- `cobros-pedidos-s08.spec.js`: 5 tests que cubren verificación de estado de cuenta, ajuste de cantidades, cierre sin perder carrito, fallback offline a `syncQueue` y Poka-Yoke de bloqueo por mora.
+
+**Docs**
+
+- `README.md` reescrito: refleja v0.9.2 con arquitectura real, 28 endpoints, 15 vistas, estructura completa, tabla de endpoints por módulo y credenciales de prueba.
+- `docs/FRONTEND.md` completado: estructura de archivos con 15 vistas, 10 componentes, 4 stores (incluido `pokaYoke.js`), 16 rutas con guards, y wrappers API agrupados por cliente.
+- `docs/CHECKPOINT.md` archivado: convertido en nota histórica apuntando a las fuentes actuales de verdad.
+
 ## [0.9.1] — 2026-03-18
 
 ### Added

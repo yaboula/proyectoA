@@ -18,36 +18,49 @@
 ```text
 kiosco-pwa/src/
   api/
-    client.js          # Axios + form-urlencoded + unwrap response.message
-    kiosco.js          # Wrappers EP1-EP5 + calidad + recepcion + inventario ciego
+    client.js           # Axios + form-urlencoded + unwrap response.message
+    kiosco.js           # Wrappers EP1-EP7, recepción, logística B2B (S09-S10)
+    customerPortal.js   # Wrappers B2B: catálogo, cobros, portal, loyalty (S07-S11)
+    gerencial.js        # Wrappers S12: panel, mapa, CSV, alertas
   components/
-    KioskLayout.vue
-    ScanStation.vue
-    ManualInputModal.vue
-    FullScreenOverlay.vue
-    EmptyState.vue
-    ReceptionCaptureModal.vue
+    KioskLayout.vue         # Shell exterior global. Prop: maxWidth ('5xl'|'6xl'|'7xl')
+    ScanStation.vue         # Visualizador estado scanner (idle/scanning/loading/success/error)
+    ManualInputModal.vue    # Modal saisie manuelle con Teleport
+    FullScreenOverlay.vue   # Overlay fullscreen (error/success/loading/info). Tap-to-dismiss
+    EmptyState.vue          # Estado vacío reutilizable. Props: icon, title, message
+    ReceptionCaptureModal.vue # Modal captura datos de recepción MP
+    CheckInModal.vue        # Modal check-in GPS para S07. Solicita navigator.geolocation
+    NetworkIndicator.vue    # Indicador de conectividad (online/offline) con badge
+    OverrideFEFOModal.vue   # Modal PIN encargado para override de lote FEFO (S09)
+    CartePedidoModal.vue    # Modal carrito B2B con bloqueo por mora y fallback offline (S08)
   composables/
-    useScanner.js      # Scanner USB HID
+    useScanner.js       # Scanner USB HID — eventos keydown con buffer y timeout
   router/
-    index.js           # Guards por sesion y modulo
+    index.js            # 16 rutas con guards de sesión y módulo
   stores/
-    operario.js        # Sesion, perfil y modulos permitidos
-    blindInventory.js  # Conteo offline persistente por warehouse
-    syncQueue.js       # Cola diferida para EP4, EP7 y EP_REC_5
+    operario.js         # Sesión, perfil, módulos permitidos (sessionStorage)
+    pokaYoke.js         # Estado del flujo poka-yoke activo (localStorage)
+    blindInventory.js   # Conteo offline persistente por warehouse (localStorage)
+    syncQueue.js        # Cola diferida para EP4, EP7, EP_REC_5, pedidos offline (localStorage)
   views/
-    LoginQR.vue
-    ModuleHub.vue
-    TareasList.vue
-    PokaYokeScanner.vue
-    LaboratoireQC.vue
-    ReceptionMateriaux.vue
-    TransladoCuarentena.vue
-    ReimpresionEtiqueta.vue
-    InventarioCiego.vue
+    LoginQR.vue                 # EP1: login por QR badge
+    ModuleHub.vue               # Hub de navegación con módulos disponibles
+    TareasList.vue              # EP2: listado de Work Orders pendientes
+    PokaYokeScanner.vue         # EP3+EP4: validación materiales y reporte consumo
+    LaboratoireQC.vue           # EP6+EP7: inspección QC con drawer PrimeVue
+    ReceptionMateriaux.vue      # EP_REC_1+2: recepción de materiales con PO
+    TransladoCuarentena.vue     # EP_REC_3: traslado lote aprobado a MP Aprobada
+    ReimpresionEtiqueta.vue     # EP_REC_4: reimpresión etiqueta ZPL por lote
+    InventarioCiego.vue         # EP_REC_5: conteo físico offline + sincronización
+    RutaComercial.vue           # S07: hoja del día, check-in GPS, sync offline
+    CatalogoStock.vue           # S07: catálogo con stock real, carrito, pedido S08
+    KioscoPickingFEFO.vue       # S09: pick list FEFO, scan por ítem, override PIN
+    AppChoferPOD.vue            # S10: entregas del turno, firma canvas + foto POD
+    PortalB2BCliente.vue        # S11: portal droguería, estado cuenta, loyalty, SOS
+    PanelGerencial360.vue       # S12: scorecard, mapa Leaflet GPS, hit-rate, alertas
   utils/
-    printer.js         # Servicio local ZPL para Zebra
-    qr.js              # Parser QR kiosco con soporte QA,item|batch
+    printer.js          # Servicio local ZPL para Zebra
+    qr.js               # Parser QR kiosco con soporte QA,item|batch
   App.vue
   main.js
   style.css
@@ -57,35 +70,49 @@ kiosco-pwa/src/
 
 | Path | Vista | Meta |
 |------|-------|------|
-| / | LoginQR | guest |
-| /hub | ModuleHub | - |
-| /tareas | TareasList | module: production |
-| /laboratoire | LaboratoireQC | module: quality |
-| /recepcion | ReceptionMateriaux | module: reception |
-| /traslado-cuarentena | TransladoCuarentena | module: reception |
-| /reimpresion | ReimpresionEtiqueta | module: reception |
-| /inventario-ciego | InventarioCiego | module: reception |
-| /poka-yoke/:workOrder | PokaYokeScanner | module: production |
+| `/` | LoginQR | guest |
+| `/hub` | ModuleHub | — |
+| `/tareas` | TareasList | module: production |
+| `/poka-yoke/:workOrder` | PokaYokeScanner | module: production |
+| `/laboratoire` | LaboratoireQC | module: quality |
+| `/recepcion` | ReceptionMateriaux | module: reception |
+| `/traslado-cuarentena` | TransladoCuarentena | module: reception |
+| `/reimpresion` | ReimpresionEtiqueta | module: reception |
+| `/inventario-ciego` | InventarioCiego | module: reception |
+| `/rutas-comercial` | RutaComercial | module: comercial |
+| `/catalogo-stock` | CatalogoStock | module: comercial |
+| `/picking-fefo` | KioscoPickingFEFO | module: logistica |
+| `/chofer-pod` | AppChoferPOD | module: logistica |
+| `/portal-b2b` | PortalB2BCliente | guest (portal externo) |
+| `/panel-gerencial-360` | PanelGerencial360 | guest (dashboard directivo) |
 
 Guard global:
 
-- Rutas guest no requieren sesion.
-- El resto llama `ensureSession()`.
-- Si no hay sesion valida, redirige a `/`.
-- Si el perfil no tiene permiso para el modulo, redirige a `/hub`.
+- Rutas `meta.guest` no requieren sesión.
+- El resto llama `ensureSession()` → si no hay sesión válida, redirige a `/`.
+- Si el perfil no tiene acceso al módulo requerido, redirige a `/hub`.
 
-## Store de Sesion
+## Stores Pinia
 
-Store: `operario`
+### `operario` — Sesión global
+- Estado: `operario`, `sid`, `initialized`, `restoring`, `customerId`.
+- Persistencia: `sessionStorage`.
+- Acciones: `login(qrToken)`, `restoreSession()`, `ensureSession()`, `logout()`, `hasModule(code)`.
 
-- Estado: `operario`, `sid`, `initialized`, `restoring`.
-- Persistencia: `sessionStorage` para rehidratar sesion de navegador.
-- Acciones:
-  - `login(qrToken)` -> EP1
-  - `restoreSession()` -> EP1b
-  - `ensureSession()`
-  - `logout()` -> EP1c
-  - `hasModule(code)`
+### `pokaYoke` — Flujo de validación de materiales
+- Estado: `workOrder`, `materialesValidados`, `consumosExtra`.
+- Persistencia: `localStorage` (sobrevive recarga en caso de cierre accidental del kiosco).
+- Acciones: `setWorkOrder()`, `marcarMaterialValidado()`, `reset()`.
+
+### `blindInventory` — Conteo físico offline
+- Acumula conteos por warehouse por item+lote.
+- Persiste en `localStorage` hasta `subir_conteo_fisico` exitoso.
+- Se vacía tras sincronización exitosa.
+
+### `syncQueue` — Cola offline diferida
+- Encola operaciones críticas (EP4 consumo, EP7 QC, pedidos B2B S08) cuando hay pérdida de red.
+- Procesa la cola en `syncAll()` al reconectar.
+- Expone `pendingCount` y `hasPending` para `NetworkIndicator`.
 
 ## API Client
 
@@ -98,22 +125,24 @@ Store: `operario`
 
 ## Wrappers API
 
-`src/api/kiosco.js`
+### `kiosco.js` — Producción, Calidad, Recepción, Logística
+- EP1–EP5: `loginOperario`, `getOperarioSession`, `logoutOperario`, `getTareas`, `validarMaterial`, `reportarConsumo`, `getInfoLote`
+- EP6–EP7: `getLotesCuarentena`, `aprobarCalidad`
+- EP_REC_1–5: `getComprasPendientes`, `registrarRecepcion`, `trasladarLoteAprobado`, `getLoteParaImpresion`, `subirConteoFisico`
+- S07: `getRutaDia`, `postCheckin`
+- S09: `getPickList`, `validarScanFefo`, `overrideFefoBatch`
+- S10: `getEntregasPendientesChofer`, `registrarPod`
 
-- EP1 `loginOperario`
-- EP1b `getOperarioSession`
-- EP1c `logoutOperario`
-- EP2 `getTareas`
-- EP3 `validarMaterial`
-- EP4 `reportarConsumo`
-- EP5 `getInfoLote`
-- EP6 `getLotesCuarentena`
-- EP7 `aprobarCalidad`
-- EP_REC_1 `getComprasPendientes`
-- EP_REC_2 `registrarRecepcion`
-- EP_REC_3 `trasladarLoteAprobado`
-- EP_REC_4 `getLoteParaImpresion`
-- EP_REC_5 `subirConteoFisico`
+### `customerPortal.js` — B2B Comercial y Portal
+- S07: `getCatalogoStock`
+- S08: `getEstadoCuenta`, `postCobro`, `syncPedidosOffline`
+- S11: `getPortalDashboard`, `getPortalEstadoCuenta`, `crearPedidoPortal`, `createSupportTicket`, `getLoyaltyPoints`, `redimirPuntos`
+
+### `gerencial.js` — Panel Directivo S12
+- `getPanelGerencial360`, `getCoberturaMapa`, `getReporteFotosCompetencia`, `exportScorecardCsv`, `runAlertaAbandonoClientes`
+
+### Patrón de namespace fallback
+`kiosco.js` y `customerPortal.js` intentan primero `maroc_b2b.api.*` y, si el servidor devuelve `App maroc_b2b is not installed`, reintenta con `gcma_kiosco.api.*`. Esto permite despliegues donde el alias no está registrado.
 
 ## Flujo de Pantallas
 

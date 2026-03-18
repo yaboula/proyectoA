@@ -2,6 +2,7 @@
 GCMA / Maroc B2B — Endpoints comerciales (Sprint 07-11).
 
 Contrato API objetivo:
+- GET  /api/method/maroc_b2b.api.comercial.get_catalogo_stock
 - GET  /api/method/maroc_b2b.api.comercial.get_ruta_dia
 - POST /api/method/maroc_b2b.api.comercial.post_checkin
 - GET  /api/method/maroc_b2b.api.comercial.get_estado_cuenta
@@ -11,6 +12,8 @@ Contrato API objetivo:
 - GET  /api/method/maroc_b2b.api.comercial.get_portal_estado_cuenta
 - POST /api/method/maroc_b2b.api.comercial.crear_pedido_portal
 - POST /api/method/maroc_b2b.api.comercial.create_support_ticket
+- GET  /api/method/maroc_b2b.api.comercial.get_loyalty_points
+- POST /api/method/maroc_b2b.api.comercial.redimir_puntos
 """
 
 from __future__ import annotations
@@ -847,4 +850,165 @@ def create_support_ticket(
         "status": "success",
         "issue_id": issue.name,
         "customer": customer_id,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sprint 11 — Loyalty Program
+# Usa el DocType nativo de ERPNext "Loyalty Point Entry" y "Loyalty Program".
+# Regla de acumulación: 1 punto por cada 100 MAD facturados, priorizando
+# familias FEFO (productos próximos a vencer con descuento comercial).
+# ─────────────────────────────────────────────────────────────────────────────
+
+_LOYALTY_PROGRAM_NAME_CONF_KEY = "b2b_loyalty_program_name"
+_POINTS_PER_100_MAD = 1  # 1 punto por cada 100 MAD de facturación
+
+
+def _get_loyalty_program() -> str | None:
+    """Devuelve el nombre del Loyalty Program configurado en site_config."""
+    configured = frappe.conf.get(_LOYALTY_PROGRAM_NAME_CONF_KEY, "")
+    if configured:
+        return configured
+
+    # Fallback: primer programa activo
+    program = frappe.db.get_value("Loyalty Program", {"disabled": 0}, "name")
+    return program
+
+
+def _get_loyalty_points_balance(id_cliente: str) -> dict[str, Any]:
+    """Calcula el saldo de puntos acumulados y canjeados del cliente."""
+    program = _get_loyalty_program()
+
+    if not program:
+        return {"puntos_acumulados": 0, "puntos_canjeados": 0, "saldo_puntos": 0, "programa": None}
+
+    rows = frappe.db.sql(
+        """
+        select
+            sum(case when lpe.type = 'Earning' then lpe.loyalty_points else 0 end) as ganados,
+            sum(case when lpe.type = 'Redemption' then lpe.loyalty_points else 0 end) as canjeados
+        from `tabLoyalty Point Entry` lpe
+        where lpe.customer = %(customer)s
+          and lpe.loyalty_program = %(program)s
+          and lpe.expiry_date >= curdate()
+        """,
+        {"customer": id_cliente, "program": program},
+        as_dict=True,
+    )
+
+    row = rows[0] if rows else {}
+    ganados = int(_to_float(row.get("ganados"), 0))
+    canjeados = int(_to_float(row.get("canjeados"), 0))
+
+    return {
+        "puntos_acumulados": ganados,
+        "puntos_canjeados": canjeados,
+        "saldo_puntos": max(0, ganados - canjeados),
+        "programa": program,
+    }
+
+
+def _calcular_puntos_por_familia(id_cliente: str, limit: int = 5) -> list[dict[str, Any]]:
+    """Detalla puntos ganados por familia de productos (para fidelización FEFO)."""
+    program = _get_loyalty_program()
+    if not program:
+        return []
+
+    rows = frappe.db.sql(
+        """
+        select
+            i.item_group as familia,
+            sum(sii.amount) as facturacion,
+            floor(sum(sii.amount) / 100) as puntos_estimados
+        from `tabSales Invoice Item` sii
+        inner join `tabSales Invoice` si on si.name = sii.parent
+        inner join `tabItem` i on i.name = sii.item_code
+        where si.customer = %(customer)s
+          and si.docstatus = 1
+          and year(si.posting_date) = year(curdate())
+        group by i.item_group
+        order by facturacion desc
+        limit %(limit)s
+        """,
+        {"customer": id_cliente, "limit": int(limit)},
+        as_dict=True,
+    )
+
+    return [
+        {
+            "familia": row.familia or "Sin familia",
+            "facturacion_ytd": flt(row.facturacion, 2),
+            "puntos_estimados": int(_to_float(row.puntos_estimados, 0)),
+        }
+        for row in rows
+    ]
+
+
+@frappe.whitelist()
+def get_loyalty_points(id_cliente: str | None = None):
+    """Sprint 11 — Saldo de puntos de fidelidad del cliente portal."""
+    customer_id = _resolve_portal_customer(id_cliente)
+
+    balance = _get_loyalty_points_balance(customer_id)
+    por_familia = _calcular_puntos_por_familia(customer_id)
+
+    return {
+        "id_cliente": customer_id,
+        "saldo": balance,
+        "detalle_por_familia": por_familia,
+        "equivalencia_mad": balance["saldo_puntos"] * 10,  # 10 MAD por punto
+    }
+
+
+@frappe.whitelist()
+def redimir_puntos(id_cliente: str | None = None, puntos: str = "0"):
+    """
+    Sprint 11 — Canjea puntos de fidelidad aplicando un descuento al próximo pedido.
+    Crea una entrada de Redemption en Loyalty Point Entry.
+    """
+    customer_id = _resolve_portal_customer(id_cliente)
+
+    qty_puntos = int(max(0, _to_float(puntos, 0)))
+    if qty_puntos <= 0:
+        frappe.throw(_("Debe indicar una cantidad de puntos positiva"), frappe.ValidationError)
+
+    program = _get_loyalty_program()
+    if not program:
+        frappe.throw(_("No hay programa de fidelidad activo"), frappe.ValidationError)
+
+    balance = _get_loyalty_points_balance(customer_id)
+    if qty_puntos > balance["saldo_puntos"]:
+        frappe.throw(
+            _("Saldo insuficiente: tiene {0} puntos, solicita {1}").format(
+                balance["saldo_puntos"], qty_puntos
+            ),
+            frappe.ValidationError,
+        )
+
+    descuento_mad = flt(qty_puntos * 10, 2)  # 10 MAD por punto
+
+    # Registrar la redención en Loyalty Point Entry
+    expiry = frappe.utils.add_months(frappe.utils.today(), 12)
+    entry = frappe.get_doc(
+        {
+            "doctype": "Loyalty Point Entry",
+            "loyalty_program": program,
+            "loyalty_program_tier": None,
+            "customer": customer_id,
+            "loyalty_points": qty_puntos,
+            "type": "Redemption",
+            "expiry_date": expiry,
+            "posting_date": frappe.utils.today(),
+            "company": frappe.db.get_single_value("Global Defaults", "default_company"),
+        }
+    )
+    entry.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {
+        "status": "success",
+        "puntos_canjeados": qty_puntos,
+        "descuento_aplicado_mad": descuento_mad,
+        "saldo_restante": max(0, balance["saldo_puntos"] - qty_puntos),
+        "loyalty_entry": entry.name,
     }

@@ -88,6 +88,26 @@ export function postCobro({ id_cliente, monto, modo_pago, referencia, fecha }) {
   )
 }
 
+/** S11 — Saldo y detalle de puntos de fidelidad del cliente */
+export function getLoyaltyPoints(idCliente) {
+  const params = {}
+  if (idCliente) params.id_cliente = idCliente
+  return withNamespaceFallback(
+    () => client.get(`${PORTAL_BASE}.get_loyalty_points`, { params }),
+    () => client.get(`${PORTAL_BASE_FALLBACK}.get_loyalty_points`, { params }),
+  )
+}
+
+/** S11 — Canjear puntos de fidelidad por descuento en próximo pedido */
+export function redimirPuntos({ idCliente, puntos }) {
+  const payload = { puntos: String(puntos) }
+  if (idCliente) payload.id_cliente = idCliente
+  return withNamespaceFallback(
+    () => client.post(`${PORTAL_BASE}.redimir_puntos`, payload),
+    () => client.post(`${PORTAL_BASE_FALLBACK}.redimir_puntos`, payload),
+  )
+}
+
 export async function createSupportTicket(description, b64Photo, affectedBatch, idCliente) {
   const payload = {
     description,
