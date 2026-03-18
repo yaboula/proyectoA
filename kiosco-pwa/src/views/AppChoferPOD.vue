@@ -5,6 +5,9 @@ import KioskLayout from '../components/KioskLayout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { getEntregasPendientesChofer, registrarPod } from '../api/kiosco'
 
+// getEntregasPendientesChofer ahora llama al endpoint custom /api/method/maroc_b2b.api.logistica.get_entregas_pendientes_chofer
+// que devuelve { total, entregas: [...] } con customer_name y estado_entrega_pwa incluidos
+
 const loading = ref(false)
 const submitting = ref(false)
 const entregas = ref([])
@@ -24,9 +27,10 @@ async function loadEntregas() {
 
   try {
     const response = await getEntregasPendientesChofer()
-    entregas.value = response?.data ?? []
+    // El endpoint custom devuelve { total, entregas: [...] }
+    entregas.value = response?.entregas ?? response?.data ?? []
   } catch (error) {
-    errorMessage.value = error?.message_fr || 'Impossible de charger les livraisons en attente.'
+    errorMessage.value = error?.message_fr || error?.message || 'Impossible de charger les livraisons en attente.'
     entregas.value = []
   } finally {
     loading.value = false

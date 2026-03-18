@@ -1,8 +1,11 @@
 """
-GCMA / Maroc B2B — Endpoints comerciales (Sprint 08-11).
+GCMA / Maroc B2B — Endpoints comerciales (Sprint 07-11).
 
 Contrato API objetivo:
+- GET  /api/method/maroc_b2b.api.comercial.get_ruta_dia
+- POST /api/method/maroc_b2b.api.comercial.post_checkin
 - GET  /api/method/maroc_b2b.api.comercial.get_estado_cuenta
+- POST /api/method/maroc_b2b.api.comercial.post_cobro
 - POST /api/method/maroc_b2b.api.comercial.sync_pedidos_offline
 - GET  /api/method/maroc_b2b.api.comercial.get_portal_dashboard
 - GET  /api/method/maroc_b2b.api.comercial.get_portal_estado_cuenta
@@ -398,6 +401,90 @@ def post_checkin(
         "es_visita_valida": bool(es_visita_valida),
         "distancia_metros": distancia_m,
         "radio_geocerca_m": geofence_m,
+    }
+
+
+@frappe.whitelist()
+def post_cobro(
+    id_cliente: str,
+    monto: str,
+    modo_pago: str,
+    referencia: str | None = None,
+    fecha: str | None = None,
+):
+    """Sprint 08 — Registra un cobro (cheque/efectivo) como Payment Entry draft."""
+    _ensure_customer_exists(id_cliente)
+
+    amount = _to_float(monto, None)
+    if amount is None or amount <= 0:
+        frappe.throw(_("El monto debe ser un numero positivo"), frappe.ValidationError)
+
+    modo = (modo_pago or "").strip()
+    if not modo:
+        frappe.throw(_("Parametro obligatorio: modo_pago"), frappe.ValidationError)
+
+    modos_validos = {"Cheque", "Efectivo", "Virement", "Espece"}
+    if modo not in modos_validos:
+        frappe.throw(
+            _("modo_pago invalido. Valores aceptados: {0}").format(", ".join(sorted(modos_validos))),
+            frappe.ValidationError,
+        )
+
+    customer = frappe.get_doc("Customer", id_cliente)
+    company = _get_default_company(customer)
+    if not company:
+        frappe.throw(_("No hay company por defecto para el cobro"), frappe.ValidationError)
+
+    # Cuenta de caja/banco según modo de pago
+    paid_to_account = frappe.db.get_value(
+        "Account",
+        {"account_type": "Cash" if modo in ("Efectivo", "Espece") else "Bank", "company": company, "is_group": 0},
+        "name",
+    )
+    if not paid_to_account:
+        frappe.throw(
+            _("No se encontro cuenta de {0} para la empresa {1}").format(modo, company),
+            frappe.ValidationError,
+        )
+
+    receivable_account = frappe.db.get_value(
+        "Account",
+        {"account_type": "Receivable", "company": company, "is_group": 0},
+        "name",
+    )
+    if not receivable_account:
+        frappe.throw(_("No se encontro cuenta por cobrar para la empresa {0}").format(company), frappe.ValidationError)
+
+    ref_no = (referencia or "").strip() or f"COBRO-PWA-{frappe.generate_hash(length=6).upper()}"
+
+    payment_entry = frappe.get_doc(
+        {
+            "doctype": "Payment Entry",
+            "payment_type": "Receive",
+            "party_type": "Customer",
+            "party": id_cliente,
+            "company": company,
+            "posting_date": fecha or frappe.utils.today(),
+            "paid_amount": amount,
+            "received_amount": amount,
+            "paid_to": paid_to_account,
+            "paid_from": receivable_account,
+            "mode_of_payment": modo,
+            "reference_no": ref_no,
+            "reference_date": fecha or frappe.utils.today(),
+            "remarks": f"Cobro registrado desde PWA Comercial B2B — {modo}",
+        }
+    )
+
+    payment_entry.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {
+        "status": "success",
+        "payment_entry": payment_entry.name,
+        "monto": flt(amount, 2),
+        "modo_pago": modo,
+        "referencia": ref_no,
     }
 
 

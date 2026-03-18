@@ -156,22 +156,27 @@ export function postCheckin({ id_cliente, gps_lat_capturada, gps_lng_capturada, 
   )
 }
 
-export function validarScanFefo({ sales_order, item_code, batch_scanned }) {
+/** S09 — Lista de picking FEFO para un Sales Order */
+export function getPickList(salesOrder) {
+  return client.get(`${B2B_LOGISTICA_BASE}.get_pick_list`, {
+    params: { sales_order: salesOrder },
+  })
+}
+
+/** S09 — Validar scan FEFO con control de cantidad acumulada */
+export function validarScanFefo({ sales_order, item_code, batch_scanned, qty_ya_escaneada = 0 }) {
   return client.post(`${B2B_LOGISTICA_BASE}.validar_scan_fefo`, {
     sales_order,
     item_code,
     batch_scanned,
+    qty_ya_escaneada,
   })
 }
 
-export function getEntregasPendientesChofer() {
-  return client.get('/api/resource/Delivery Note', {
-    params: {
-      fields: JSON.stringify(['name', 'customer', 'posting_date', 'status', 'docstatus']),
-      filters: JSON.stringify([['docstatus', 'in', [0, 1]], ['status', 'not in', ['Completed', 'Closed']]]),
-      order_by: 'posting_date asc',
-      limit_page_length: 50,
-    },
+/** S10 — Entregas pendientes del turno del chofer */
+export function getEntregasPendientesChofer(limit = 50) {
+  return client.get(`${B2B_LOGISTICA_BASE}.get_entregas_pendientes_chofer`, {
+    params: { limit },
   })
 }
 

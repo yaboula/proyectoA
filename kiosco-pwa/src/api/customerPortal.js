@@ -49,6 +49,18 @@ export function crearPedidoPortal({ id_cliente, items }) {
   )
 }
 
+/** S08 — Registro de cobro (cheque/efectivo) desde PWA comercial */
+export function postCobro({ id_cliente, monto, modo_pago, referencia, fecha }) {
+  const payload = { id_cliente, monto: String(monto), modo_pago }
+  if (referencia) payload.referencia = referencia
+  if (fecha) payload.fecha = fecha
+
+  return withNamespaceFallback(
+    () => client.post(`${PORTAL_BASE}.post_cobro`, payload),
+    () => client.post(`${PORTAL_BASE_FALLBACK}.post_cobro`, payload),
+  )
+}
+
 export async function createSupportTicket(description, b64Photo, affectedBatch, idCliente) {
   const payload = {
     description,

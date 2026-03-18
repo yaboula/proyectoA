@@ -3,6 +3,47 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.0] — 2026-03-18
+
+### Added
+
+**Backend — Logística (Sprint 09-10)**
+
+- Nuevo endpoint `get_pick_list(sales_order)` en `logistica.py`: devuelve la lista de items pendientes del SO con sugerencia de lote FEFO teórico, qty pedida/entregada/pendiente, stock disponible y fecha de expiración.
+- Nuevo endpoint `get_entregas_pendientes_chofer(limit)` en `logistica.py`: reemplaza la llamada directa a `/api/resource/Delivery Note` (raw REST), cumpliendo el principio API-first. Devuelve `customer_name` y `estado_entrega_pwa` enriquecidos.
+
+**Backend — Comercial (Sprint 08)**
+
+- Nuevo endpoint `post_cobro(id_cliente, monto, modo_pago, referencia, fecha)` en `comercial.py`: registra un Payment Entry draft con modo de pago (`Cheque`, `Efectivo`, `Virement`, `Espece`). Resuelve automáticamente cuenta de caja/banco y cuenta por cobrar según la empresa.
+
+### Changed
+
+**Backend — Logística (Sprint 09)**
+
+- `validar_scan_fefo` actualizado: acepta nuevo parámetro `qty_ya_escaneada` (default `0`). Ahora controla exceso de cantidad (Poka-Yoke cuantitativo) y devuelve `qty_escaneada_total`, `qty_restante` y `cierre_parcial` en la respuesta. Los mensajes de error son en francés (UX operario).
+
+**Frontend — KioscoPickingFEFO.vue**
+
+- Vista completamente refactorizada: carga la pick list vía `get_pick_list` al escanear el Sales Order, muestra todos los ítems con barra de progreso, sugerencia de lote FEFO y selector de ítem activo. El scan envía `qty_ya_escaneada` acumulado al servidor. Overlay FEFO bloqueante (`FullScreenOverlay variant="error"`) con audio en cada violación.
+
+**Frontend — AppChoferPOD.vue**
+
+- Adaptado para consumir el endpoint custom `get_entregas_pendientes_chofer` en lugar del raw `/api/resource/Delivery Note`.
+
+**Frontend — kiosco.js**
+
+- `getPickList(salesOrder)` añadido.
+- `validarScanFefo` acepta `qty_ya_escaneada`.
+- `getEntregasPendientesChofer` apunta al endpoint custom.
+
+**Frontend — customerPortal.js**
+
+- `postCobro({ id_cliente, monto, modo_pago, referencia, fecha })` añadido con namespace fallback.
+
+**Docs**
+
+- `docs/API.md`: nuevas secciones `post_cobro`, `get_pick_list`, `validar_scan_fefo` (actualizado), `get_entregas_pendientes_chofer` con curl de ejemplo.
+
 ## [0.8.10] — 2026-03-14
 
 ### Added

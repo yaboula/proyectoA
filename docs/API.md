@@ -6,7 +6,9 @@ Base URL calidad: `/api/method/gcma_kiosco.api.calidad`
 
 Base URL recepcion: `/api/method/gcma_kiosco.api.recepcion`
 
-Base URL comercial B2B (Sprint 07+): `/api/method/gcma_kiosco.api.comercial`
+Base URL comercial B2B (Sprint 07+): `/api/method/maroc_b2b.api.comercial` (fallback: `gcma_kiosco.api.comercial`)
+
+Base URL logística B2B (Sprint 09-10): `/api/method/maroc_b2b.api.logistica` (fallback: `gcma_kiosco.api.logistica`)
 
 Todos los endpoints usan `Content-Type: application/x-www-form-urlencoded`.
 La respuesta se envuelve en el sobre estándar Frappe: `{ "message": { ... } }`.
@@ -1162,3 +1164,188 @@ Efectos:
 DoD seguridad:
 
 - Intento de forzar `id_cliente` de otro tenant devuelve `403 Forbidden`.
+
+---
+
+## S08 — Registro de cobro (post_cobro)
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/maroc_b2b.api.comercial.post_cobro` |
+| **Auth** | Sesion requerida |
+
+### Payload
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `id_cliente` | string | ✅ | ID del Customer en ERPNext |
+| `monto` | string/number | ✅ | Importe positivo |
+| `modo_pago` | string | ✅ | `Cheque` \| `Efectivo` \| `Virement` \| `Espece` |
+| `referencia` | string | — | Nº cheque o referencia manual |
+| `fecha` | string YYYY-MM-DD | — | Fecha del cobro (default: hoy) |
+
+### Response (200 OK)
+
+```json
+{
+  "message": {
+    "status": "success",
+    "payment_entry": "PE-2026-00045",
+    "monto": 15000.00,
+    "modo_pago": "Cheque",
+    "referencia": "CHK-000123"
+  }
+}
+```
+
+### Errores
+
+| Código | Causa |
+|--------|-------|
+| 417 | `monto` ≤ 0, `modo_pago` inválido, cliente no existe, cuenta contable no encontrada |
+
+```bash
+curl -X POST http://localhost:8080/api/method/maroc_b2b.api.comercial.post_cobro \
+  -b cookies.txt \
+  -d "id_cliente=Droguerie Atlas&monto=15000&modo_pago=Cheque&referencia=CHK-000123"
+```
+
+---
+
+## S09 — Lista de picking FEFO (get_pick_list)
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/maroc_b2b.api.logistica.get_pick_list` |
+| **Auth** | Sesion requerida |
+
+### Parámetros
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `sales_order` | string | ✅ | Nombre del Sales Order |
+
+### Response (200 OK)
+
+```json
+{
+  "message": {
+    "sales_order": "SAL-ORD-2026-00050",
+    "customer": "Droguerie Atlas",
+    "status": "To Deliver and Bill",
+    "total_items_pendientes": 2,
+    "items": [
+      {
+        "item_code": "PINT-EPOXI-01",
+        "item_name": "Peinture Epoxy 5L",
+        "qty_pedida": 20,
+        "qty_entregada": 0,
+        "qty_pendiente": 20,
+        "warehouse": "Expedición - GCMA",
+        "lote_fefo_sugerido": "LOTE-2025-08",
+        "lote_expiry": "2026-06-30",
+        "lote_stock_disponible": 25.0
+      }
+    ]
+  }
+}
+```
+
+### Errores
+
+| Código | Causa |
+|--------|-------|
+| 417 | Sales Order no existe o está cancelado |
+
+```bash
+curl http://localhost:8080/api/method/maroc_b2b.api.logistica.get_pick_list \
+  -b cookies.txt -G -d "sales_order=SAL-ORD-2026-00050"
+```
+
+---
+
+## S09 — Validar scan FEFO con cantidad (validar_scan_fefo) — actualizado v0.9.0
+
+Ahora acepta `qty_ya_escaneada` para control de cantidad acumulada por el operario.
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `POST /api/method/maroc_b2b.api.logistica.validar_scan_fefo` |
+| **Auth** | Sesion requerida |
+
+### Payload
+
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| `sales_order` | string | ✅ | |
+| `item_code` | string | ✅ | |
+| `batch_scanned` | string | ✅ | Lote leído por pistola |
+| `qty_ya_escaneada` | number | — | Unidades ya validadas en esta sesión (default: 0) |
+
+### Response (200 OK)
+
+```json
+{
+  "message": {
+    "status": "ok",
+    "batch_validado": "LOTE-2025-08",
+    "qty_escaneada_total": 5,
+    "qty_pendiente": 20,
+    "qty_restante": 15,
+    "cierre_parcial": false
+  }
+}
+```
+
+`cierre_parcial: true` indica que el artículo está completamente preparado.
+
+### Errores Poka-Yoke
+
+| Condición | Mensaje |
+|-----------|---------|
+| Otro lote más antiguo disponible | `Violation FEFO: Le lot LOTE-ANCIEN doit être extrait en premier.` |
+| Cantidad acumulada ≥ cantidad pedida | `Quantite deja atteinte (20/20). Finalisez cet article.` |
+| Cantidad acumulada + 1 > pendiente | `Quantite excedee: 21 scannes pour 20 commandes.` |
+
+---
+
+## S10 — Entregas pendientes del chofer (get_entregas_pendientes_chofer)
+
+| Campo | Valor |
+|-------|-------|
+| **Ruta** | `GET /api/method/maroc_b2b.api.logistica.get_entregas_pendientes_chofer` |
+| **Auth** | Sesion requerida |
+
+### Parámetros
+
+| Parámetro | Tipo | Default | Descripción |
+|-----------|------|---------|-------------|
+| `limit` | int | 50 | Máximo 200 registros |
+
+### Response (200 OK)
+
+```json
+{
+  "message": {
+    "total": 3,
+    "entregas": [
+      {
+        "name": "DN-2026-00041",
+        "customer": "Droguerie Atlas",
+        "customer_name": "Droguerie Atlas SARL",
+        "posting_date": "2026-03-18",
+        "status": "To Deliver",
+        "docstatus": 0,
+        "estado_entrega_pwa": "Pendiente",
+        "total_qty": 20.0,
+        "grand_total": 48000.0
+      }
+    ]
+  }
+}
+```
+
+```bash
+curl http://localhost:8080/api/method/maroc_b2b.api.logistica.get_entregas_pendientes_chofer \
+  -b cookies.txt -G -d "limit=50"
+```
