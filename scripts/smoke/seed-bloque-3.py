@@ -1,28 +1,37 @@
 """
 Seed data Bloque 3 — Comercial B2B & Logística.
 
-Ejecutar DENTRO del container Docker:
-  docker exec frappe_docker-backend-1 \
-    /home/frappe/frappe-bench/env/bin/python \
-    /workspace/scripts/smoke/seed-bloque-3.py
-
-O via bench:
-  bench --site frontend execute gcma_kiosco.setup.seed_b2b.run
+Ejecutar DENTRO del container Docker (con -w para workdir correcto):
+  docker cp seed-bloque-3.py frappe_docker-backend-1:/tmp/seed-bloque-3.py
+  docker exec -u frappe frappe_docker-backend-1 \
+    /home/frappe/frappe-bench/env/bin/python /tmp/seed-bloque-3.py
 
 Datos que crea (todos idempotentes con upsert):
-  - 1 Sales Person "COM-2026-BADGE-00099" (badge QR para login comercial)
-  - 1 Sales Person "CHOFER-2026-BADGE-00088" (badge chofer)
-  - 1 Customer "CLI-B2B-TEST-001" con portal_customer_id
-  - 1 Loyalty Program "GCMA Loyalty 2026" (si no existe ninguno)
-  - 1 Sales Order confirmado con 2 items FEFO
-  - 1 Delivery Note en estado "To Deliver" para el chofer
-  - 2 lotes con fecha de vencimiento: uno próximo (FEFO sugerido), uno lejano
+  - 1 Employee/Badge "COM-2026-BADGE-00099" (comercial)
+  - 1 Employee/Badge "CHOFER-2026-BADGE-00088" (chofer)
+  - 1 Customer "Droguerie Atlas Test" con portal_customer_id=CLI-B2B-TEST-001
+  - 1 Loyalty Program "GCMA Loyalty 2026"
+  - 2 Items con has_batch_no=1 y stock por lotes FEFO
+  - 2 Batches: uno vence en 30d (FEFO prioritario), otro en 180d
+  - 1 Sales Order confirmado (para picking S09)
+  - 1 Delivery Note submitted (para chofer S10)
+  - 250 Loyalty Points de semilla para el cliente
 """
 
-import frappe
-from frappe.utils import add_days, today, nowdate
+import os
+import sys
 
-frappe.connect(site="frontend")
+import frappe
+from frappe.utils import add_days, flt, today
+
+# ── Auto-detección del site ────────────────────────────────────────────────────
+BENCH_PATH  = "/home/frappe/frappe-bench"
+SITES_PATH  = os.path.join(BENCH_PATH, "sites")
+SITE_NAME   = os.environ.get("FRAPPE_SITE", "frontend")
+
+frappe.init(site=SITE_NAME, sites_path=SITES_PATH)
+frappe.connect()
+print(f"[SEED B3] Conectado a site='{SITE_NAME}' db='{frappe.conf.db_name}'")
 
 
 def upsert(doctype, name, defaults):
@@ -285,6 +294,7 @@ except Exception as ex:
     print(f"  [WARN] Loyalty Points: {ex}")
 
 frappe.db.commit()
+frappe.destroy()
 
 print("""
 ╔══════════════════════════════════════════════════════════════╗
