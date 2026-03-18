@@ -3,6 +3,44 @@
 Todos los cambios notables del proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.1] — 2026-03-18
+
+### Added
+
+**Backend — Logística (Sprint 09)**
+
+- Nuevo endpoint `override_fefo_batch(sales_order, item_code, batch_requested, pin_manager, justificacion, qty_ya_escaneada)`: autoriza uso de un lote no-FEFO mediante PIN de encargado de almacén. Valida PIN contra `custom_qr_badge_token` del Employee, verifica rol (`Warehouse Manager`, `Stock Manager`, etc.) y deja traza en `frappe.log_error` con nombre del encargado y justificación.
+
+**Backend — Comercial (Sprint 07)**
+
+- Nuevo endpoint `get_catalogo_stock(search, warehouse, limit)`: devuelve ítems de venta activos con precio de lista estándar y stock real (sumado desde `tabBin`). Soporta búsqueda por nombre y filtro por almacén.
+
+**Frontend — Componentes**
+
+- `OverrideFEFOModal.vue`: modal con Teleport, fondo amber, campo PIN numérico, campo justificación opcional. Se activa automáticamente cuando el backend detecta violación FEFO en lugar del overlay bloqueante. Emite `confirm({ pin_manager, justificacion })` / `cancel`.
+- `CatalogoStock.vue`: nueva vista S07 con búsqueda debounced, grilla de items con stock en tiempo real, contador de stock, precio MAD y controles +/− del carrito. Sticky bar con total y botón "Commander" que abre `CartePedidoModal`.
+- `CartePedidoModal.vue`: modal de confirmación de pedido S08. Verifica estado de cuenta del cliente (bloqueo si mora > umbral), permite ajustar cantidades, envía vía `sync_pedidos_offline`. Si hay error de red encola en `syncQueue` para reintento automático.
+
+### Changed
+
+**Frontend — KioscoPickingFEFO.vue**
+
+- Violaciones FEFO ya no disparan `FullScreenOverlay` directamente: primero abren `OverrideFEFOModal` ofreciendo al encargado introducir su PIN. Solo errores no-FEFO (cantidad excedida, lote sin stock) mantienen el overlay rojo bloqueante.
+
+**Frontend — RutaComercial.vue**
+
+- Nuevo botón "Catalogue" en la toolbar que navega a `/catalogo-stock`.
+
+**Frontend — Router**
+
+- Nueva ruta `/catalogo-stock` → `CatalogoStock.vue` con `meta.module: 'comercial'`.
+- Rutas `/rutas-comercial`, `/picking-fefo`, `/chofer-pod` tienen ahora `meta.module` (`comercial` / `logistica`) para activar guard de sesión.
+
+**Frontend — customerPortal.js**
+
+- `getEstadoCuenta(idCliente)` añadido con namespace fallback.
+- `syncPedidosOffline(pedidos)` añadido con namespace fallback.
+
 ## [0.9.0] — 2026-03-18
 
 ### Added

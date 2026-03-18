@@ -49,6 +49,33 @@ export function crearPedidoPortal({ id_cliente, items }) {
   )
 }
 
+/** S08 — Estado de cuenta de un cliente (bloqueo por mora) */
+export function getEstadoCuenta(idCliente) {
+  return withNamespaceFallback(
+    () => client.get(`${PORTAL_BASE}.get_estado_cuenta`, { params: { id_cliente: idCliente } }),
+    () => client.get(`${PORTAL_BASE_FALLBACK}.get_estado_cuenta`, { params: { id_cliente: idCliente } }),
+  )
+}
+
+/** S08 — Sincronizar pedidos offline como Sales Orders */
+export function syncPedidosOffline(pedidos) {
+  return withNamespaceFallback(
+    () => client.post(`${PORTAL_BASE}.sync_pedidos_offline`, { pedidos: JSON.stringify(pedidos) }),
+    () => client.post(`${PORTAL_BASE_FALLBACK}.sync_pedidos_offline`, { pedidos: JSON.stringify(pedidos) }),
+  )
+}
+
+/** S07 — Catálogo de ítems con stock proyectado para el comercial */
+export function getCatalogoStock({ search, warehouse, limit = 40 } = {}) {
+  const params = { limit }
+  if (search) params.search = search
+  if (warehouse) params.warehouse = warehouse
+  return withNamespaceFallback(
+    () => client.get(`${PORTAL_BASE}.get_catalogo_stock`, { params }),
+    () => client.get(`${PORTAL_BASE_FALLBACK}.get_catalogo_stock`, { params }),
+  )
+}
+
 /** S08 — Registro de cobro (cheque/efectivo) desde PWA comercial */
 export function postCobro({ id_cliente, monto, modo_pago, referencia, fecha }) {
   const payload = { id_cliente, monto: String(monto), modo_pago }

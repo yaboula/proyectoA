@@ -15,7 +15,8 @@ import { useRouter } from 'vue-router'
 import KioskLayout from '../components/KioskLayout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FullScreenOverlay from '../components/FullScreenOverlay.vue'
-import { getPickList, validarScanFefo } from '../api/kiosco'
+import OverrideFEFOModal from '../components/OverrideFEFOModal.vue'
+import { getPickList, overrideFefoBatch, validarScanFefo } from '../api/kiosco'
 
 const router = useRouter()
 
@@ -40,6 +41,11 @@ const lastScanOk = ref(null)
 // ── Overlay de error bloqueante ────────────────────────────────────────────────
 const fefoOverlay = ref(false)
 const fefoOverlayMessage = ref('')
+
+// ── Override FEFO con PIN ──────────────────────────────────────────────────────
+const overrideModal = ref(false)
+const overridePendingBatch = ref('')     // lote que el operario quiere usar
+const overrideFefoExpected = ref('')    // lote que debería usarse según FEFO
 
 // ── Computed ───────────────────────────────────────────────────────────────────
 const items = computed(() => pickList.value?.items ?? [])
@@ -147,14 +153,77 @@ async function onValidateScan() {
     }
   } catch (error) {
     const msg = error?.message || error?.message_fr || 'Erreur FEFO: scan refuse.'
-    scanError.value = msg
-    fefoOverlayMessage.value = msg
-    fefoOverlay.value = true
+    const isFefoViolation = msg.toLowerCase().includes('fefo') || msg.toLowerCase().includes('violation')
+
+    if (isFefoViolation) {
+      // Ofrecer override con PIN en lugar de bloqueo directo
+      overridePendingBatch.value = batchScanned.value.trim()
+      overrideFefoExpected.value = activeItem.value?.lote_fefo_sugerido || ''
+      overrideModal.value = true
+    } else {
+      scanError.value = msg
+      fefoOverlayMessage.value = msg
+      fefoOverlay.value = true
+    }
     playErrorBuzz()
     batchScanned.value = ''
   } finally {
     scanning.value = false
   }
+}
+
+async function onOverrideConfirm({ pin_manager, justificacion }) {
+  overrideModal.value = false
+  if (!activeItem.value || !overridePendingBatch.value) return
+
+  scanning.value = true
+  scanError.value = ''
+
+  const item = activeItem.value
+  const acumulado = qtyAcumulada.value[item.item_code] ?? 0
+
+  try {
+    const result = await overrideFefoBatch({
+      sales_order: pickList.value.sales_order,
+      item_code: item.item_code,
+      batch_requested: overridePendingBatch.value,
+      pin_manager,
+      justificacion,
+      qty_ya_escaneada: acumulado,
+    })
+
+    qtyAcumulada.value = {
+      ...qtyAcumulada.value,
+      [item.item_code]: result.qty_escaneada_total,
+    }
+
+    lastScanOk.value = { ...result, status: 'ok', batch_validado: result.batch_override }
+    playSuccessBeep()
+
+    if (result.cierre_parcial) {
+      const siguiente = items.value.findIndex((it, i) => {
+        const done = (qtyAcumulada.value[it.item_code] ?? 0)
+        return i > activeItemIndex.value && done < it.qty_pendiente
+      })
+      if (siguiente !== -1) activeItemIndex.value = siguiente
+    }
+  } catch (error) {
+    const msg = error?.message || error?.message_fr || 'Override refuse.'
+    scanError.value = msg
+    fefoOverlayMessage.value = msg
+    fefoOverlay.value = true
+    playErrorBuzz()
+  } finally {
+    scanning.value = false
+    overridePendingBatch.value = ''
+    overrideFefoExpected.value = ''
+  }
+}
+
+function onOverrideCancel() {
+  overrideModal.value = false
+  overridePendingBatch.value = ''
+  overrideFefoExpected.value = ''
 }
 
 function onDismissOverlay() {
@@ -174,15 +243,25 @@ function resetSession() {
 
 <template>
   <KioskLayout maxWidth="6xl">
-    <!-- FullScreen overlay FEFO bloqueante -->
+    <!-- FullScreen overlay para errores no-FEFO (cantidad excedida, lote sin stock, etc.) -->
     <FullScreenOverlay
       v-if="fefoOverlay"
       variant="error"
-      title="Blocage FEFO"
+      title="Blocage Picking"
       :subtitle="fefoOverlayMessage"
       hint="Appuyez pour fermer"
       :clickable="true"
       @click="onDismissOverlay"
+    />
+
+    <!-- Modal override FEFO con PIN de encargado -->
+    <OverrideFEFOModal
+      v-if="overrideModal"
+      :item-code="activeItem?.item_code || ''"
+      :batch-fefo="overrideFefoExpected"
+      :batch-requested="overridePendingBatch"
+      @confirm="onOverrideConfirm"
+      @cancel="onOverrideCancel"
     />
 
     <!-- Header -->

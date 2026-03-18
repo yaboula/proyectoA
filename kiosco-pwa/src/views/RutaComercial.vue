@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ArrowLeft,
+  Boxes,
   CheckCircle2,
   CircleAlert,
   CloudOff,
@@ -229,6 +230,13 @@ onUnmounted(() => {
             >
               <ArrowLeft :size="18" />
               Retour hub
+            </button>
+            <button
+              @click="router.push({ name: 'catalogo-stock' })"
+              class="h-12 rounded-md border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 active:bg-blue-100 transition flex items-center justify-center gap-2"
+            >
+              <Boxes :size="18" />
+              Catalogue
             </button>
             <button
               @click="loadRuta"

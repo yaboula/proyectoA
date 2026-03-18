@@ -173,6 +173,18 @@ export function validarScanFefo({ sales_order, item_code, batch_scanned, qty_ya_
   })
 }
 
+/** S09 — Override de lote FEFO autorizado por PIN de encargado */
+export function overrideFefoBatch({ sales_order, item_code, batch_requested, pin_manager, justificacion, qty_ya_escaneada = 0 }) {
+  return client.post(`${B2B_LOGISTICA_BASE}.override_fefo_batch`, {
+    sales_order,
+    item_code,
+    batch_requested,
+    pin_manager,
+    justificacion,
+    qty_ya_escaneada,
+  })
+}
+
 /** S10 — Entregas pendientes del turno del chofer */
 export function getEntregasPendientesChofer(limit = 50) {
   return client.get(`${B2B_LOGISTICA_BASE}.get_entregas_pendientes_chofer`, {

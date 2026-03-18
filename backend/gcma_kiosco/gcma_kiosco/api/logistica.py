@@ -4,6 +4,7 @@ GCMA / Maroc B2B — Endpoints logisticos (Sprint 09-10).
 Contrato API objetivo:
 - GET  /api/method/maroc_b2b.api.logistica.get_pick_list
 - POST /api/method/maroc_b2b.api.logistica.validar_scan_fefo
+- POST /api/method/maroc_b2b.api.logistica.override_fefo_batch
 - GET  /api/method/maroc_b2b.api.logistica.get_entregas_pendientes_chofer
 - POST /api/method/maroc_b2b.api.logistica.registrar_pod
 """
@@ -260,6 +261,129 @@ def validar_scan_fefo(sales_order: str, item_code: str, batch_scanned: str, qty_
         "qty_pendiente": flt(qty_pendiente, 2),
         "qty_restante": flt(qty_restante, 2),
         "cierre_parcial": cierre_parcial,
+    }
+
+
+def _validate_manager_pin(pin: str) -> str:
+    """Valida el PIN del encargado y devuelve su nombre de usuario."""
+    raw_pin = (pin or "").strip()
+    if not raw_pin:
+        frappe.throw(_("PIN requerido para autorizar el override"), frappe.ValidationError)
+
+    # El PIN se guarda como custom_kiosk_profile en el Employee vinculado al usuario
+    result = frappe.db.sql(
+        """
+        select u.name as user
+        from `tabUser` u
+        inner join `tabEmployee` e on e.user_id = u.name
+        where e.custom_qr_badge_token = %(pin)s
+          and u.enabled = 1
+        limit 1
+        """,
+        {"pin": raw_pin},
+        as_dict=True,
+    )
+
+    if not result:
+        frappe.throw(_("PIN invalido o sin autorizacion de encargado"), frappe.AuthenticationError)
+
+    user = result[0].user
+    roles = frappe.get_roles(user)
+    allowed = {"Warehouse Manager", "Stock Manager", "System Manager", "Logistics Manager"}
+    if not (set(roles) & allowed):
+        frappe.throw(
+            _("Usuario {0} no tiene rol de encargado de almacen").format(user),
+            frappe.PermissionError,
+        )
+
+    return user
+
+
+@frappe.whitelist()
+def override_fefo_batch(
+    sales_order: str,
+    item_code: str,
+    batch_requested: str,
+    pin_manager: str,
+    justificacion: str | None = None,
+    qty_ya_escaneada: str = "0",
+):
+    """
+    Sprint 09 — Override de lote FEFO con autorización de encargado por PIN.
+    Se usa cuando el lote FEFO teórico no está físicamente disponible (merma no documentada).
+    El override queda trazado en el Log del sistema con nombre del encargado.
+    """
+    if not sales_order or not item_code or not batch_requested:
+        frappe.throw(
+            _("Parametros obligatorios: sales_order, item_code, batch_requested"),
+            frappe.ValidationError,
+        )
+
+    if not frappe.db.exists("Sales Order", sales_order):
+        frappe.throw(_("Sales Order no existe"), frappe.ValidationError)
+
+    manager_user = _validate_manager_pin(pin_manager)
+
+    acumulado = max(0.0, flt(qty_ya_escaneada))
+
+    so_item = _get_sales_order_item(sales_order, item_code)
+    warehouse = _get_dispatch_warehouse(so_item, sales_order)
+
+    qty_pedida = flt(so_item.qty)
+    qty_entregada = flt(so_item.delivered_qty)
+    qty_pendiente = max(0.0, qty_pedida - qty_entregada)
+
+    if acumulado >= qty_pendiente:
+        frappe.throw(
+            _("Quantite deja atteinte ({0}/{1}).").format(int(acumulado), int(qty_pendiente)),
+            frappe.ValidationError,
+        )
+
+    # Validar que el lote solicitado existe y pertenece al item
+    batch = _get_batch_for_item(batch_requested, item_code)
+    stock = flt(get_stock_lote_almacen(item_code, warehouse, batch.name))
+    if stock <= 0:
+        frappe.throw(
+            _("Le lot demande {0} n'a pas de stock disponible en expedition").format(batch_requested),
+            frappe.ValidationError,
+        )
+
+    nuevo_acumulado = acumulado + 1
+    qty_restante = max(0.0, qty_pendiente - nuevo_acumulado)
+
+    # Trazar el override en el log del sistema
+    nota = (justificacion or "").strip() or "Sin justificacion"
+    frappe.logger("gcma_kiosco").warning(
+        "[OverrideFEFO] SO=%s item=%s lote=%s encargado=%s qty_override=%s nota=%s",
+        sales_order,
+        item_code,
+        batch_requested,
+        manager_user,
+        nuevo_acumulado,
+        nota,
+    )
+
+    # Guardar en frappe.log_error con nivel INFO para trazabilidad en desk
+    frappe.log_error(
+        title=f"Override FEFO autorizado — {sales_order}",
+        message=(
+            f"Encargado: {manager_user}\n"
+            f"Sales Order: {sales_order}\n"
+            f"Item: {item_code}\n"
+            f"Lote override: {batch_requested}\n"
+            f"Qty override: {nuevo_acumulado}/{qty_pendiente}\n"
+            f"Justificacion: {nota}"
+        ),
+    )
+
+    return {
+        "status": "override_autorizado",
+        "batch_override": batch.name,
+        "autorizado_por": manager_user,
+        "qty_escaneada_total": flt(nuevo_acumulado, 2),
+        "qty_pendiente": flt(qty_pendiente, 2),
+        "qty_restante": flt(qty_restante, 2),
+        "cierre_parcial": qty_restante == 0,
     }
 
 

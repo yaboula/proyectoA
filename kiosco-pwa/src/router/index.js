@@ -54,16 +54,25 @@ const routes = [
     path: '/rutas-comercial',
     name: 'rutas-comercial',
     component: () => import('../views/RutaComercial.vue'),
+    meta: { module: 'comercial' },
+  },
+  {
+    path: '/catalogo-stock',
+    name: 'catalogo-stock',
+    component: () => import('../views/CatalogoStock.vue'),
+    meta: { module: 'comercial' },
   },
   {
     path: '/picking-fefo',
     name: 'picking-fefo',
     component: () => import('../views/KioscoPickingFEFO.vue'),
+    meta: { module: 'logistica' },
   },
   {
     path: '/chofer-pod',
     name: 'chofer-pod',
     component: () => import('../views/AppChoferPOD.vue'),
+    meta: { module: 'logistica' },
   },
   {
     path: '/portal-b2b',

@@ -18,7 +18,7 @@ from __future__ import annotations
 import base64
 import json
 import math
-from typing import Any
+from typing import Any, Optional
 
 import frappe
 from frappe import _
@@ -302,6 +302,79 @@ def _get_portal_suggestions(id_cliente: str, limit: int = 5) -> list[dict[str, A
         }
         for row in rows
     ]
+
+
+@frappe.whitelist()
+def get_catalogo_stock(
+    search: str | None = None,
+    warehouse: str | None = None,
+    limit: int = 40,
+):
+    """
+    Sprint 07 — Catálogo de ítems con stock proyectado para el comercial en campo.
+    Devuelve items activos con precio de venta y stock real disponible.
+    """
+    limit_value = max(1, min(int(_to_float(limit, 40)), 100))
+    search_term = (search or "").strip()
+
+    filters: dict[str, Any] = {"disabled": 0, "is_sales_item": 1}
+    if search_term:
+        filters["item_name"] = ["like", f"%{search_term}%"]
+
+    items = frappe.get_all(
+        "Item",
+        filters=filters,
+        fields=["name as item_code", "item_name", "item_group", "stock_uom", "description"],
+        order_by="item_name asc",
+        limit=limit_value,
+    )
+
+    if not items:
+        return {"items": [], "total": 0}
+
+    # Precio de venta (lista de precios estándar)
+    price_list = frappe.db.get_single_value("Selling Settings", "selling_price_list") or "Standard Selling"
+    item_codes = [it.item_code for it in items]
+    prices_rows = frappe.get_all(
+        "Item Price",
+        filters={"item_code": ["in", item_codes], "price_list": price_list, "selling": 1},
+        fields=["item_code", "price_list_rate"],
+    )
+    prices = {row.item_code: flt(row.price_list_rate, 2) for row in prices_rows}
+
+    # Stock total por item (todos los warehouses o el indicado)
+    stock_filters = "where b.item_code in %(codes)s"
+    stock_params: dict[str, Any] = {"codes": tuple(item_codes) if len(item_codes) > 1 else (item_codes[0], item_codes[0])}
+    if warehouse:
+        stock_filters += " and b.warehouse = %(wh)s"
+        stock_params["wh"] = warehouse
+
+    stock_rows = frappe.db.sql(
+        f"""
+        select b.item_code, sum(b.actual_qty) as qty
+        from `tabBin` b
+        {stock_filters}
+        group by b.item_code
+        """,
+        stock_params,
+        as_dict=True,
+    )
+    stock_map = {row.item_code: flt(row.qty, 2) for row in stock_rows}
+
+    enriched = [
+        {
+            "item_code": it.item_code,
+            "item_name": it.item_name,
+            "item_group": it.item_group,
+            "uom": it.stock_uom,
+            "precio_venta": prices.get(it.item_code, 0.0),
+            "stock_disponible": stock_map.get(it.item_code, 0.0),
+            "en_stock": stock_map.get(it.item_code, 0.0) > 0,
+        }
+        for it in items
+    ]
+
+    return {"items": enriched, "total": len(enriched), "price_list": price_list}
 
 
 @frappe.whitelist()
