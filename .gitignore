@@ -40,3 +40,16 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# ── Sesiones / Credenciales (NUNCA commitear) ──
+cookies*.txt
+*.cookies
+session*.txt
+auth*.txt
+*.sid
+
+# ── Evidencias y artefactos de QA (opcionales en repo) ──
+kiosco-pwa/evidence/
+
+# ── Cursor / IDE local ──
+.cursor/
