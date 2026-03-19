@@ -49,9 +49,19 @@ test('F01 — Login badge comercial affiche profil "Commercial B2B"', async ({ p
   page.setDefaultTimeout(25_000)
   await loginComercial(page)
 
-  // Le profil affiché doit être "Commercial B2B" (pas "Production")
-  const profileText = page.getByText(/Commercial B2B/i)
-  await expect(profileText.first()).toBeVisible({ timeout: 10_000 })
+  // Le login redirige vers /rutas-comercial (default_route du profil comercial).
+  // On navigue au hub pour vérifier le profileLabel affiché dans le widget opérateur.
+  await page.goto('/hub')
+  await page.waitForURL(/\/hub/, { timeout: 10_000 })
+
+  // store.profileLabel doit afficher "Commercial B2B" dans le widget opérateur
+  // On cible le div qui contient le profileLabel (font-semibold text-zinc-900)
+  const profileWidget = page.locator('.font-semibold.text-zinc-900').filter({ hasText: /Commercial B2B/i })
+  await expect(profileWidget.first()).toBeVisible({ timeout: 10_000 })
+
+  // Le profileLabel NE DOIT PAS être "Production" (régression clé du fix kiosco.py)
+  const profileLabel = await profileWidget.first().innerText()
+  expect(profileLabel).toMatch(/Commercial B2B/i)
 
   // Capture d'écran evidence
   await page.screenshot({ path: 'tests/e2e/evidence/F01-profil-comercial.png', fullPage: false })
