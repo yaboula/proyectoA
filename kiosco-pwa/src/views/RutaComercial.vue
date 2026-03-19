@@ -195,10 +195,10 @@ onUnmounted(() => {
             Force de vente B2B
           </div>
           <div>
-            <div class="gcma-section-label">Hoja del dia</div>
-            <h1 class="mt-2 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">Rutas y visitas comerciales</h1>
+            <div class="gcma-section-label">Feuille du jour</div>
+            <h1 class="mt-2 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">Tournee commerciale du jour</h1>
             <p class="mt-3 max-w-3xl text-base leading-7 text-zinc-500">
-              Check-In GPS auditable para cada drogueria. Si no hay red, el evento se guarda localmente y se sincroniza al recuperar cobertura.
+              Check-In GPS auditable pour chaque droguerie. Sans reseau, l'evenement est sauvegarde localement et synchronise au retour de couverture.
             </p>
           </div>
         </div>
@@ -206,19 +206,19 @@ onUnmounted(() => {
         <div class="w-full max-w-md space-y-3">
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="gcma-stat">
-              <div class="gcma-section-label">Ruta</div>
+              <div class="gcma-section-label">Route</div>
               <div class="mt-1 text-lg font-black text-zinc-900">{{ routeData.id_ruta || 'N/A' }}</div>
             </div>
             <div class="gcma-stat">
-              <div class="gcma-section-label">Estado</div>
-              <div class="mt-1 text-lg font-black text-zinc-900">{{ routeData.estado || 'Planificada' }}</div>
+              <div class="gcma-section-label">Etat</div>
+              <div class="mt-1 text-lg font-black text-zinc-900">{{ routeData.estado || 'Planifiee' }}</div>
             </div>
             <div class="gcma-stat">
-              <div class="gcma-section-label">Clientes</div>
+              <div class="gcma-section-label">Clients</div>
               <div class="mt-1 text-2xl font-black text-zinc-900">{{ totalClientes }}</div>
             </div>
             <div class="gcma-stat">
-              <div class="gcma-section-label">Visitados</div>
+              <div class="gcma-section-label">Visites</div>
               <div class="mt-1 text-2xl font-black text-zinc-900">{{ visitados }}</div>
             </div>
           </div>
@@ -316,7 +316,7 @@ onUnmounted(() => {
             </div>
           </div>
           <div v-else-if="cliente.visitado" class="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-            Check-In deja enregistre.
+            Check-In deja enregistre pour aujourd'hui.
           </div>
         </div>
 
