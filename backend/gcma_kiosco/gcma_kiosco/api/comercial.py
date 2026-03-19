@@ -1224,47 +1224,65 @@ def crear_cliente_b2b(
 
     customer_id = customer.name
 
-    # 2. Crear Address si se proporciona
+    # 2. Crear Address si se proporciona (defensivo: no bloquea si falla Address Template)
+    address_created = False
     if address_line1 or city:
-        address = frappe.new_doc("Address")
-        address.address_title = customer_name
-        address.address_type = "Billing"
-        address.address_line1 = address_line1 or customer_name
-        address.city = city or territory
-        address.country = "Morocco"
-        if mobile_no:
-            address.phone = mobile_no
-        if email_id:
-            address.email_id = email_id
-        address.append(
-            "links",
-            {"link_doctype": "Customer", "link_name": customer_id},
-        )
-        address.insert(ignore_permissions=True)
-        frappe.db.commit()
+        try:
+            address = frappe.new_doc("Address")
+            address.address_title = customer_name
+            address.address_type = "Billing"
+            address.address_line1 = address_line1 or customer_name
+            address.city = city or territory
+            address.country = "Morocco"
+            if mobile_no:
+                address.phone = mobile_no
+            if email_id:
+                address.email_id = email_id
+            address.append(
+                "links",
+                {"link_doctype": "Customer", "link_name": customer_id},
+            )
+            address.insert(ignore_permissions=True)
+            frappe.db.commit()
+            address_created = True
+        except Exception as addr_err:
+            frappe.log_error(
+                title="crear_cliente_b2b: Address creation failed (non-blocking)",
+                message=str(addr_err),
+            )
 
     # 3. Crear Contact si hay datos de persona de contacto
-    contact_first = (representant_name or customer_name).strip()
-    if contact_first:
-        contact = frappe.new_doc("Contact")
-        parts = contact_first.split(" ", 1)
-        contact.first_name = parts[0]
-        if len(parts) > 1:
-            contact.last_name = parts[1]
-        if mobile_no:
-            contact.append("phone_nos", {"phone": mobile_no, "is_primary_mobile_no": 1})
-        if email_id:
-            contact.append("email_ids", {"email_id": email_id, "is_primary": 1})
-        contact.append(
-            "links",
-            {"link_doctype": "Customer", "link_name": customer_id},
-        )
-        contact.insert(ignore_permissions=True)
-        frappe.db.commit()
+    contact_created = False
+    contact_first = (representant_name or "").strip()
+    if contact_first or mobile_no or email_id:
+        try:
+            contact = frappe.new_doc("Contact")
+            parts = (contact_first or customer_name).split(" ", 1)
+            contact.first_name = parts[0]
+            if len(parts) > 1:
+                contact.last_name = parts[1]
+            if mobile_no:
+                contact.append("phone_nos", {"phone": mobile_no, "is_primary_mobile_no": 1})
+            if email_id:
+                contact.append("email_ids", {"email_id": email_id, "is_primary": 1})
+            contact.append(
+                "links",
+                {"link_doctype": "Customer", "link_name": customer_id},
+            )
+            contact.insert(ignore_permissions=True)
+            frappe.db.commit()
+            contact_created = True
+        except Exception as cont_err:
+            frappe.log_error(
+                title="crear_cliente_b2b: Contact creation failed (non-blocking)",
+                message=str(cont_err),
+            )
 
     return {
         "success": True,
         "customer_id": customer_id,
         "customer_name": customer_name,
+        "address_created": address_created,
+        "contact_created": contact_created,
         "message": f"Client {customer_name} créé avec succès.",
     }

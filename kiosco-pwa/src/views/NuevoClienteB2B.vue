@@ -63,12 +63,19 @@ async function onSubmit() {
     createdCustomerId.value = res.customer_id ?? res.customer_name ?? ''
     successOverlay.value = true
   } catch (e) {
-    errorMsg.value =
-      e?.message_fr ||
-      e?.message ||
-      e?.exc_type === 'ValidationError'
-        ? e.message || 'Erreur de validation.'
-        : 'Impossible de créer le client. Réessayez.'
+    // Extraer mensaje real de Frappe: puede venir en _server_messages, exception o message
+    let msg = e?.message_fr || e?.message || ''
+    if (!msg && e?._server_messages) {
+      try {
+        const srv = JSON.parse(e._server_messages)
+        msg = srv?.[0]?.message || srv?.[0] || ''
+      } catch { /* ignore */ }
+    }
+    if (!msg && e?.exception) {
+      // Frappe exception string: "frappe.exceptions.XXX: real message here"
+      msg = String(e.exception).split(':').slice(1).join(':').trim() || String(e.exception)
+    }
+    errorMsg.value = msg || 'Impossible de créer le client. Réessayez.'
   } finally {
     submitting.value = false
   }
