@@ -63,6 +63,12 @@ const routes = [
     meta: { module: 'comercial' },
   },
   {
+    path: '/nuevo-cliente-b2b',
+    name: 'nuevo-cliente-b2b',
+    component: () => import('../views/NuevoClienteB2B.vue'),
+    meta: { module: 'comercial' },
+  },
+  {
     path: '/picking-fefo',
     name: 'picking-fefo',
     component: () => import('../views/KioscoPickingFEFO.vue'),

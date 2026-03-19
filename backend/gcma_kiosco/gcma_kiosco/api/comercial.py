@@ -1042,3 +1042,229 @@ def redimir_puntos(id_cliente: str | None = None, puntos: str = "0"):
         "saldo_restante": max(0, balance["saldo_puntos"] - qty_puntos),
         "loyalty_entry": entry.name,
     }
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Sprint B2B — Gestión de clientes B2B (alta y consulta)
+# ────────────────────────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_clientes_b2b(search: str = "", limit: str = "30"):
+    """
+    Devuelve la lista de clientes B2B con su estado de cuenta.
+    Usado por el comercial para seleccionar el destinatario de un pedido.
+    """
+    _limit = min(int(_to_float(limit, 30)), 100)
+    search_clause = ""
+    params: dict = {"limit": _limit}
+
+    if search.strip():
+        search_clause = "AND (c.customer_name LIKE %(search)s OR c.name LIKE %(search)s)"
+        params["search"] = f"%{search.strip()}%"
+
+    rows = frappe.db.sql(
+        f"""
+        SELECT
+            c.name          AS id,
+            c.customer_name AS nombre,
+            c.customer_group AS grupo,
+            c.territory      AS territorio,
+            c.mobile_no      AS telefono,
+            c.email_id       AS email
+        FROM `tabCustomer` c
+        WHERE c.disabled = 0
+          AND c.customer_group NOT IN ('All Customer Groups')
+          {search_clause}
+        ORDER BY c.customer_name
+        LIMIT %(limit)s
+        """,
+        params,
+        as_dict=True,
+    )
+
+    # Enriquecer con estado de cuenta (crédito y bloqueo)
+    result = []
+    for row in rows:
+        try:
+            limite_credito = _get_credit_limit(row.id)
+            deuda = frappe.db.sql(
+                """
+                SELECT IFNULL(SUM(outstanding_amount), 0) AS total
+                FROM `tabSales Invoice`
+                WHERE customer = %(c)s AND docstatus = 1 AND outstanding_amount > 0
+                """,
+                {"c": row.id},
+                as_dict=True,
+            )
+            deuda_total = _to_float(deuda[0].total if deuda else 0)
+            deuda_vencida = frappe.db.sql(
+                """
+                SELECT IFNULL(SUM(outstanding_amount), 0) AS total
+                FROM `tabSales Invoice`
+                WHERE customer = %(c)s AND docstatus = 1
+                  AND outstanding_amount > 0 AND due_date < CURDATE()
+                """,
+                {"c": row.id},
+                as_dict=True,
+            )
+            deuda_vencida_val = _to_float(deuda_vencida[0].total if deuda_vencida else 0)
+            dias_mora = 0
+            if deuda_vencida_val > 0:
+                dias_mora_row = frappe.db.sql(
+                    """
+                    SELECT IFNULL(MAX(DATEDIFF(CURDATE(), due_date)), 0) AS dias
+                    FROM `tabSales Invoice`
+                    WHERE customer = %(c)s AND docstatus = 1
+                      AND outstanding_amount > 0 AND due_date < CURDATE()
+                    """,
+                    {"c": row.id},
+                    as_dict=True,
+                )
+                dias_mora = int(_to_float(dias_mora_row[0].dias if dias_mora_row else 0))
+
+            max_mora = _get_deuda_vencida_limit()
+            bloqueado = (max_mora > 0 and deuda_vencida_val > max_mora) or (
+                limite_credito > 0 and deuda_total >= limite_credito
+            )
+
+            result.append(
+                {
+                    "id": row.id,
+                    "nombre": row.nombre,
+                    "grupo": row.grupo,
+                    "territorio": row.territorio,
+                    "telefono": row.telefono or "",
+                    "email": row.email or "",
+                    "limite_credito": round(limite_credito, 2),
+                    "deuda_total": round(deuda_total, 2),
+                    "deuda_vencida": round(deuda_vencida_val, 2),
+                    "dias_mora": dias_mora,
+                    "bloqueado": bloqueado,
+                    "credito_disponible": round(max(0, limite_credito - deuda_total), 2),
+                }
+            )
+        except Exception:
+            result.append(
+                {
+                    "id": row.id,
+                    "nombre": row.nombre,
+                    "grupo": row.grupo or "",
+                    "territorio": row.territorio or "",
+                    "telefono": row.telefono or "",
+                    "email": row.email or "",
+                    "limite_credito": 0,
+                    "deuda_total": 0,
+                    "deuda_vencida": 0,
+                    "dias_mora": 0,
+                    "bloqueado": False,
+                    "credito_disponible": 0,
+                }
+            )
+
+    return {"clientes": result, "total": len(result)}
+
+
+@frappe.whitelist()
+def crear_cliente_b2b(
+    customer_name: str,
+    customer_group: str = "Droguerie",
+    territory: str = "Rabat",
+    mobile_no: str = "",
+    email_id: str = "",
+    tax_id: str = "",
+    address_line1: str = "",
+    city: str = "",
+    representant_name: str = "",
+):
+    """
+    Crea un nuevo cliente B2B en ERPNext con su Address y Contact.
+    Devuelve el ID (name) del Customer creado.
+
+    Sincronización con ERPNext:
+    - Crea Customer con los grupos y territorios configurados.
+    - Crea Address (type Billing) vinculada via Dynamic Link.
+    - Crea Contact vinculado via Dynamic Link si se proveen datos de contacto.
+    - Asigna crédito 0 por defecto (el manager lo configura desde ERP).
+    """
+    customer_name = (customer_name or "").strip()
+    if not customer_name:
+        frappe.throw(_("Raison sociale obligatoire"), frappe.ValidationError)
+
+    # Validar grupo y territorio permitidos
+    _GRUPOS_B2B = {"Droguerie", "Distributeur", "Grossiste"}
+    if customer_group not in _GRUPOS_B2B:
+        frappe.throw(
+            _("Groupe client invalide. Valeurs acceptées: {0}").format(", ".join(_GRUPOS_B2B)),
+            frappe.ValidationError,
+        )
+
+    # Verificar que no exista ya un cliente con el mismo nombre
+    existing = frappe.db.get_value("Customer", {"customer_name": customer_name}, "name")
+    if existing:
+        frappe.throw(
+            _("Un client avec ce nom existe déjà: {0}").format(existing),
+            frappe.ValidationError,
+        )
+
+    # 1. Crear el Customer
+    customer = frappe.new_doc("Customer")
+    customer.customer_name = customer_name
+    customer.customer_type = "Company"
+    customer.customer_group = customer_group
+    customer.territory = territory or "Rabat"
+    if mobile_no:
+        customer.mobile_no = mobile_no
+    if email_id:
+        customer.email_id = email_id
+    if tax_id:
+        customer.tax_id = tax_id
+
+    customer.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    customer_id = customer.name
+
+    # 2. Crear Address si se proporciona
+    if address_line1 or city:
+        address = frappe.new_doc("Address")
+        address.address_title = customer_name
+        address.address_type = "Billing"
+        address.address_line1 = address_line1 or customer_name
+        address.city = city or territory
+        address.country = "Morocco"
+        if mobile_no:
+            address.phone = mobile_no
+        if email_id:
+            address.email_id = email_id
+        address.append(
+            "links",
+            {"link_doctype": "Customer", "link_name": customer_id},
+        )
+        address.insert(ignore_permissions=True)
+        frappe.db.commit()
+
+    # 3. Crear Contact si hay datos de persona de contacto
+    contact_first = (representant_name or customer_name).strip()
+    if contact_first:
+        contact = frappe.new_doc("Contact")
+        parts = contact_first.split(" ", 1)
+        contact.first_name = parts[0]
+        if len(parts) > 1:
+            contact.last_name = parts[1]
+        if mobile_no:
+            contact.append("phone_nos", {"phone": mobile_no, "is_primary_mobile_no": 1})
+        if email_id:
+            contact.append("email_ids", {"email_id": email_id, "is_primary": 1})
+        contact.append(
+            "links",
+            {"link_doctype": "Customer", "link_name": customer_id},
+        )
+        contact.insert(ignore_permissions=True)
+        frappe.db.commit()
+
+    return {
+        "success": True,
+        "customer_id": customer_id,
+        "customer_name": customer_name,
+        "message": f"Client {customer_name} créé avec succès.",
+    }

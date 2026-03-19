@@ -66,3 +66,33 @@ export async function createSupportTicket(description, b64Photo, affectedBatch, 
   if (idCliente) payload.id_cliente = idCliente
   return client.post(`${BASE}.create_support_ticket`, payload)
 }
+
+/** Alta cliente — lista de clientes B2B con estado de cuenta */
+export function getClientesB2B({ search = '', limit = 30 } = {}) {
+  return client.get(`${BASE}.get_clientes_b2b`, { params: { search, limit } })
+}
+
+/** Alta cliente — crea nuevo Customer + Address + Contact en ERPNext */
+export function crearClienteB2B({
+  customer_name,
+  customer_group = 'Droguerie',
+  territory = 'Rabat',
+  mobile_no = '',
+  email_id = '',
+  tax_id = '',
+  address_line1 = '',
+  city = '',
+  representant_name = '',
+}) {
+  return client.post(`${BASE}.crear_cliente_b2b`, {
+    customer_name,
+    customer_group,
+    territory,
+    mobile_no,
+    email_id,
+    tax_id,
+    address_line1,
+    city,
+    representant_name,
+  })
+}
