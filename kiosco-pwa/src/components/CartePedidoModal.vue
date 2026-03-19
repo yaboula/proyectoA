@@ -222,7 +222,7 @@ async function onSubmit() {
           </button>
           <button
             type="button"
-            :disabled="!canSubmit || successMsg"
+            :disabled="!canSubmit || !!successMsg"
             class="h-16 flex-[2] rounded-md bg-blue-600 text-sm font-black uppercase tracking-[0.14em] text-white active:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2"
             @click="onSubmit"
           >

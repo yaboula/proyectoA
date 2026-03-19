@@ -272,25 +272,40 @@ test('F08 — Soumission commande crée SO en ligne ou enfile hors ligne', async
 
   await btnPasser.click()
 
-  // Attendre résultat : succès (SAL-ORD) ou message offline
-  await page.waitForFunction(
-    () => {
-      const txt = document.body.innerText
-      return (
-        txt.includes('SAL-ORD') ||
-        txt.includes('enregistrée') ||
-        txt.includes('Hors ligne') ||
-        txt.includes('sauvegardée')
-      )
-    },
-    { timeout: 20_000 }
-  )
+  // Trois cas possibles :
+  // A) Succès en ligne : successMsg affiché brièvement → emit('submitted') → modal fermé + panier vidé
+  // B) Succès offline : message "Hors ligne" dans le modal
+  // C) Erreur API : message d'erreur dans le modal
+  //
+  // On détecte le succès soit par la fermeture du modal (cas A),
+  // soit par le message offline (cas B).
+  let orderResult = 'unknown'
 
-  const resultText = await page.evaluate(() => document.body.innerText)
-  const isSuccess = resultText.includes('SAL-ORD') || resultText.includes('enregistrée')
-  const isOffline = resultText.includes('Hors ligne') || resultText.includes('sauvegardée')
+  try {
+    // Cas A : modal se ferme rapidement (succès en ligne)
+    await page.waitForFunction(
+      () => !document.body.innerText.includes('Panier de commande'),
+      { timeout: 10_000 }
+    )
+    orderResult = 'success-online'
+  } catch {
+    // Le modal est encore ouvert — vérifier le message affiché
+    const bodyText = await page.evaluate(() => document.body.innerText)
+    if (bodyText.includes('Hors ligne') || bodyText.includes('sauvegardée')) {
+      orderResult = 'success-offline'
+    } else if (bodyText.includes('SAL-ORD') || bodyText.includes('enregistrée')) {
+      orderResult = 'success-online'
+    } else {
+      orderResult = 'error: ' + bodyText.substring(0, 200)
+    }
+  }
 
-  expect(isSuccess || isOffline).toBe(true)
+  expect(['success-online', 'success-offline']).toContain(orderResult)
+
+  // Le panier doit être vide si succès en ligne
+  if (orderResult === 'success-online') {
+    await expect(page.getByText(/article.*dans le panier/i)).toHaveCount(0)
+  }
 
   await page.screenshot({ path: 'tests/e2e/evidence/F08-commande-result.png', fullPage: false })
 })
