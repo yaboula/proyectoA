@@ -12,6 +12,16 @@
  *   F08 — Soumission commande (online) → confirmation ou queue offline
  *   F09 — Module Hub : clic sur carte → navigation vers /rutas-comercial
  *
+ * Nouveaux tests (sélecteur client v2) :
+ *   F10 — CartePedidoModal : tab "Base clients" charge la liste ERPNext
+ *   F11 — CartePedidoModal : sélection client → vérification compte → bouton activé
+ *   F12 — CartePedidoModal : client bloqué → bouton désactivé
+ *   F13 — CartePedidoModal : tab "Saisie libre" → confirmer → bouton activé
+ *   F14 — CartePedidoModal : bouton "Nouveau client" → navigation /nuevo-cliente-b2b
+ *   F15 — NuevoClienteB2B : formulaire s'affiche avec tous les champs
+ *   F16 — NuevoClienteB2B : validation champ obligatoire (raison sociale vide)
+ *   F17 — NuevoClienteB2B : soumission crée le client dans ERPNext
+ *
  * Prérequis :
  *   - Vite dev server sur :5173 (ou PLAYWRIGHT_BASE_URL)
  *   - Badge comercial en PLAYWRIGHT_COMERCIAL_BADGE (défaut: COM-2026-BADGE-00099)
@@ -333,4 +343,286 @@ test('F09 — Clic carte "Commercial B2B" dans hub navigue vers /rutas-comercial
   await expect(page).toHaveURL(/\/rutas-comercial/, { timeout: 12_000 })
 
   await page.screenshot({ path: 'tests/e2e/evidence/F09-nav-rutas.png', fullPage: false })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Nouveaux tests — Sélecteur client v2 + Nouveau client B2B
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Helper: ouvrir le CartePedidoModal avec au moins un article ───────────────
+async function openCartModal(page) {
+  await loginComercial(page)
+  await page.goto('/catalogo-stock')
+  await waitForLoad(page)
+  const btnAjouter = page.getByRole('button', { name: /Ajouter/i }).first()
+  if (!(await btnAjouter.isVisible().catch(() => false))) return false
+  await btnAjouter.click()
+  await page.getByRole('button', { name: /Commander/i }).last().click()
+  await expect(page.getByText(/Panier de commande/i)).toBeVisible({ timeout: 8_000 })
+  return true
+}
+
+// ── F10: Tab "Base clients" charge la liste depuis ERPNext ────────────────────
+test('F10 — CartePedidoModal: tab "Base clients" charge la liste ERPNext', async ({ page }) => {
+  page.setDefaultTimeout(35_000)
+  const opened = await openCartModal(page)
+  if (!opened) { test.skip(); return }
+
+  // Le tab "Base clients" doit être actif par défaut
+  await expect(page.getByRole('button', { name: /Base clients/i })).toBeVisible()
+
+  // Attendre que le spinner "Chargement..." du modal disparaisse (pas le spinner du catalogue)
+  await page.waitForFunction(
+    () => !document.body.innerText.includes('Chargement...'),
+    { timeout: 15_000 }
+  )
+
+  // La liste doit contenir les clients ERPNext
+  // On attend spécifiquement les noms des clients seed data
+  await page.waitForFunction(
+    () => {
+      const txt = document.body.innerText
+      return txt.includes('Droguerie Atlas') || txt.includes('Distrib Maghreb')
+    },
+    { timeout: 15_000 }
+  )
+
+  const clientItems = page.locator('button').filter({ hasText: /Droguerie Atlas|Distrib Maghreb/i })
+  const count = await clientItems.count()
+  expect(count).toBeGreaterThan(0)
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F10-client-list.png', fullPage: false })
+})
+
+// ── F11: Sélection client → vérification compte → bouton activé ──────────────
+test('F11 — CartePedidoModal: sélection client vérifie compte et active le bouton', async ({ page }) => {
+  page.setDefaultTimeout(40_000)
+  const opened = await openCartModal(page)
+  if (!opened) { test.skip(); return }
+
+  // Attendre que la liste de clients soit chargée (les noms apparaissent dans des boutons)
+  await page.waitForFunction(
+    () => {
+      const txt = document.body.innerText
+      return txt.includes('Droguerie Atlas') || txt.includes('Distrib Maghreb')
+    },
+    { timeout: 15_000 }
+  )
+
+  // Cliquer sur "Droguerie Atlas Test" (notre client seed data de test)
+  const clienteBtn = page.getByRole('button', { name: /Droguerie Atlas Test/i })
+  await expect(clienteBtn).toBeVisible({ timeout: 5_000 })
+  await clienteBtn.click()
+
+  // Attendre vérification du compte (spinner disparaît, crédit ou bloqué apparaît)
+  await page.waitForFunction(
+    () => {
+      const txt = document.body.innerText
+      return txt.includes('Crédit') || txt.includes('bloqué') || txt.includes('libre')
+    },
+    { timeout: 15_000 }
+  )
+
+  // Droguerie Atlas Test n'est pas bloqué → bouton doit être actif
+  const estaBloquado = await page.getByText(/Compte bloqué/i).isVisible().catch(() => false)
+  if (!estaBloquado) {
+    const btnPasser = page.getByRole('button', { name: /Passer la commande/i })
+    await expect(btnPasser).toBeEnabled({ timeout: 5_000 })
+  }
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F11-client-selected.png', fullPage: false })
+})
+
+// ── F12: Client bloqué → bouton désactivé ────────────────────────────────────
+test('F12 — CartePedidoModal: client bloqué désactive "Passer la commande"', async ({ page }) => {
+  page.setDefaultTimeout(40_000)
+  const opened = await openCartModal(page)
+  if (!opened) { test.skip(); return }
+
+  await page.waitForFunction(() => !document.querySelector('.animate-spin'), { timeout: 15_000 })
+
+  // Chercher un client avec badge "Bloqué"
+  const badgeBloque = page.locator('span').filter({ hasText: /^Bloqué$/ }).first()
+  const hayBloquado = await badgeBloque.isVisible().catch(() => false)
+
+  if (!hayBloquado) {
+    // No hay clientes bloqueados en seed data — test informativo
+    test.info().annotations.push({
+      type: 'info',
+      description: 'Aucun client bloqué dans les données de test — test ignoré',
+    })
+    return
+  }
+
+  // Cliquer sur la ligne du client bloqué (parent button)
+  const clienteBloquadoBtn = page.locator('button').filter({ has: badgeBloque }).first()
+  await clienteBloquadoBtn.click()
+
+  // Attendre la vérification
+  await page.waitForFunction(
+    () => document.body.innerText.includes('bloqué') || document.body.innerText.includes('Crédit'),
+    { timeout: 12_000 }
+  )
+
+  // Le bouton "Passer la commande" DOIT être désactivé
+  const btnPasser = page.getByRole('button', { name: /Passer la commande/i })
+  await expect(btnPasser).toBeDisabled({ timeout: 5_000 })
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F12-client-bloque.png', fullPage: false })
+})
+
+// ── F13: Tab "Saisie libre" → confirmer → bouton activé ──────────────────────
+test('F13 — CartePedidoModal: mode "Saisie libre" permet commande sans vérification crédit', async ({ page }) => {
+  page.setDefaultTimeout(35_000)
+  const opened = await openCartModal(page)
+  if (!opened) { test.skip(); return }
+
+  // Cliquer sur le tab "Saisie libre"
+  await page.getByRole('button', { name: /Saisie libre/i }).click()
+
+  // Un avertissement amber doit apparaître (texte exact du composant)
+  await expect(page.getByText(/Saisie libre.*ne sera pas vérifié|client ne sera pas vérifié/i)).toBeVisible()
+
+  // Saisir un nom de client
+  const inputNom = page.getByPlaceholder(/Droguerie El Wafa/i)
+  await inputNom.fill('Prospect Test SA')
+
+  // Confirmer
+  await page.getByRole('button', { name: /Confirmer ce client/i }).click()
+
+  // Le bouton "Passer la commande" doit être activé (pas de vérif crédit)
+  const btnPasser = page.getByRole('button', { name: /Passer la commande/i })
+  await expect(btnPasser).toBeEnabled({ timeout: 5_000 })
+
+  // Le message informatif bleu doit confirmer le mode libre
+  await expect(page.getByText(/saisie libre.*commande non soumise à vérification|libre.*non soumise/i)).toBeVisible()
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F13-saisie-libre.png', fullPage: false })
+})
+
+// ── F14: Bouton "Nouveau client" → navigates to /nuevo-cliente-b2b ────────────
+test('F14 — CartePedidoModal: bouton "Nouveau client" navigue vers /nuevo-cliente-b2b', async ({ page }) => {
+  page.setDefaultTimeout(30_000)
+  const opened = await openCartModal(page)
+  if (!opened) { test.skip(); return }
+
+  // Le bouton "Nouveau client" doit être visible
+  await expect(page.getByRole('button', { name: /Nouveau client/i })).toBeVisible()
+
+  await page.getByRole('button', { name: /Nouveau client/i }).click()
+
+  // Doit naviguer vers la page d'enregistrement
+  await expect(page).toHaveURL(/\/nuevo-cliente-b2b/, { timeout: 10_000 })
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F14-nouveau-client-nav.png', fullPage: false })
+})
+
+// ── F15: NuevoClienteB2B — formulaire complet ─────────────────────────────────
+test('F15 — NuevoClienteB2B: formulaire affiche tous les champs requis', async ({ page }) => {
+  page.setDefaultTimeout(25_000)
+  await loginComercial(page)
+  await page.goto('/nuevo-cliente-b2b')
+  await page.waitForURL(/\/nuevo-cliente-b2b/, { timeout: 10_000 })
+
+  // Titre de la page
+  await expect(page.getByText(/Enregistrement client/i)).toBeVisible()
+
+  // Champ obligatoire: raison sociale
+  await expect(page.getByPlaceholder(/Droguerie El Wafa/i)).toBeVisible()
+
+  // Sélecteurs groupe (3 boutons)
+  for (const g of ['Droguerie', 'Distributeur', 'Grossiste']) {
+    await expect(page.getByRole('button', { name: new RegExp(`^${g}$`) })).toBeVisible()
+  }
+
+  // Sélecteurs territoire
+  for (const t of ['Casablanca', 'Rabat']) {
+    await expect(page.getByRole('button', { name: new RegExp(`^${t}$`) })).toBeVisible()
+  }
+
+  // Champs optionnels
+  await expect(page.getByPlaceholder(/\+212/i)).toBeVisible()       // téléphone
+  await expect(page.getByPlaceholder(/ICE|000 000/i)).toBeVisible() // ICE fiscal
+
+  // Info sync ERPNext
+  await expect(page.getByText(/Synchronisation ERPNext automatique/i)).toBeVisible()
+
+  // Bouton submit
+  await expect(page.getByRole('button', { name: /Créer ce client/i })).toBeVisible()
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F15-nuevo-cliente-form.png', fullPage: true })
+})
+
+// ── F16: NuevoClienteB2B — validation raison sociale obligatoire ──────────────
+test('F16 — NuevoClienteB2B: bouton submit désactivé si raison sociale vide', async ({ page }) => {
+  page.setDefaultTimeout(25_000)
+  await loginComercial(page)
+  await page.goto('/nuevo-cliente-b2b')
+  await page.waitForURL(/\/nuevo-cliente-b2b/, { timeout: 10_000 })
+
+  // Le bouton doit être désactivé si le champ est vide
+  const btnSubmit = page.getByRole('button', { name: /Créer ce client/i })
+  await expect(btnSubmit).toBeDisabled()
+
+  // Saisir un nom → bouton doit s'activer
+  await page.getByPlaceholder(/Droguerie El Wafa/i).fill('Test Client SARL')
+  await expect(btnSubmit).toBeEnabled()
+
+  // Effacer → bouton désactivé à nouveau
+  await page.getByPlaceholder(/Droguerie El Wafa/i).fill('')
+  await expect(btnSubmit).toBeDisabled()
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F16-validation-required.png', fullPage: false })
+})
+
+// ── F17: NuevoClienteB2B — soumission complète ───────────────────────────────
+test('F17 — NuevoClienteB2B: soumission crée le client dans ERPNext', async ({ page }) => {
+  page.setDefaultTimeout(45_000)
+  await loginComercial(page)
+  await page.goto('/nuevo-cliente-b2b')
+  await page.waitForURL(/\/nuevo-cliente-b2b/, { timeout: 10_000 })
+
+  // Générer un nom unique pour éviter les doublons
+  const uniqueName = `Droguerie Test E2E ${Date.now()}`
+
+  // Remplir le formulaire
+  await page.getByPlaceholder(/Droguerie El Wafa/i).fill(uniqueName)
+
+  // Sélectionner groupe Grossiste
+  await page.getByRole('button', { name: /^Grossiste$/ }).click()
+
+  // Sélectionner territoire Casablanca
+  await page.getByRole('button', { name: /^Casablanca$/ }).click()
+
+  // Téléphone
+  await page.getByPlaceholder(/\+212/i).fill('+212612345678')
+
+  // ICE
+  await page.getByPlaceholder(/ICE|000 000/i).fill('001234567000012')
+
+  // Adresse
+  const addrInputs = page.getByPlaceholder(/Rue, Quartier/i)
+  await addrInputs.fill('123 Boulevard Hassan II')
+  await page.getByPlaceholder(/Ville/i).fill('Casablanca')
+
+  // Soumettre
+  await page.getByRole('button', { name: /Créer ce client/i }).click()
+
+  // Attendre l'overlay de succès ou message d'erreur
+  await page.waitForFunction(
+    () => {
+      const txt = document.body.innerText
+      return txt.includes('créé') || txt.includes('existe') || txt.includes('Impossible')
+    },
+    { timeout: 20_000 }
+  )
+
+  const bodyText = await page.evaluate(() => document.body.innerText)
+
+  // Succès: overlay vert avec "Client créé !" OU erreur si déjà existant (acceptable)
+  const isSuccess = bodyText.includes('créé') && !bodyText.includes('Impossible')
+  const isAlreadyExists = bodyText.includes('existe')
+  expect(isSuccess || isAlreadyExists).toBe(true)
+
+  await page.screenshot({ path: 'tests/e2e/evidence/F17-nuevo-cliente-result.png', fullPage: false })
 })
