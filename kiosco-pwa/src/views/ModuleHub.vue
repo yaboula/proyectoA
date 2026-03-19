@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOperarioStore } from '../stores/operario'
@@ -7,6 +7,8 @@ import {
   Factory,
   FlaskConical,
   Truck,
+  Store,
+  Route,
   ArrowRight,
   ShieldCheck,
   LogOut,
@@ -44,6 +46,24 @@ const allModules = [
     badge: 'Inventaire usine',
     route: { name: 'recepcion' },
     cta: 'Ouvrir la reception',
+  },
+  {
+    code: 'comercial',
+    title: 'Commercial B2B',
+    subtitle: 'Rutas, catalogue stock et commandes clients terrain',
+    icon: Store,
+    badge: 'Force de vente',
+    route: { name: 'rutas-comercial' },
+    cta: 'Ouvrir le commerce',
+  },
+  {
+    code: 'logistica',
+    title: 'Logistique terrain',
+    subtitle: 'Picking FEFO, expedition et confirmation livraison',
+    icon: Route,
+    badge: 'Expedition',
+    route: { name: 'picking-fefo' },
+    cta: 'Ouvrir la logistique',
   },
 ]
 
@@ -194,6 +214,14 @@ function logout() {
             <div class="gcma-data-row p-4">
               <div class="gcma-section-label">Reception</div>
               <div class="mt-1 text-sm text-zinc-600">Reception quai, mise en quarantaine MP et impression locale Zebra.</div>
+            </div>
+            <div class="gcma-data-row p-4">
+              <div class="gcma-section-label">Commercial B2B</div>
+              <div class="mt-1 text-sm text-zinc-600">Rutas comerciales, catalogue stock et creation commandes terrain.</div>
+            </div>
+            <div class="gcma-data-row p-4">
+              <div class="gcma-section-label">Logistique</div>
+              <div class="mt-1 text-sm text-zinc-600">Picking FEFO, expedition et confirmation POD chauffeur.</div>
             </div>
           </div>
         </div>

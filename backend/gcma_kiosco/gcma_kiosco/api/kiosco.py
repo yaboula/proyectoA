@@ -35,6 +35,21 @@ KIOSK_PROFILE_CONFIG = {
         "allowed_modules": ["quality", "reception"],
         "default_route": "/laboratoire",
     },
+    "comercial": {
+        "label": "Commercial B2B",
+        "allowed_modules": ["comercial"],
+        "default_route": "/rutas-comercial",
+    },
+    "logistica": {
+        "label": "Logistique",
+        "allowed_modules": ["logistica"],
+        "default_route": "/picking-fefo",
+    },
+    "reception": {
+        "label": "Reception",
+        "allowed_modules": ["reception"],
+        "default_route": "/recepcion",
+    },
 }
 
 
