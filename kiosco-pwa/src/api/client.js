@@ -15,6 +15,7 @@ const client = axios.create({
     Accept: 'application/json',
     'Cache-Control': 'no-store, no-cache, must-revalidate',
     Pragma: 'no-cache',
+    Expect: '',
   },
   withCredentials: true,
   timeout: 15_000,
