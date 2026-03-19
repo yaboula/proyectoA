@@ -156,9 +156,22 @@ def _current_portal_customer() -> str:
 
 
 def _resolve_portal_customer(id_cliente: str | None = None) -> str:
-    linked_customer = _current_portal_customer()
     requested_customer = (id_cliente or "").strip()
 
+    # Operarios de kiosco (Employee con sesión activa) o managers pueden acceder
+    # a cualquier cliente directamente con id_cliente explícito.
+    user = frappe.session.user
+    _MANAGER_ROLES = {"System Manager", "Sales Manager", "Accounts Manager"}
+    is_manager = (user == "Administrator") or bool(set(frappe.get_roles()) & _MANAGER_ROLES)
+    is_kiosco_employee = bool(
+        frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "name")
+    )
+
+    if (is_manager or is_kiosco_employee) and requested_customer:
+        return requested_customer
+
+    # Flujo normal portal B2B: verificar que el usuario está vinculado al cliente
+    linked_customer = _current_portal_customer()
     if requested_customer and requested_customer != linked_customer:
         frappe.throw(_("Forbidden: cliente fuera de tenant"), frappe.PermissionError)
 
@@ -870,8 +883,12 @@ def _get_loyalty_program() -> str | None:
     if configured:
         return configured
 
-    # Fallback: primer programa activo
-    program = frappe.db.get_value("Loyalty Program", {"disabled": 0}, "name")
+    # Fallback: primer programa activo (sin filtro disabled que puede no existir)
+    try:
+        program = frappe.db.get_value("Loyalty Program", {"disabled": 0}, "name")
+    except Exception:
+        # El campo 'disabled' puede no existir en todas las versiones
+        program = frappe.db.get_value("Loyalty Program", {}, "name")
     return program
 
 
@@ -882,11 +899,10 @@ def _get_loyalty_points_balance(id_cliente: str) -> dict[str, Any]:
     if not program:
         return {"puntos_acumulados": 0, "puntos_canjeados": 0, "saldo_puntos": 0, "programa": None}
 
-    rows = frappe.db.sql(
+    # ERPNext 16: earning en tabLoyalty Point Entry, redemption en tabla hija
+    earned_rows = frappe.db.sql(
         """
-        select
-            sum(case when lpe.type = 'Earning' then lpe.loyalty_points else 0 end) as ganados,
-            sum(case when lpe.type = 'Redemption' then lpe.loyalty_points else 0 end) as canjeados
+        select coalesce(sum(lpe.loyalty_points), 0) as ganados
         from `tabLoyalty Point Entry` lpe
         where lpe.customer = %(customer)s
           and lpe.loyalty_program = %(program)s
@@ -896,9 +912,20 @@ def _get_loyalty_points_balance(id_cliente: str) -> dict[str, Any]:
         as_dict=True,
     )
 
-    row = rows[0] if rows else {}
-    ganados = int(_to_float(row.get("ganados"), 0))
-    canjeados = int(_to_float(row.get("canjeados"), 0))
+    redeemed_rows = frappe.db.sql(
+        """
+        select coalesce(sum(r.redeemed_points), 0) as canjeados
+        from `tabLoyalty Point Entry Redemption` r
+        inner join `tabLoyalty Point Entry` lpe on lpe.name = r.parent
+        where lpe.customer = %(customer)s
+          and lpe.loyalty_program = %(program)s
+        """,
+        {"customer": id_cliente, "program": program},
+        as_dict=True,
+    )
+
+    ganados = int(_to_float((earned_rows[0] if earned_rows else {}).get("ganados"), 0))
+    canjeados = int(_to_float((redeemed_rows[0] if redeemed_rows else {}).get("canjeados"), 0))
 
     return {
         "puntos_acumulados": ganados,
@@ -988,18 +1015,21 @@ def redimir_puntos(id_cliente: str | None = None, puntos: str = "0"):
     descuento_mad = flt(qty_puntos * 10, 2)  # 10 MAD por punto
 
     # Registrar la redención en Loyalty Point Entry
+    # ERPNext 16: invoice_type y company son obligatorios; type fue eliminado
     expiry = frappe.utils.add_months(frappe.utils.today(), 12)
+    company = frappe.db.get_single_value("Global Defaults", "default_company") or "Peintures du Maroc SARL"
     entry = frappe.get_doc(
         {
             "doctype": "Loyalty Point Entry",
             "loyalty_program": program,
             "loyalty_program_tier": None,
             "customer": customer_id,
-            "loyalty_points": qty_puntos,
-            "type": "Redemption",
+            "loyalty_points": -qty_puntos,  # negativo = redención
+            "invoice_type": "Sales Invoice",
+            "invoice": None,
             "expiry_date": expiry,
             "posting_date": frappe.utils.today(),
-            "company": frappe.db.get_single_value("Global Defaults", "default_company"),
+            "company": company,
         }
     )
     entry.insert(ignore_permissions=True)

@@ -378,10 +378,10 @@ def get_panel_gerencial_360(fecha: str | None = None):
 
 
 @frappe.whitelist()
-def get_reporte_fotos_competencia(limit: int = 100):
+def get_reporte_fotos_competencia(limit: int | str = 100):
     """Sprint 12 — Reporte simple de fotos de precios de competencia."""
     _require_manager()
-    rows = _competitor_photo_rows(limit=limit)
+    rows = _competitor_photo_rows(limit=int(limit))
     return {
         "total": len(rows),
         "rows": rows,
