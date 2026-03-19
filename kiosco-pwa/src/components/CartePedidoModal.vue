@@ -12,7 +12,7 @@ import { getEstadoCuenta, syncPedidosOffline } from '../api/customerPortal'
 import { useSyncQueueStore } from '../stores/syncQueue'
 
 const props = defineProps({
-  idCliente: { type: String, required: true },
+  idCliente: { type: String, default: '' },
   cartItems: { type: Array, default: () => [] }, // [{ item_code, item_name, qty, precio }]
 })
 
@@ -20,11 +20,15 @@ const emit = defineEmits(['close', 'submitted'])
 
 const syncStore = useSyncQueueStore()
 
-const loadingEstado = ref(true)
+const loadingEstado = ref(false)
 const submitting = ref(false)
 const estadoCuenta = ref(null)
 const errorMsg = ref('')
 const successMsg = ref('')
+
+// Allow editing client when not pre-filled (comercial selecting which customer)
+const clienteManual = ref(props.idCliente || '')
+const clienteActivo = computed(() => clienteManual.value.trim())
 
 // Carrito editable local
 const localCart = ref(props.cartItems.map(it => ({ ...it })))
@@ -33,16 +37,27 @@ const totalMad = computed(() =>
   localCart.value.reduce((s, it) => s + (it.precio || 0) * it.qty, 0),
 )
 const bloqueado = computed(() => estadoCuenta.value?.bloqueado_para_venta ?? false)
-const canSubmit = computed(() => !bloqueado.value && localCart.value.length > 0 && !submitting.value)
+const canSubmit = computed(() =>
+  !bloqueado.value &&
+  localCart.value.length > 0 &&
+  clienteActivo.value.length > 0 &&
+  !submitting.value
+)
 
-onMounted(async () => {
+async function loadEstado() {
+  if (!clienteActivo.value) return
+  loadingEstado.value = true
   try {
-    estadoCuenta.value = await getEstadoCuenta(props.idCliente)
+    estadoCuenta.value = await getEstadoCuenta(clienteActivo.value)
   } catch {
     estadoCuenta.value = null
   } finally {
     loadingEstado.value = false
   }
+}
+
+onMounted(() => {
+  if (clienteActivo.value) loadEstado()
 })
 
 function changeQty(index, delta) {
@@ -61,7 +76,7 @@ async function onSubmit() {
   errorMsg.value = ''
 
   const pedido = {
-    id_cliente: props.idCliente,
+    id_cliente: clienteActivo.value,
     items: localCart.value.map(it => ({ item_code: it.item_code, qty: it.qty })),
   }
 
@@ -93,11 +108,36 @@ async function onSubmit() {
           <ShoppingCart :size="20" class="text-blue-600" />
           <div class="flex-1">
             <div class="text-sm font-black uppercase tracking-[0.16em] text-zinc-900">Panier de commande</div>
-            <div class="text-xs text-zinc-500">Client: {{ idCliente }}</div>
+            <div v-if="props.idCliente" class="text-xs text-zinc-500">Client: {{ clienteActivo }}</div>
           </div>
           <button type="button" class="h-10 w-10 rounded-md border border-zinc-200 text-zinc-500 active:bg-zinc-50 flex items-center justify-center" @click="emit('close')">
             ✕
           </button>
+        </div>
+
+        <!-- Sélection client (só si no viene pre-filled desde la ruta) -->
+        <div v-if="!props.idCliente" class="px-5 pt-4">
+          <div class="gcma-section-label mb-1.5">Client (ID ERPNext)</div>
+          <div class="flex gap-2">
+            <input
+              v-model="clienteManual"
+              type="text"
+              autocomplete="off"
+              class="flex-1 rounded-md border border-zinc-300 bg-white px-4 py-4 text-xl font-mono text-zinc-900 focus:border-blue-600 focus:outline-none"
+              placeholder="ex: Droguerie Atlas Test"
+              @keyup.enter="loadEstado"
+            />
+            <button
+              type="button"
+              class="h-16 w-16 rounded-md bg-blue-600 text-white flex items-center justify-center"
+              @click="loadEstado"
+            >
+              <BadgeCheck :size="20" />
+            </button>
+          </div>
+          <div v-if="!clienteActivo" class="mt-1.5 text-xs text-amber-600">
+            Saisissez l'ID client pour valider la commande.
+          </div>
         </div>
 
         <!-- Estado de cuenta -->
