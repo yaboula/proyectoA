@@ -25,10 +25,10 @@ S10 — Chofer POD
 [x] Firma en canvas con dedo                                         ← S10-C PASS
 [x] Confirmar → estado cambia a "Livré"                              ← S10-D PASS (mock UI)
 S11 — Portal + Loyalty
-[ ] http://localhost:5173/portal-b2b
-[ ] Widget loyalty: 250 puntos visibles
-[ ] Introducir 50 pts → Échanger → saldo baja a 200 pts
-[ ] Sección facturas/pagos visible
+[x] http://localhost:5173/portal-b2b                              ← S11-A PASS
+[x] Widget loyalty: 250 puntos visibles                           ← S11-B PASS
+[x] Introducir 50 pts → Échanger → saldo baja a 200 pts          ← S11-C PASS (mock UI)
+[x] Sección facturas/pagos visible                                ← S11-D PASS
 S12 — Panel Gerencial
 
 [ ] /panel-gerencial-360
