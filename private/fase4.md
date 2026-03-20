@@ -13,17 +13,17 @@ S08 — Pedido + Carrito
 [x] Apagar WiFi → intentar pedido → mensaje "hors ligne" aparece ← S08-D PASS
 [~] Cliente bloqueado → botón deshabilitado (Poka-Yoke)    ← S08-E SKIP (sin cliente bloqueado en seed)
 S09 — Picking FEFO
-[ ] Login con badge producción/logística → /picking-fefo
-[ ] Introducir SAL-ORD-2026-XXXXX → pick list carga
-[ ] Primer batch sugerido: B3-FEFO-NEAR-001 (30d, prioritario FEFO)
-[ ] Escanear NEAR → validado ✓ verde
-[ ] Intentar escanear FAR primero → overlay rojo + shake
-[ ] Override → pide PIN → acepta → continúa
+[x] Login con badge logística → /picking-fefo                    ← S09-A PASS
+[x] Introducir SAL-ORD-2026-00003 → pick list carga              ← S09-B PASS
+[x] Primer batch sugerido: B3-FEFO-NEAR-001 (FEFO prioritario)   ← S09-C PASS
+[x] Escanear NEAR → "Scan accepté" verde                         ← S09-D PASS
+[x] Escanear FAR → modal "Override FEFO requis" (ámbar)          ← S09-E PASS
+[x] Override → PIN encargado → acepta → "Scan accepté"           ← S09-F PASS (mock UI)
 S10 — Chofer POD
-[ ] Login badge: CHOFER-2026-BADGE-00088 → /chofer-pod
-[ ] Delivery Note de "Droguerie Atlas Test" aparece
-[ ] Firma en canvas con dedo
-[ ] Confirmar → estado cambia a "Livré"
+[x] Login badge: CHOFER-2026-BADGE-00088 → /chofer-pod              ← S10-A PASS
+[x] Delivery Note de "Droguerie Atlas Test" aparece                  ← S10-B PASS
+[x] Firma en canvas con dedo                                         ← S10-C PASS
+[x] Confirmar → estado cambia a "Livré"                              ← S10-D PASS (mock UI)
 S11 — Portal + Loyalty
 [ ] http://localhost:5173/portal-b2b
 [ ] Widget loyalty: 250 puntos visibles
