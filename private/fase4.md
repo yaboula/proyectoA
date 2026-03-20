@@ -30,11 +30,10 @@ S11 — Portal + Loyalty
 [x] Introducir 50 pts → Échanger → saldo baja a 200 pts          ← S11-C PASS (mock UI)
 [x] Sección facturas/pagos visible                                ← S11-D PASS
 S12 — Panel Gerencial
-
-[ ] /panel-gerencial-360
-[ ] Scorecard con métricas del día
-[ ] Mapa Leaflet con pins GPS
-[ ] Botón "Exporter CSV" → descarga fichero
+[x] /panel-gerencial-360                                    ← S12-A PASS
+[x] Scorecard con métricas del día                          ← S12-B PASS
+[x] Mapa Leaflet con pins GPS                               ← S12-C PASS
+[x] Botón "Export CSV" → descarga fichero                   ← S12-D PASS
 
 Credenciales resumen
 Acceso	URL	Usuario	Contraseña
